@@ -2118,35 +2118,73 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <!-- MODAL: ACTUALIZACIONES (auto-updater vía GitHub Releases)          -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
-<div id="updateModal" class="fixed inset-0 z-[999999] hidden" style="background:rgba(0,0,0,0.85);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:16px;">
-    <div style="background:#09090b;border:1px solid #18181b;border-radius:20px;width:100%;max-width:420px;box-shadow:0 40px 80px rgba(0,0,0,0.7);overflow:hidden;">
-        <div style="padding:28px 28px 20px;border-bottom:1px solid #18181b;display:flex;justify-content:space-between;align-items:flex-start;">
-            <div>
-                <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#3f3f46;margin-bottom:4px;">FiscalSync</p>
-                <h2 style="font-size:18px;font-weight:600;color:#fff;letter-spacing:-0.01em;">Actualizaciones</h2>
-            </div>
-            <button onclick="closeUpdateModal()" style="background:none;border:none;color:#52525b;cursor:pointer;padding:4px;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#52525b'">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+<div id="updateModal" class="fixed inset-0 z-[999999] hidden" style="background:rgba(0,0,0,0.88);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:16px;">
+    <div style="background:linear-gradient(180deg,#0d0d10 0%,#09090b 100%);border:1px solid #1f1f23;border-radius:22px;width:100%;max-width:440px;box-shadow:0 50px 100px rgba(0,0,0,0.75),0 0 0 1px rgba(255,255,255,0.02) inset;overflow:hidden;font-family:'Inter',sans-serif;">
+
+        <!-- Header -->
+        <div style="padding:30px 30px 22px;position:relative;">
+            <button onclick="closeUpdateModal()" style="position:absolute;top:22px;right:22px;background:#151517;border:1px solid #232326;color:#71717a;cursor:pointer;padding:7px;border-radius:9px;display:flex;transition:all 0.15s;" onmouseover="this.style.color='#fff';this.style.borderColor='#3f3f46';this.style.background='#1c1c1f';" onmouseout="this.style.color='#71717a';this.style.borderColor='#232326';this.style.background='#151517';">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
+
+            <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#2563eb);display:flex;align-items:center;justify-content:center;margin-bottom:14px;box-shadow:0 6px 18px rgba(59,130,246,0.35);">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#fff"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </div>
+
+            <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#52525b;margin-bottom:5px;">FiscalSync</p>
+            <h2 style="font-size:19px;font-weight:700;color:#fff;letter-spacing:-0.01em;">Actualizaciones</h2>
         </div>
 
-        <div style="padding:28px;">
-            <p style="font-size:12px;color:#71717a;margin-bottom:4px;">Versión instalada</p>
-            <p id="updateCurrentVersion" style="font-size:14px;color:#e4e4e7;font-weight:600;margin-bottom:20px;">—</p>
-
-            <div id="updateStatusBox" style="background:#0a0a0c;border:1px solid #27272a;border-radius:12px;padding:16px;margin-bottom:16px;">
-                <p id="updateStatusText" style="font-size:12px;color:#a1a1aa;line-height:1.5;">Presiona el botón para buscar si hay una nueva versión disponible.</p>
-                <div id="updateProgressWrap" style="display:none;margin-top:12px;background:#18181b;border-radius:999px;height:6px;overflow:hidden;">
-                    <div id="updateProgressBar" style="width:0%;height:100%;background:#3b82f6;border-radius:999px;transition:width 0.2s;"></div>
+        <!-- Tarjeta de versión -->
+        <div style="margin:0 30px 16px;background:#111114;border:1px solid #1f1f23;border-radius:14px;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+            <div>
+                <p style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#52525b;margin-bottom:5px;">Versión instalada</p>
+                <p id="updateCurrentVersion" style="font-size:16px;color:#e4e4e7;font-weight:700;font-variant-numeric:tabular-nums;">—</p>
+            </div>
+            <div id="updateVersionArrowWrap" style="display:none;align-items:center;gap:10px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3f3f46"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                <div style="text-align:right;">
+                    <p style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#3b82f6;margin-bottom:5px;">Disponible</p>
+                    <p id="updateTargetVersion" style="font-size:16px;color:#60a5fa;font-weight:700;font-variant-numeric:tabular-nums;">—</p>
                 </div>
             </div>
+        </div>
 
-            <button id="updateActionBtn" onclick="checkForUpdatesUI()" style="width:100%;padding:11px;background:#3b82f6;color:#fff;font-size:12px;font-weight:600;border:none;border-radius:10px;cursor:pointer;font-family:'Inter',sans-serif;transition:background 0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+        <!-- Caja de estado -->
+        <div style="margin:0 30px 22px;">
+            <div id="updateStatusBox" style="background:#111114;border:1px solid #1f1f23;border-radius:14px;padding:17px 18px;transition:border-color 0.2s;">
+                <div style="display:flex;align-items:flex-start;gap:12px;">
+                    <div id="updateStatusIconWrap" style="width:26px;height:26px;border-radius:8px;background:#1c1c1f;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <svg id="updateStatusIconIdle" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#71717a"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <svg id="updateStatusIconChecking" style="display:none;animation:updateSpin 1s linear infinite;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#60a5fa"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        <svg id="updateStatusIconOk" style="display:none;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                        <svg id="updateStatusIconDownload" style="display:none;" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#60a5fa"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        <svg id="updateStatusIconError" style="display:none;" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f87171"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                    </div>
+                    <p id="updateStatusText" style="font-size:12.5px;color:#a1a1aa;line-height:1.55;padding-top:4px;">Presiona el botón para buscar si hay una nueva versión disponible.</p>
+                </div>
+                <div id="updateProgressWrap" style="display:none;margin-top:14px;">
+                    <div style="background:#1c1c1f;border-radius:999px;height:6px;overflow:hidden;">
+                        <div id="updateProgressBar" style="width:0%;height:100%;background:linear-gradient(90deg,#3b82f6,#60a5fa);border-radius:999px;transition:width 0.3s ease;"></div>
+                    </div>
+                    <p id="updateProgressLabel" style="font-size:10px;color:#52525b;margin-top:7px;text-align:right;font-variant-numeric:tabular-nums;letter-spacing:0.02em;">0%</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botón de acción -->
+        <div style="padding:0 30px 30px;">
+            <button id="updateActionBtn" onclick="checkForUpdatesUI()" style="width:100%;padding:13px;background:#3b82f6;color:#fff;font-size:12.5px;font-weight:700;letter-spacing:0.01em;border:none;border-radius:12px;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.2s;box-shadow:0 4px 14px rgba(59,130,246,0.3);display:flex;align-items:center;justify-content:center;gap:8px;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-4.35-4.35M19 11a8 8 0 11-16 0 8 8 0 0116 0z"/></svg>
                 Buscar actualizaciones
             </button>
         </div>
     </div>
 </div>
+
+<style>
+@keyframes updateSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
 
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <!-- MODAL: CREAR / EDITAR EMPRESA                                     -->
@@ -12789,6 +12827,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         var modal = document.getElementById('updateModal');
         modal.style.display = 'flex';
         modal.classList.remove('hidden');
+        updateSetStatusIcon('idle');
+        document.getElementById('updateVersionArrowWrap').style.display = 'none';
         var verEl = document.getElementById('updateCurrentVersion');
         verEl.textContent = '...';
         if (window.fiscalAPI && window.fiscalAPI.getAppVersion) {
@@ -12808,16 +12848,30 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         modal.classList.add('hidden');
     }
 
+    // Alterna cuál ícono de estado se muestra dentro del círculo (idle/checking/ok/download/error)
+    function updateSetStatusIcon(kind) {
+        var icons = { idle: 'updateStatusIconIdle', checking: 'updateStatusIconChecking', ok: 'updateStatusIconOk', download: 'updateStatusIconDownload', error: 'updateStatusIconError' };
+        Object.keys(icons).forEach(function(k) {
+            document.getElementById(icons[k]).style.display = (k === kind) ? 'block' : 'none';
+        });
+        var box = document.getElementById('updateStatusBox');
+        var borderColors = { idle: '#1f1f23', checking: '#1f3a5f', ok: '#14532d', download: '#1f3a5f', error: '#4c1d1d' };
+        box.style.borderColor = borderColors[kind] || '#1f1f23';
+    }
+
     function checkForUpdatesUI() {
         if (!window.fiscalAPI || !window.fiscalAPI.checkForUpdates) {
             document.getElementById('updateStatusText').textContent = 'Esta función no está disponible en este entorno.';
+            updateSetStatusIcon('error');
             return;
         }
         var btn = document.getElementById('updateActionBtn');
         btn.disabled = true;
         btn.style.opacity = '0.6';
+        document.getElementById('updateVersionArrowWrap').style.display = 'none';
         document.getElementById('updateStatusText').textContent = 'Buscando actualizaciones...';
         document.getElementById('updateProgressWrap').style.display = 'none';
+        updateSetStatusIcon('checking');
         window.fiscalAPI.checkForUpdates();
     }
 
@@ -12827,35 +12881,48 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             var statusText = document.getElementById('updateStatusText');
             var progressWrap = document.getElementById('updateProgressWrap');
             var progressBar = document.getElementById('updateProgressBar');
+            var progressLabel = document.getElementById('updateProgressLabel');
             var btn = document.getElementById('updateActionBtn');
             var dot = document.getElementById('updateDotBadge');
+            var arrowWrap = document.getElementById('updateVersionArrowWrap');
+            var targetVerEl = document.getElementById('updateTargetVersion');
 
             if (data.status === 'checking') {
                 statusText.textContent = 'Buscando actualizaciones...';
+                updateSetStatusIcon('checking');
             } else if (data.status === 'not-available') {
-                statusText.textContent = 'Ya tienes la última versión instalada ✔';
+                statusText.textContent = 'Ya tienes la última versión instalada.';
+                updateSetStatusIcon('ok');
                 btn.disabled = false; btn.style.opacity = '1';
-                btn.textContent = 'Buscar actualizaciones';
+                btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-4.35-4.35M19 11a8 8 0 11-16 0 8 8 0 0116 0z"/></svg> Buscar actualizaciones';
                 btn.setAttribute('onclick', 'checkForUpdatesUI()');
             } else if (data.status === 'available') {
                 statusText.textContent = 'Versión ' + data.version + ' encontrada. Descargando...';
+                updateSetStatusIcon('download');
                 progressWrap.style.display = 'block';
+                targetVerEl.textContent = data.version || '—';
+                arrowWrap.style.display = 'flex';
             } else if (data.status === 'downloading') {
+                updateSetStatusIcon('download');
                 progressWrap.style.display = 'block';
-                progressBar.style.width = (data.percent || 0) + '%';
-                statusText.textContent = 'Descargando actualización... ' + (data.percent || 0) + '%';
+                var pct = data.percent || 0;
+                progressBar.style.width = pct + '%';
+                progressLabel.textContent = pct + '%';
+                statusText.textContent = 'Descargando actualización...';
             } else if (data.status === 'downloaded') {
                 statusText.textContent = 'Actualización descargada. Instalando y reiniciando...';
+                updateSetStatusIcon('ok');
                 progressWrap.style.display = 'none';
                 btn.disabled = true;
                 btn.style.opacity = '0.6';
-                btn.textContent = 'Reiniciando...';
+                btn.innerHTML = 'Reiniciando...';
                 // No se necesita ninguna acción del usuario: main.js instala y reinicia sola en unos segundos.
             } else if (data.status === 'error') {
                 statusText.textContent = 'Error al buscar actualizaciones: ' + (data.message || 'desconocido');
+                updateSetStatusIcon('error');
                 progressWrap.style.display = 'none';
                 btn.disabled = false; btn.style.opacity = '1';
-                btn.textContent = 'Reintentar';
+                btn.innerHTML = 'Reintentar';
                 btn.setAttribute('onclick', 'checkForUpdatesUI()');
             }
         });

@@ -57,9 +57,9 @@ function createWindow() {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// EXPORTACIÓN AUTOMÁTICA ORGANIZADA POR MES Y EMPRESA
+// EXPORTACIÓN AUTOMÁTICA ORGANIZADA POR AÑO, MES Y EMPRESA
 // Centraliza todos los documentos generados por FiscalSync en:
-//   Escritorio/FiscalSync - [Mes]/[Empresa]/
+//   Escritorio/FiscalSync/FiscalSync [Año]/FiscalSync - [Mes] [Año]/[Empresa]/
 // Las carpetas se crean únicamente si no existen; si ya existen se reutilizan.
 // ══════════════════════════════════════════════════════════════════════
 function sanitizeFolderName(name) {
@@ -73,17 +73,27 @@ function sanitizeFolderName(name) {
 // mesLabel esperado con formato "Nombre_del_Mes Año" (ej. "Julio 2026").
 function getExportDir(mesLabel, empresaNombre) {
   const desktopDir = app.getPath('desktop');
-  const mesDir     = path.join(desktopDir, 'FiscalSync - ' + sanitizeFolderName(mesLabel));
-  const empresaDir = path.join(mesDir, sanitizeFolderName(empresaNombre));
 
-  if (!fs.existsSync(mesDir))     fs.mkdirSync(mesDir, { recursive: true });
-  if (!fs.existsSync(empresaDir)) fs.mkdirSync(empresaDir, { recursive: true });
+  // Extrae el año del mesLabel (ej. "Julio 2026" -> "2026").
+  // Si por algún motivo no viene el año en el texto, usa el año actual como respaldo.
+  const yearMatch = String(mesLabel || '').match(/(\d{4})/);
+  const year = yearMatch ? yearMatch[1] : String(new Date().getFullYear());
+
+  const rootDir     = path.join(desktopDir, 'FiscalSync');
+  const yearDir     = path.join(rootDir, 'FiscalSync ' + year);
+  const mesDir      = path.join(yearDir, 'FiscalSync - ' + sanitizeFolderName(mesLabel));
+  const empresaDir  = path.join(mesDir, sanitizeFolderName(empresaNombre));
+
+  if (!fs.existsSync(rootDir))     fs.mkdirSync(rootDir, { recursive: true });
+  if (!fs.existsSync(yearDir))     fs.mkdirSync(yearDir, { recursive: true });
+  if (!fs.existsSync(mesDir))      fs.mkdirSync(mesDir, { recursive: true });
+  if (!fs.existsSync(empresaDir))  fs.mkdirSync(empresaDir, { recursive: true });
 
   return empresaDir;
 }
 
 // save-export-file — Guarda cualquier archivo exportado (CSV, XLS, JSON, etc.)
-// directamente en Escritorio/FiscalSync - [Mes]/[Empresa]/ sin mostrar ningún diálogo.
+// directamente en Escritorio/FiscalSync/FiscalSync [Año]/FiscalSync - [Mes]/[Empresa]/ sin mostrar ningún diálogo.
 // Recibe: { mes, empresa, fileName, content, encoding }
 ipcMain.handle('save-export-file', async (event, { mes, empresa, fileName, content, encoding }) => {
   try {
@@ -434,7 +444,7 @@ ipcMain.handle('fs-write-store', async (event, jsonStr) => {
 // ══════════════════════════════════════════════════════════════════════
 // save-libro-pdf — Genera PDF silencioso desde HTML del libro contable
 // Recibe: { htmlContent: string, fileName: string, mes: string, empresa: string }
-// Guarda automáticamente en: Escritorio/FiscalSync - [Mes]/[Empresa]/<fileName>.pdf
+// Guarda automáticamente en: Escritorio/FiscalSync/FiscalSync [Año]/FiscalSync - [Mes]/[Empresa]/<fileName>.pdf
 // No muestra ningún diálogo — proceso completamente silencioso
 // ══════════════════════════════════════════════════════════════════════
 ipcMain.handle('save-libro-pdf', async (event, { htmlContent, fileName, mes, empresa }) => {
@@ -443,7 +453,7 @@ ipcMain.handle('save-libro-pdf', async (event, { htmlContent, fileName, mes, emp
     const safeName = fileName.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_');
     const safeFileName = safeName.endsWith('.pdf') ? safeName : safeName + '.pdf';
 
-    // Carpeta destino automática: Escritorio/FiscalSync - [Mes]/[Empresa]/
+    // Carpeta destino automática: Escritorio/FiscalSync/FiscalSync [Año]/FiscalSync - [Mes]/[Empresa]/
     // Se crea únicamente si no existe; si ya existe se reutiliza.
     const destDir  = getExportDir(mes, empresa);
     const savePath = path.join(destDir, safeFileName);
