@@ -2103,7 +2103,47 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                     <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4.582 9A8 8 0 0119.418 9M19.418 15A8 8 0 014.582 15"/></svg>
                     Reindexar
                 </button>
+                <!-- AGREGADO NUEVO: BOTÓN ACTUALIZACIONES -->
+                <span style="color:#27272a;font-size:10px;">|</span>
+                <button id="updateFooterBtn" onclick="openUpdateModal()" title="Buscar e instalar actualizaciones" style="display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#3f3f46;font-family:'Inter',sans-serif;padding:4px 8px;border-radius:6px;transition:all 0.2s;position:relative;" onmouseover="this.style.color='#a1a1aa';this.style.background='#18181b';" onmouseout="this.style.color='#3f3f46';this.style.background='none';">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    Actualizaciones
+                    <span id="updateDotBadge" style="display:none;position:absolute;top:1px;right:1px;width:6px;height:6px;border-radius:50%;background:#3b82f6;"></span>
+                </button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- MODAL: ACTUALIZACIONES (auto-updater vía GitHub Releases)          -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div id="updateModal" class="fixed inset-0 z-[999999] hidden" style="background:rgba(0,0,0,0.85);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:16px;">
+    <div style="background:#09090b;border:1px solid #18181b;border-radius:20px;width:100%;max-width:420px;box-shadow:0 40px 80px rgba(0,0,0,0.7);overflow:hidden;">
+        <div style="padding:28px 28px 20px;border-bottom:1px solid #18181b;display:flex;justify-content:space-between;align-items:flex-start;">
+            <div>
+                <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#3f3f46;margin-bottom:4px;">FiscalSync</p>
+                <h2 style="font-size:18px;font-weight:600;color:#fff;letter-spacing:-0.01em;">Actualizaciones</h2>
+            </div>
+            <button onclick="closeUpdateModal()" style="background:none;border:none;color:#52525b;cursor:pointer;padding:4px;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#52525b'">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <div style="padding:28px;">
+            <p style="font-size:12px;color:#71717a;margin-bottom:4px;">Versión instalada</p>
+            <p id="updateCurrentVersion" style="font-size:14px;color:#e4e4e7;font-weight:600;margin-bottom:20px;">—</p>
+
+            <div id="updateStatusBox" style="background:#0a0a0c;border:1px solid #27272a;border-radius:12px;padding:16px;margin-bottom:16px;">
+                <p id="updateStatusText" style="font-size:12px;color:#a1a1aa;line-height:1.5;">Presiona el botón para buscar si hay una nueva versión disponible.</p>
+                <div id="updateProgressWrap" style="display:none;margin-top:12px;background:#18181b;border-radius:999px;height:6px;overflow:hidden;">
+                    <div id="updateProgressBar" style="width:0%;height:100%;background:#3b82f6;border-radius:999px;transition:width 0.2s;"></div>
+                </div>
+            </div>
+
+            <button id="updateActionBtn" onclick="checkForUpdatesUI()" style="width:100%;padding:11px;background:#3b82f6;color:#fff;font-size:12px;font-weight:600;border:none;border-radius:10px;cursor:pointer;font-family:'Inter',sans-serif;transition:background 0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                Buscar actualizaciones
+            </button>
         </div>
     </div>
 </div>
@@ -12740,6 +12780,86 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         renderAdminUserList();
         showToast('Usuario eliminado', 'success');
     }); }
+
+    // ══════════════════════════════════════════════════════════════════
+    // AGREGADO NUEVO: ACTUALIZACIONES (auto-updater vía GitHub Releases)
+    // ══════════════════════════════════════════════════════════════════
+
+    function openUpdateModal() {
+        var modal = document.getElementById('updateModal');
+        modal.style.display = 'flex';
+        modal.classList.remove('hidden');
+        var verEl = document.getElementById('updateCurrentVersion');
+        // window.fiscalAPI no expone la versión directamente; se usa el título de la ventana,
+        // que main.js ya arma con app.getVersion()
+        var titleMatch = document.title.match(/Versión\s*([\d.]+)/);
+        verEl.textContent = titleMatch ? titleMatch[1] : (document.title.includes('Versión') ? document.title.split('Versión').pop() : '—');
+    }
+
+    function closeUpdateModal() {
+        var modal = document.getElementById('updateModal');
+        modal.style.display = 'none';
+        modal.classList.add('hidden');
+    }
+
+    function checkForUpdatesUI() {
+        if (!window.fiscalAPI || !window.fiscalAPI.checkForUpdates) {
+            document.getElementById('updateStatusText').textContent = 'Esta función no está disponible en este entorno.';
+            return;
+        }
+        var btn = document.getElementById('updateActionBtn');
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
+        document.getElementById('updateStatusText').textContent = 'Buscando actualizaciones...';
+        document.getElementById('updateProgressWrap').style.display = 'none';
+        window.fiscalAPI.checkForUpdates();
+    }
+
+    // Escucha los eventos que manda main.js durante todo el proceso
+    if (window.fiscalAPI && window.fiscalAPI.onUpdateStatus) {
+        window.fiscalAPI.onUpdateStatus(function(data) {
+            var statusText = document.getElementById('updateStatusText');
+            var progressWrap = document.getElementById('updateProgressWrap');
+            var progressBar = document.getElementById('updateProgressBar');
+            var btn = document.getElementById('updateActionBtn');
+            var dot = document.getElementById('updateDotBadge');
+
+            if (data.status === 'checking') {
+                statusText.textContent = 'Buscando actualizaciones...';
+            } else if (data.status === 'not-available') {
+                statusText.textContent = 'Ya tienes la última versión instalada ✔';
+                btn.disabled = false; btn.style.opacity = '1';
+                btn.textContent = 'Buscar actualizaciones';
+                btn.setAttribute('onclick', 'checkForUpdatesUI()');
+            } else if (data.status === 'available') {
+                statusText.textContent = 'Versión ' + data.version + ' encontrada. Descargando...';
+                progressWrap.style.display = 'block';
+            } else if (data.status === 'downloading') {
+                progressWrap.style.display = 'block';
+                progressBar.style.width = (data.percent || 0) + '%';
+                statusText.textContent = 'Descargando actualización... ' + (data.percent || 0) + '%';
+            } else if (data.status === 'downloaded') {
+                statusText.textContent = 'Versión ' + data.version + ' descargada y lista para instalar.';
+                progressWrap.style.display = 'none';
+                btn.disabled = false; btn.style.opacity = '1';
+                btn.textContent = 'Instalar y reiniciar ahora';
+                btn.setAttribute('onclick', 'installUpdateUI()');
+                if (dot) dot.style.display = 'block'; // punto azul en el botón del footer, avisa que hay algo listo
+            } else if (data.status === 'error') {
+                statusText.textContent = 'Error al buscar actualizaciones: ' + (data.message || 'desconocido');
+                progressWrap.style.display = 'none';
+                btn.disabled = false; btn.style.opacity = '1';
+                btn.textContent = 'Reintentar';
+                btn.setAttribute('onclick', 'checkForUpdatesUI()');
+            }
+        });
+    }
+
+    function installUpdateUI() {
+        fsConfirm('La aplicación se cerrará y se reiniciará con la nueva versión. ¿Continuar?', function() {
+            window.fiscalAPI.installUpdate();
+        });
+    }
 
     // ══════════════════════════════════════════════════════════════════
     // AGREGADO NUEVO: BACKUP & RESTORE — SISTEMA COMPLETO

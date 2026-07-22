@@ -3,6 +3,8 @@ const path = require('path');
 const fs   = require('fs');
 const { autoUpdater } = require('electron-updater'); // 👈 NUEVO
 
+let mainWindowRef = null; // 👈 NUEVO: referencia para enviar el estado del updater al renderer
+
 function createWindow() {
   // Leer versión una sola vez — app.getVersion() lee del package.json automáticamente
   const appVersion = app.getVersion() || '';
@@ -27,6 +29,8 @@ function createWindow() {
       webSecurity: true,
     }
   });
+
+  mainWindowRef = win; // 👈 NUEVO
 
   Menu.setApplicationMenu(null);
 
@@ -765,37 +769,60 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
-
-  // 👇 NUEVO: revisar actualizaciones al iniciar
-  autoUpdater.checkForUpdatesAndNotify();
+  // Ya NO se revisa automáticamente al iniciar — el usuario la busca manualmente
+  // desde el botón "Actualizaciones" en la interfaz.
 });
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-// 👇 NUEVO: eventos del auto-updater
-autoUpdater.on('checking-for-update', () => {
-  console.log('[Updater] Buscando actualizaciones...');
+// 👇 NUEVO: actualizaciones manuales, controladas desde el botón en la interfaz
+autoUpdater.autoDownload = true;        // al encontrar una versión nueva, la descarga sola
+autoUpdater.autoInstallOnAppQuit = false; // no instala silenciosamente al cerrar — solo cuando el usuario confirma
+
+// Envía el estado del updater al HTML (index.html escucha esto vía preload.js)
+function sendUpdateStatus(status, data) {
+  if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+    mainWindowRef.webContents.send('update-status', Object.assign({ status }, data || {}));
+  }
+}
+
+// El botón "Actualizaciones" del index.html llama a esto para buscar
+ipcMain.handle('check-for-updates', async () => {
+  try {
+    await autoUpdater.checkForUpdates();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
 });
 
-autoUpdater.on('update-available', (info) => {
-  console.log('[Updater] Actualización disponible:', info.version);
-});
-
-autoUpdater.on('update-not-available', () => {
-  console.log('[Updater] No hay actualizaciones nuevas.');
-});
-
-autoUpdater.on('download-progress', (progress) => {
-  console.log(`[Updater] Descargando... ${Math.round(progress.percent)}%`);
-});
-
-autoUpdater.on('update-downloaded', () => {
-  console.log('[Updater] Actualización descargada, se instalará al reiniciar.');
+// El botón "Instalar y reiniciar" (aparece solo cuando ya se descargó) llama a esto
+ipcMain.handle('install-update', () => {
   autoUpdater.quitAndInstall();
 });
 
+autoUpdater.on('checking-for-update', () => {
+  sendUpdateStatus('checking');
+});
+
+autoUpdater.on('update-available', (info) => {
+  sendUpdateStatus('available', { version: info.version });
+});
+
+autoUpdater.on('update-not-available', () => {
+  sendUpdateStatus('not-available');
+});
+
+autoUpdater.on('download-progress', (progress) => {
+  sendUpdateStatus('downloading', { percent: Math.round(progress.percent) });
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+  sendUpdateStatus('downloaded', { version: info.version });
+});
+
 autoUpdater.on('error', (err) => {
-  console.error('[Updater] Error:', err.message);
+  sendUpdateStatus('error', { message: err.message });
 });

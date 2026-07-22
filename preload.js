@@ -72,7 +72,18 @@ contextBridge.exposeInMainWorld('fiscalAPI', {
     cerrarVentanasDTE: () => ipcRenderer.invoke('cerrar-ventanas-dte'),
 
     // Reinicia el flag de cancelación antes de iniciar un nuevo lote
-    resetCancelacionDTE: () => ipcRenderer.invoke('reset-cancelacion-dte')
+    resetCancelacionDTE: () => ipcRenderer.invoke('reset-cancelacion-dte'),
+
+    // ── Auto-actualizaciones (GitHub Releases) ─────────────────────────
+    // Busca si hay una versión nueva; si la hay, la descarga sola en segundo plano
+    checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+
+    // Instala la actualización ya descargada y reinicia la app
+    installUpdate: () => ipcRenderer.invoke('install-update'),
+
+    // Escucha el estado del proceso: { status: 'checking'|'available'|'not-available'
+    //   |'downloading'|'downloaded'|'error', version, percent, message }
+    onUpdateStatus: (callback) => ipcRenderer.on('update-status', (event, data) => callback(data))
 });
 
 // ── electronAPI — usado por el módulo de Correos DTE ──
