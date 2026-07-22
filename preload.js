@@ -78,6 +78,9 @@ contextBridge.exposeInMainWorld('fiscalAPI', {
     // Busca si hay una versión nueva; si la hay, la descarga sola en segundo plano
     checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
 
+    // Devuelve la versión instalada actualmente (fuente: app.getVersion())
+    getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+
     // Instala la actualización ya descargada y reinicia la app
     installUpdate: () => ipcRenderer.invoke('install-update'),
 

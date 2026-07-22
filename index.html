@@ -12790,10 +12790,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         modal.style.display = 'flex';
         modal.classList.remove('hidden');
         var verEl = document.getElementById('updateCurrentVersion');
-        // window.fiscalAPI no expone la versión directamente; se usa el título de la ventana,
-        // que main.js ya arma con app.getVersion()
-        var titleMatch = document.title.match(/Versión\s*([\d.]+)/);
-        verEl.textContent = titleMatch ? titleMatch[1] : (document.title.includes('Versión') ? document.title.split('Versión').pop() : '—');
+        verEl.textContent = '...';
+        if (window.fiscalAPI && window.fiscalAPI.getAppVersion) {
+            window.fiscalAPI.getAppVersion().then(function(v) {
+                verEl.textContent = v || '—';
+            }).catch(function() {
+                verEl.textContent = '—';
+            });
+        } else {
+            verEl.textContent = '—';
+        }
     }
 
     function closeUpdateModal() {
@@ -12839,12 +12845,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 progressBar.style.width = (data.percent || 0) + '%';
                 statusText.textContent = 'Descargando actualización... ' + (data.percent || 0) + '%';
             } else if (data.status === 'downloaded') {
-                statusText.textContent = 'Versión ' + data.version + ' descargada y lista para instalar.';
+                statusText.textContent = 'Actualización descargada. Instalando y reiniciando...';
                 progressWrap.style.display = 'none';
-                btn.disabled = false; btn.style.opacity = '1';
-                btn.textContent = 'Instalar y reiniciar ahora';
-                btn.setAttribute('onclick', 'installUpdateUI()');
-                if (dot) dot.style.display = 'block'; // punto azul en el botón del footer, avisa que hay algo listo
+                btn.disabled = true;
+                btn.style.opacity = '0.6';
+                btn.textContent = 'Reiniciando...';
+                // No se necesita ninguna acción del usuario: main.js instala y reinicia sola en unos segundos.
             } else if (data.status === 'error') {
                 statusText.textContent = 'Error al buscar actualizaciones: ' + (data.message || 'desconocido');
                 progressWrap.style.display = 'none';

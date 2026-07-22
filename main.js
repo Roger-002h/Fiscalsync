@@ -798,6 +798,9 @@ ipcMain.handle('check-for-updates', async () => {
   }
 });
 
+// Devuelve la versión real instalada (la fuente de verdad es app.getVersion())
+ipcMain.handle('get-app-version', () => app.getVersion());
+
 // El botón "Instalar y reiniciar" (aparece solo cuando ya se descargó) llama a esto
 ipcMain.handle('install-update', () => {
   autoUpdater.quitAndInstall();
@@ -821,6 +824,11 @@ autoUpdater.on('download-progress', (progress) => {
 
 autoUpdater.on('update-downloaded', (info) => {
   sendUpdateStatus('downloaded', { version: info.version });
+  // Instalación silenciosa y automática: sin diálogo, sin preguntar nada.
+  // isSilent=true (no muestra el instalador de Windows), isForceRunAfter=true (reabre la app sola)
+  setTimeout(() => {
+    autoUpdater.quitAndInstall(true, true);
+  }, 1500); // pequeña pausa para que el usuario alcance a ver el mensaje "Instalando..."
 });
 
 autoUpdater.on('error', (err) => {
