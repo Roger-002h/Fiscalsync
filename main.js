@@ -57,9 +57,150 @@ function createWindow() {
 }
 
 // ══════════════════════════════════════════════════════════════════════
+// AGREGADO NUEVO (Cambio 04): CONFIGURACIÓN DE IMPRESIÓN DE LIBROS LEGALES
+// Cada libro (compras, cf, ccf) tiene su propia configuración independiente
+// de márgenes, espaciados y posiciones. Se guarda en print-config.json
+// dentro de userData, separado del resto de la configuración del sistema.
+// ══════════════════════════════════════════════════════════════════════
+const PRINT_CONFIG_DEFAULTS = {
+  marginTopCm: 0.6,
+  marginBottomCm: 0.6,
+  marginLeftCm: 0.6,
+  marginRightCm: 0.6,
+  headerPaddingTop: 8,
+  headerPaddingBottom: 20,
+  lineHeight: 1.3,
+  rowPaddingV: 3,
+  cellPaddingH: 4,
+  tableOffsetX: 0,
+  tableOffsetY: 0,
+  fontSize: 7
+};
+
+function getPrintConfigPath() {
+  return path.join(app.getPath('userData'), 'print-config.json');
+}
+
+function readPrintConfig() {
+  try {
+    const p = getPrintConfigPath();
+    if (!fs.existsSync(p)) {
+      return { compras: Object.assign({}, PRINT_CONFIG_DEFAULTS), cf: Object.assign({}, PRINT_CONFIG_DEFAULTS), ccf: Object.assign({}, PRINT_CONFIG_DEFAULTS) };
+    }
+    const raw = fs.readFileSync(p, 'utf8');
+    const parsed = JSON.parse(raw);
+    // Rellena con defaults cualquier campo faltante (por si se agregan parámetros nuevos a futuro)
+    ['compras', 'cf', 'ccf'].forEach(function(tipo) {
+      parsed[tipo] = Object.assign({}, PRINT_CONFIG_DEFAULTS, parsed[tipo] || {});
+    });
+    return parsed;
+  } catch (e) {
+    return { compras: Object.assign({}, PRINT_CONFIG_DEFAULTS), cf: Object.assign({}, PRINT_CONFIG_DEFAULTS), ccf: Object.assign({}, PRINT_CONFIG_DEFAULTS) };
+  }
+}
+
+function writePrintConfig(cfg) {
+  fs.writeFileSync(getPrintConfigPath(), JSON.stringify(cfg, null, 2), 'utf8');
+}
+
+ipcMain.handle('get-print-config', async () => {
+  try {
+    return { ok: true, config: readPrintConfig(), defaults: PRINT_CONFIG_DEFAULTS };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+// Recibe { tipo: 'compras'|'cf'|'ccf', config: {...} } — reemplaza la config de ESE libro únicamente
+ipcMain.handle('set-print-config', async (event, { tipo, config }) => {
+  try {
+    if (['compras', 'cf', 'ccf'].indexOf(tipo) === -1) return { ok: false, error: 'Tipo de libro inválido' };
+    const all = readPrintConfig();
+    all[tipo] = Object.assign({}, PRINT_CONFIG_DEFAULTS, all[tipo], config || {});
+    writePrintConfig(all);
+    return { ok: true, config: all[tipo] };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+// Recibe { tipo } — restaura ESE libro a los valores originales del programa
+ipcMain.handle('reset-print-config', async (event, { tipo }) => {
+  try {
+    if (['compras', 'cf', 'ccf'].indexOf(tipo) === -1) return { ok: false, error: 'Tipo de libro inválido' };
+    const all = readPrintConfig();
+    all[tipo] = Object.assign({}, PRINT_CONFIG_DEFAULTS);
+    writePrintConfig(all);
+    return { ok: true, config: all[tipo] };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// AGREGADO NUEVO (Cambio 03): CONFIGURACIÓN DE RUTAS DE EXPORTACIÓN
+// Permite al usuario elegir dónde se guardan los CSV y los PDF, en vez de
+// usar siempre el Escritorio. Se guarda en un archivo aparte dentro de
+// userData, independiente del store principal (fiscaldata.json).
+// Si no hay configuración (o se restablece), se usa el Escritorio por defecto.
+// ══════════════════════════════════════════════════════════════════════
+function getExportConfigPath() {
+  return path.join(app.getPath('userData'), 'export-config.json');
+}
+
+function readExportConfig() {
+  try {
+    const p = getExportConfigPath();
+    if (!fs.existsSync(p)) return { csvPath: null, pdfPath: null };
+    const raw = fs.readFileSync(p, 'utf8');
+    const parsed = JSON.parse(raw);
+    return { csvPath: parsed.csvPath || null, pdfPath: parsed.pdfPath || null };
+  } catch (e) {
+    return { csvPath: null, pdfPath: null };
+  }
+}
+
+function writeExportConfig(cfg) {
+  fs.writeFileSync(getExportConfigPath(), JSON.stringify(cfg, null, 2), 'utf8');
+}
+
+ipcMain.handle('get-export-config', async () => {
+  try {
+    return { ok: true, config: readExportConfig() };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('set-export-config', async (event, { csvPath, pdfPath }) => {
+  try {
+    const current = readExportConfig();
+    const next = {
+      csvPath: (csvPath !== undefined) ? csvPath : current.csvPath,
+      pdfPath: (pdfPath !== undefined) ? pdfPath : current.pdfPath
+    };
+    writeExportConfig(next);
+    return { ok: true, config: next };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('reset-export-config', async () => {
+  try {
+    writeExportConfig({ csvPath: null, pdfPath: null });
+    return { ok: true, config: { csvPath: null, pdfPath: null } };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════
 // EXPORTACIÓN AUTOMÁTICA ORGANIZADA POR AÑO, MES Y EMPRESA
 // Centraliza todos los documentos generados por FiscalSync en:
-//   Escritorio/FiscalSync/FiscalSync [Año]/FiscalSync - [Mes] [Año]/[Empresa]/
+//   [Raíz]/FiscalSync/FiscalSync [Año]/FiscalSync - [Mes] [Año]/[Empresa]/
+// [Raíz] es el Escritorio por defecto, o la carpeta configurada por el
+// usuario en Admin > Sistema > Rutas de exportación (Cambio 03).
 // Las carpetas se crean únicamente si no existen; si ya existen se reutilizan.
 // ══════════════════════════════════════════════════════════════════════
 function sanitizeFolderName(name) {
@@ -71,15 +212,18 @@ function sanitizeFolderName(name) {
 
 // Devuelve (y crea si hace falta) la carpeta de destino para una empresa y un mes dados.
 // mesLabel esperado con formato "Nombre_del_Mes Año" (ej. "Julio 2026").
-function getExportDir(mesLabel, empresaNombre) {
-  const desktopDir = app.getPath('desktop');
+// tipo: 'csv' | 'pdf' — determina qué carpeta raíz configurada usar (Cambio 03).
+function getExportDir(mesLabel, empresaNombre, tipo) {
+  const cfg = readExportConfig();
+  const customRoot = tipo === 'pdf' ? cfg.pdfPath : cfg.csvPath;
+  const rootBase = (customRoot && fs.existsSync(customRoot)) ? customRoot : app.getPath('desktop');
 
   // Extrae el año del mesLabel (ej. "Julio 2026" -> "2026").
   // Si por algún motivo no viene el año en el texto, usa el año actual como respaldo.
   const yearMatch = String(mesLabel || '').match(/(\d{4})/);
   const year = yearMatch ? yearMatch[1] : String(new Date().getFullYear());
 
-  const rootDir     = path.join(desktopDir, 'FiscalSync');
+  const rootDir     = path.join(rootBase, 'FiscalSync');
   const yearDir     = path.join(rootDir, 'FiscalSync ' + year);
   const mesDir      = path.join(yearDir, 'FiscalSync - ' + sanitizeFolderName(mesLabel));
   const empresaDir  = path.join(mesDir, sanitizeFolderName(empresaNombre));
@@ -93,11 +237,11 @@ function getExportDir(mesLabel, empresaNombre) {
 }
 
 // save-export-file — Guarda cualquier archivo exportado (CSV, XLS, JSON, etc.)
-// directamente en Escritorio/FiscalSync/FiscalSync [Año]/FiscalSync - [Mes]/[Empresa]/ sin mostrar ningún diálogo.
+// directamente en [Raíz]/FiscalSync/FiscalSync [Año]/FiscalSync - [Mes]/[Empresa]/ sin mostrar ningún diálogo.
 // Recibe: { mes, empresa, fileName, content, encoding }
 ipcMain.handle('save-export-file', async (event, { mes, empresa, fileName, content, encoding }) => {
   try {
-    const destDir  = getExportDir(mes, empresa);
+    const destDir  = getExportDir(mes, empresa, 'csv');
     const safeName = String(fileName || 'archivo').replace(/[\\/:*?"<>|]/g, '_');
     const destPath = path.join(destDir, safeName);
     fs.writeFileSync(destPath, content, encoding || 'utf8');
@@ -444,7 +588,8 @@ ipcMain.handle('fs-write-store', async (event, jsonStr) => {
 // ══════════════════════════════════════════════════════════════════════
 // save-libro-pdf — Genera PDF silencioso desde HTML del libro contable
 // Recibe: { htmlContent: string, fileName: string, mes: string, empresa: string }
-// Guarda automáticamente en: Escritorio/FiscalSync/FiscalSync [Año]/FiscalSync - [Mes]/[Empresa]/<fileName>.pdf
+// Guarda automáticamente en: [Raíz]/FiscalSync/FiscalSync [Año]/FiscalSync - [Mes]/[Empresa]/<fileName>.pdf
+// ([Raíz] = Escritorio por defecto, o la carpeta configurada en Admin > Sistema)
 // No muestra ningún diálogo — proceso completamente silencioso
 // ══════════════════════════════════════════════════════════════════════
 ipcMain.handle('save-libro-pdf', async (event, { htmlContent, fileName, mes, empresa }) => {
@@ -453,9 +598,9 @@ ipcMain.handle('save-libro-pdf', async (event, { htmlContent, fileName, mes, emp
     const safeName = fileName.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_');
     const safeFileName = safeName.endsWith('.pdf') ? safeName : safeName + '.pdf';
 
-    // Carpeta destino automática: Escritorio/FiscalSync/FiscalSync [Año]/FiscalSync - [Mes]/[Empresa]/
+    // Carpeta destino automática: [Raíz]/FiscalSync/FiscalSync [Año]/FiscalSync - [Mes]/[Empresa]/
     // Se crea únicamente si no existe; si ya existe se reutiliza.
-    const destDir  = getExportDir(mes, empresa);
+    const destDir  = getExportDir(mes, empresa, 'pdf');
     const savePath = path.join(destDir, safeFileName);
 
     return await new Promise((resolve) => {

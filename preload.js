@@ -86,7 +86,27 @@ contextBridge.exposeInMainWorld('fiscalAPI', {
 
     // Escucha el estado del proceso: { status: 'checking'|'available'|'not-available'
     //   |'downloading'|'downloaded'|'error', version, percent, message }
-    onUpdateStatus: (callback) => ipcRenderer.on('update-status', (event, data) => callback(data))
+    onUpdateStatus: (callback) => ipcRenderer.on('update-status', (event, data) => callback(data)),
+
+    // ── Configuración de rutas de exportación (Cambio 03) ──────────────
+    // Devuelve { ok, config: { csvPath, pdfPath } } — null en un campo = usa el Escritorio (default)
+    getExportConfig: () => ipcRenderer.invoke('get-export-config'),
+
+    // Guarda una o ambas rutas. Parámetros opcionales: { csvPath, pdfPath }
+    setExportConfig: (cfg) => ipcRenderer.invoke('set-export-config', cfg),
+
+    // Restablece ambas rutas al valor por defecto (Escritorio)
+    resetExportConfig: () => ipcRenderer.invoke('reset-export-config'),
+
+    // ── Configuración de impresión de Libros Legales (Cambio 04) ───────
+    // Devuelve { ok, config: { compras:{...}, cf:{...}, ccf:{...} }, defaults: {...} }
+    getPrintConfig: () => ipcRenderer.invoke('get-print-config'),
+
+    // Guarda la config de UN libro. tipo: 'compras'|'cf'|'ccf'
+    setPrintConfig: (tipo, config) => ipcRenderer.invoke('set-print-config', { tipo, config }),
+
+    // Restaura UN libro a los valores originales del programa
+    resetPrintConfig: (tipo) => ipcRenderer.invoke('reset-print-config', { tipo })
 });
 
 // ── electronAPI — usado por el módulo de Correos DTE ──
