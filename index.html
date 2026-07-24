@@ -11094,9 +11094,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             renderComprasTable();
             var nitProv = (r.nit || r.nrc || '').trim();
             if (nitProv) {
-                var added = autoRegistrarProveedor(r.nit || '', r.nombre || '', r.dui || '', r.nrc || '');
+                var added = autoRegistrarProveedor(r.nit || '', r.nombre || '', r.dui || '', r.nrc || '', r.clasif || '', r.sector || '', r.tipoCosto || '');
                 if (added) { renderProveedoresTable(); showToast('Registro guardado · Proveedor agregado al catálogo', 'success'); }
-                else showToast('Registro guardado — listo para el siguiente', 'success');
+                else { renderProveedoresTable(); showToast('Registro guardado — listo para el siguiente', 'success'); }
             } else {
                 showToast('Registro guardado — listo para el siguiente', 'success');
             }
@@ -11108,8 +11108,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             renderComprasTable();
             var nitProv = (r.nit || r.nrc || '').trim();
             if (nitProv) {
-                var added = autoRegistrarProveedor(r.nit || '', r.nombre || '', r.dui || '', r.nrc || '');
-                if (added) renderProveedoresTable();
+                var added = autoRegistrarProveedor(r.nit || '', r.nombre || '', r.dui || '', r.nrc || '', r.clasif || '', r.sector || '', r.tipoCosto || '');
+                renderProveedoresTable();
             }
             showToast('Cambios guardados', 'success');
             var pos = document.getElementById('cp-nav-pos');
@@ -14342,7 +14342,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     }
 
     // Registra un proveedor si no existe (por NIT). Devuelve true si fue agregado.
-    function autoRegistrarProveedor(nit, nombre, dui, nrc) {
+    // FIX BUG: acepta opcionalmente clasif/sector/tipoCosto para que, cuando el
+    // proveedor se registra (o ya existe pero aún no tiene clasificación) desde
+    // el mismo proceso de guardado de un registro de Compras, la clasificación
+    // asignada en ese momento quede reflejada de inmediato en el catálogo,
+    // sin necesidad de un paso adicional.
+    function autoRegistrarProveedor(nit, nombre, dui, nrc, clasif, sector, tipoCosto) {
         if (!nit || !activeEmpresaId) return false;
         var list = loadProveedores();
         // AGREGADO NUEVO: normalizar y comparar también por NRC, no solo por NIT
@@ -14363,10 +14368,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             if (!pExist.nrc && nrcNorm)   { pExist.nrc = nrcNorm; cambiado = true; }
             if (!pExist.dui && dui)       { pExist.dui = dui; cambiado = true; }
             if (!pExist.nombre && nombre) { pExist.nombre = nombre; cambiado = true; }
+            if (!pExist.clasif && clasif)       { pExist.clasif = clasif; cambiado = true; }
+            if (!pExist.sector && sector)       { pExist.sector = sector; cambiado = true; }
+            if (!pExist.tipoCosto && tipoCosto) { pExist.tipoCosto = tipoCosto; cambiado = true; }
             if (cambiado) saveProveedores(list);
             return false;
         }
-        list.push({ nit: nitNorm, nrc: nrcNorm, dui: dui || '', nombre: nombre || '', clasif: '', sector: '', tipoCosto: '' });
+        list.push({ nit: nitNorm, nrc: nrcNorm, dui: dui || '', nombre: nombre || '', clasif: clasif || '', sector: sector || '', tipoCosto: tipoCosto || '' });
         saveProveedores(list);
         return true;
     }
@@ -15747,6 +15755,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         var total       = records.length;
         var resumen     = { transmitidos: 0, invalidados: 0, conEvento: 0, noEncontrados: 0, fisicos: 0, errores: 0 };
         var completados = 0;
+        // AGREGADO NUEVO: contadores para la notificación de Sellos de Recepción
+        // completados automáticamente (Compras + IVA Percibido — Anexo 8) durante
+        // este lote de Consultar DTE.
+        var sellosAgregados      = 0;
+        var percibidoActualizado = false;
         var siguiente    = 0; // índice del próximo documento a repartir entre los carriles
         var numCarriles  = total >= DGII_PARALELO_UMBRAL ? DGII_PARALELO_CARRILES : 1;
 
@@ -15792,6 +15805,50 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                     else if (code === 'NO_ENCONTRADO') resumen.noEncontrados++;
                     else if (code === 'FISICO')        resumen.fisicos++;
                     else                                resumen.errores++;
+
+                    // Completar automáticamente el Sello de Recepción — SOLO Libro de
+                    // Compras, y SOLO si el campo está vacío. Si ya trae un valor (por
+                    // ejemplo, cargado desde la importación de un .json), se respeta tal
+                    // cual y no se sobrescribe. La función de importación de .json que
+                    // llena este mismo campo no se toca ni se modifica: esto es
+                    // puramente complementario y corre después de la verificación de
+                    // estado, que siempre se ejecuta igual que antes.
+                    if (libro === 'compras' && resultado && resultado.selloRecepcion) {
+                        var selloActual = (r.selloRecepcion || '').trim();
+                        if (!selloActual) {
+                            r.selloRecepcion = resultado.selloRecepcion.trim();
+                            sellosAgregados++;
+                        }
+
+                        // AGREGADO NUEVO: reutilizar el mismo Sello de Recepción obtenido
+                        // arriba para completar el registro vinculado en el Libro de IVA
+                        // Percibido — Anexo 8 (campo "Serie de Documento"), ya que ambos
+                        // registros pertenecen al mismo documento. No se crea ninguna forma
+                        // nueva de obtener el dato: se reutiliza exactamente el valor ya
+                        // resuelto por Consultar DTE. Se ubica el registro de Percibido
+                        // vinculado mediante _percLinkId/_fromCompraLinkId (el mismo enlace
+                        // que ya usa syncPercibidoFromCompra) y solo se completa si su
+                        // "Serie de Documento" está vacía, sin tocar la lógica de generación
+                        // automática del registro de Percibido.
+                        var percVinculado = null;
+                        if (r._percLinkId) {
+                            percVinculado = percibidoRecords.find(function (p) { return p._fromCompraLinkId === r._percLinkId; });
+                        }
+                        // RESPALDO: hay compras (registros más antiguos, o casos donde el
+                        // vínculo no se generó al importar) que no traen _percLinkId aunque
+                        // sí tengan su percibido correspondiente en la otra tabla. En ese caso
+                        // se usa el código de generación del DTE (numDoc), que es el mismo en
+                        // ambos registros por tratarse del mismo documento, para ubicar el
+                        // percibido y completar su "Serie de Documento" igual que arriba.
+                        if (!percVinculado && r.numDoc) {
+                            percVinculado = percibidoRecords.find(function (p) { return p.numDoc && p.numDoc === r.numDoc; });
+                        }
+                        if (percVinculado && !(percVinculado.serie || '').trim()) {
+                            percVinculado.serie = r.selloRecepcion;
+                            percibidoActualizado = true;
+                            sellosAgregados++;
+                        }
+                    }
 
                     dgiiActualizarCeldaEnVivo(libro, idx, r.estadoDGII);
                     completados++;
@@ -15839,7 +15896,28 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         Promise.all(carriles).then(function () {
             _dgiiEnCurso = false;
             cfg.render(); // re-render final para asegurar consistencia total con los datos guardados
+            // AGREGADO NUEVO: si se completó algún registro de IVA Percibido —
+            // Anexo 8 (campo Serie de Documento) durante el lote, refrescar su
+            // tabla también para que quede visualmente consistente.
+            if (percibidoActualizado && typeof renderPercibidoTable === 'function') renderPercibidoTable();
             dgiiMostrarResumen(resumen, total, _dgiiCancelar);
+
+            // AGREGADO NUEVO: notificación de resultado del completado automático
+            // de Sellos de Recepción (Libro de Compras) y su reflejo en Serie de
+            // Documento (IVA Percibido — Anexo 8). Se muestra solo al finalizar el
+            // lote completo, no en cada documento individual.
+            if (!_dgiiCancelar) {
+                if (sellosAgregados > 0) {
+                    showToast('Sellos de Recepción actualizados correctamente.', 'success');
+                } else {
+                    showToast('No fue necesario actualizar Sellos de Recepción. Todos los documentos ya contienen esta información.', 'success');
+                }
+            }
+
+            // Persistir cambios finales (incluye los Sellos de Recepción de Compras
+            // y las Series de Documento de IVA Percibido completadas en este lote).
+            saveCurrentMonthData();
+
             // Cerrar las ventanas ocultas del Ministerio al terminar el lote —
             // no quedan abiertas en segundo plano sin necesidad. La próxima vez
             // que se presione "Consulta DTE" se vuelven a crear desde cero.

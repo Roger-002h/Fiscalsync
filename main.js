@@ -839,16 +839,44 @@ async function _dgiiConsultarUno(fechaGeneracion, codigoGeneracion, slot) {
   ).catch(() => '');
   const lower = bodyText.toLowerCase();
 
+  // Extraer el Sello de Recepción del resultado (si la página lo muestra).
+  // Se busca el <label> cuyo texto sea "Sello de Recepción" y se toma el
+  // siguiente <label> con contenido como el valor del sello. Es puramente
+  // informativo — no afecta la detección de estado de arriba, y si no se
+  // encuentra simplemente se devuelve cadena vacía. Se extrae siempre
+  // (para cualquier libro), pero solo el Libro de Compras lo usa para
+  // completar el campo "Sello de Recepción" — ver dgiiIniciarVerificacion
+  // en index.html.
+  const selloScript = `
+    (function() {
+      try {
+        function norm(s) {
+          return (s || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        }
+        var labels = Array.from(document.querySelectorAll('label'));
+        var idx = labels.findIndex(function(l) { return norm(l.textContent).indexOf('sello de recepcion') !== -1; });
+        if (idx === -1) return '';
+        for (var i = idx + 1; i < labels.length; i++) {
+          var txt = (labels[i].textContent || '').trim();
+          if (txt && norm(txt).indexOf('sello de recepcion') === -1) return txt;
+        }
+        return '';
+      } catch (e) { return ''; }
+    })();
+  `;
+  const selloRecepcion = await win.webContents.executeJavaScript(selloScript, true).catch(() => '');
+  if (selloRecepcion) console.log(logPrefix + ' Sello de Recepción detectado en la consulta.');
+
   for (const item of DGII_ESTADOS) {
     for (const frase of item.match) {
       if (lower.indexOf(frase) !== -1) {
         console.log(logPrefix + ' Resultado detectado:', item.code);
-        return { estado: item.code, textoOriginal: frase };
+        return { estado: item.code, textoOriginal: frase, selloRecepcion: selloRecepcion };
       }
     }
   }
   console.warn(logPrefix + ' No se reconoció ninguna frase de estado en la respuesta. Texto recibido (primeros 300 caracteres):', bodyText.slice(0, 300));
-  return { estado: 'ERROR', error: 'No se pudo interpretar la respuesta de la página (revisa la consola para ver el texto recibido)' };
+  return { estado: 'ERROR', error: 'No se pudo interpretar la respuesta de la página (revisa la consola para ver el texto recibido)', selloRecepcion: selloRecepcion };
 }
 
 ipcMain.handle('verificar-dte-mh', async (event, fechaGeneracion, codigoGeneracion, slot) => {
