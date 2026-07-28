@@ -2503,8 +2503,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 </div>
             </header>
             <div class="grid grid-cols-12 gap-6">
-                <div class="col-span-12 lg:col-span-5 card-bento p-1 relative group overflow-hidden">
-                    <div id="dropZone" class="h-full w-full rounded-[14px] border-2 border-dashed border-zinc-800 group-hover:border-zinc-700 transition-all flex flex-col items-center justify-center p-12 cursor-pointer"
+                <div class="col-span-12 lg:col-span-5 card-bento p-1 relative group overflow-hidden flex flex-col">
+                    <div id="dropZone" class="flex-1 w-full rounded-[14px] border-2 border-dashed border-zinc-800 group-hover:border-zinc-700 transition-all flex flex-col items-center justify-center p-12 cursor-pointer"
                         onclick="document.getElementById('jsonFolder').click()"
                         ondragover="event.preventDefault(); this.classList.add('border-blue-600')"
                         ondragleave="this.classList.remove('border-blue-600')"
@@ -2514,6 +2514,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                         <p class="text-xs text-zinc-600 mt-1">Lee subcarpetas automáticamente</p>
                         <input type="file" id="jsonFolder" class="hidden" webkitdirectory multiple accept=".json" onchange="handleFolderSelect(this.files)">
                     </div>
+
+                    <!-- AGREGADO (Cambio 01): Importación Individual — mismo apartado, debajo del selector de carpeta, mismo flujo (handleFolderSelect) -->
+                    <button type="button"
+                        onclick="document.getElementById('jsonFileSingle').click()"
+                        class="w-full py-3 flex items-center justify-center gap-2 text-xs text-zinc-500 hover:text-blue-500 transition-colors">
+                        <i data-lucide="file-json" class="w-3.5 h-3.5"></i>
+                        Importar Json Individual
+                    </button>
+                    <input type="file" id="jsonFileSingle" class="hidden" accept=".json" onchange="handleFolderSelect(this.files)">
                 </div>
                 <div class="col-span-12 lg:col-span-7 card-bento p-8">
                     <div class="flex justify-between items-center mb-6">
@@ -5258,7 +5267,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                             </div>
                             <div>
                                 <p class="text-xs font-semibold text-emerald-400 mb-1">El backup incluye:</p>
-                                <p class="text-xs text-zinc-500">Todas las empresas · Todos los usuarios · Todos los registros mensuales (Débito, CF, Compras, IVA Percibido, IVA Retenido, Anticipo, Excluidos, F14) de todos los períodos almacenados.</p>
+                                <p class="text-xs text-zinc-500">Todas las empresas · Todos los usuarios · Proveedores, Clientes y Empleados de cada empresa · Todos los registros mensuales (Débito, CF, Compras, IVA Percibido, IVA Retenido, Anticipo, Excluidos, F14, Quincena Veinticinco) de todos los períodos almacenados, incluyendo el estado de Consulta DTE de cada documento · Módulo de Correos (documentos generados, historial de envíos y plantillas) · Estados de Modo Revisión de cada libro.</p>
                             </div>
                         </div>
                     </div>
@@ -9370,6 +9379,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         // Reiniciar el input file para permitir seleccionar la misma carpeta nuevamente
         var folderInput = document.getElementById('jsonFolder');
         if (folderInput) folderInput.value = '';
+        // AGREGADO (Cambio 01): reiniciar también el input de Importación Individual
+        var singleInput = document.getElementById('jsonFileSingle');
+        if (singleInput) singleInput.value = '';
 
         pendingReaders = files.length;
         var loaded = 0;
@@ -9562,6 +9574,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         // Reiniciar el input file para permitir seleccionar la misma carpeta nuevamente
         var folderInput = document.getElementById('jsonFolder');
         if (folderInput) folderInput.value = '';
+        // AGREGADO (Cambio 01): reiniciar también el input de Importación Individual
+        var singleInputClear = document.getElementById('jsonFileSingle');
+        if (singleInputClear) singleInputClear.value = '';
     }
 
     // ══════════════════════════════════════════════
@@ -13912,6 +13927,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         var totalRecords = 0;
         var totalRevStates = 0;
         var totalAnulados = 0;
+        // AGREGADO (Cambio 01): contadores de Clientes, Empleados y Correos
+        var totalClientes = 0;
+        var totalEmpleados = 0;
+        var totalCorreosDocs = 0;
+        var totalProveedores = 0;
         for (var i = 0; i < fsStore.length(); i++) {
             var key = fsStore.key(i);
             if (key && key.startsWith('fs_data_v' + APP_VERSION + '_')) {
@@ -13930,6 +13950,30 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                     if (rv && typeof rv === 'object') totalRevStates += Object.keys(rv).length;
                 } catch(e) {}
             }
+            if (key && key.startsWith('fs_prov_v' + APP_VERSION + '_')) {
+                try {
+                    var pv = JSON.parse(fsStore.getItem(key));
+                    if (Array.isArray(pv)) totalProveedores += pv.length;
+                } catch(e) {}
+            }
+            if (key && key.startsWith('fs_clientes_v' + APP_VERSION + '_')) {
+                try {
+                    var cl = JSON.parse(fsStore.getItem(key));
+                    if (Array.isArray(cl)) totalClientes += cl.length;
+                } catch(e) {}
+            }
+            if (key && key.startsWith('fs_empleados_v' + APP_VERSION + '_')) {
+                try {
+                    var em = JSON.parse(fsStore.getItem(key));
+                    if (Array.isArray(em)) totalEmpleados += em.length;
+                } catch(e) {}
+            }
+            if (key && key.startsWith('fs_correos_docs_v' + APP_VERSION + '_')) {
+                try {
+                    var cd = JSON.parse(fsStore.getItem(key));
+                    if (Array.isArray(cd)) totalCorreosDocs += cd.length;
+                } catch(e) {}
+            }
         }
 
         statsEl.innerHTML =
@@ -13938,7 +13982,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             '<div class="backup-stat-card"><span class="bsc-label">Períodos</span><span class="bsc-value">' + totalMonths + '</span></div>' +
             '<div class="backup-stat-card"><span class="bsc-label">Total Registros</span><span class="bsc-value">' + totalRecords + '</span></div>' +
             '<div class="backup-stat-card"><span class="bsc-label">Doc. Revisados</span><span class="bsc-value" style="color:#22c55e;">' + totalRevStates + '</span></div>' +
-            '<div class="backup-stat-card"><span class="bsc-label">Anulados</span><span class="bsc-value" style="color:#f59e0b;">' + totalAnulados + '</span></div>';
+            '<div class="backup-stat-card"><span class="bsc-label">Anulados</span><span class="bsc-value" style="color:#f59e0b;">' + totalAnulados + '</span></div>' +
+            '<div class="backup-stat-card"><span class="bsc-label">Proveedores</span><span class="bsc-value">' + totalProveedores + '</span></div>' +
+            '<div class="backup-stat-card"><span class="bsc-label">Clientes</span><span class="bsc-value">' + totalClientes + '</span></div>' +
+            '<div class="backup-stat-card"><span class="bsc-label">Empleados</span><span class="bsc-value">' + totalEmpleados + '</span></div>' +
+            '<div class="backup-stat-card"><span class="bsc-label">Correos Generados</span><span class="bsc-value">' + totalCorreosDocs + '</span></div>';
     }
 
     function generarBackup() {
@@ -13952,7 +14000,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 key.startsWith('fs_data_v' + APP_VERSION + '_') ||
                 key.startsWith('fs_res_v' + APP_VERSION + '_') ||
                 key.startsWith('fs_prov_v' + APP_VERSION + '_') ||
-                key.startsWith('fs_rev_v' + APP_VERSION + '_')
+                key.startsWith('fs_rev_v' + APP_VERSION + '_') ||
+                // AGREGADO (Cambio 01): Clientes, Empleados y Correos entran al backup completo
+                key.startsWith('fs_clientes_v' + APP_VERSION + '_') ||
+                key.startsWith('fs_empleados_v' + APP_VERSION + '_') ||
+                key.startsWith('fs_correos_docs_v' + APP_VERSION + '_') ||
+                key.startsWith('fs_correos_hist_v' + APP_VERSION + '_') ||
+                key.startsWith('fs_correos_plant_v' + APP_VERSION + '_')
             )) {
                 try {
                     allData[key] = JSON.parse(fsStore.getItem(key));
@@ -14058,10 +14112,31 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 });
 
                 var revCount = 0;
+                // AGREGADO (Cambio 01): estadísticas de Clientes, Empleados y Correos del backup cargado
+                var clientesCount = 0;
+                var empleadosCount = 0;
+                var correosCount = 0;
+                var proveedoresCount = 0;
                 Object.keys(parsed.data).forEach(function(key) {
                     if (key.startsWith('fs_rev_v' + APP_VERSION + '_') || key.startsWith('fs_revision_')) {
                         var rv = parsed.data[key];
                         if (rv && typeof rv === 'object') revCount += Object.keys(rv).length;
+                    }
+                    if (key.startsWith('fs_prov_v' + APP_VERSION + '_')) {
+                        var pvArr = parsed.data[key];
+                        if (Array.isArray(pvArr)) proveedoresCount += pvArr.length;
+                    }
+                    if (key.startsWith('fs_clientes_v' + APP_VERSION + '_')) {
+                        var clArr = parsed.data[key];
+                        if (Array.isArray(clArr)) clientesCount += clArr.length;
+                    }
+                    if (key.startsWith('fs_empleados_v' + APP_VERSION + '_')) {
+                        var emArr = parsed.data[key];
+                        if (Array.isArray(emArr)) empleadosCount += emArr.length;
+                    }
+                    if (key.startsWith('fs_correos_docs_v' + APP_VERSION + '_')) {
+                        var cdArr = parsed.data[key];
+                        if (Array.isArray(cdArr)) correosCount += cdArr.length;
                     }
                 });
 
@@ -14078,7 +14153,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                     '<div class="backup-stat-card"><span class="bsc-label">Usuarios</span><span class="bsc-value">' + usersCount + '</span></div>' +
                     '<div class="backup-stat-card"><span class="bsc-label">Períodos</span><span class="bsc-value">' + monthCount + '</span></div>' +
                     '<div class="backup-stat-card"><span class="bsc-label">Total Registros</span><span class="bsc-value">' + recordCount + '</span></div>' +
-                    '<div class="backup-stat-card"><span class="bsc-label">Doc. Revisados</span><span class="bsc-value" style="color:#22c55e;">' + revCount + '</span></div>';
+                    '<div class="backup-stat-card"><span class="bsc-label">Doc. Revisados</span><span class="bsc-value" style="color:#22c55e;">' + revCount + '</span></div>' +
+                    '<div class="backup-stat-card"><span class="bsc-label">Proveedores</span><span class="bsc-value">' + proveedoresCount + '</span></div>' +
+                    '<div class="backup-stat-card"><span class="bsc-label">Clientes</span><span class="bsc-value">' + clientesCount + '</span></div>' +
+                    '<div class="backup-stat-card"><span class="bsc-label">Empleados</span><span class="bsc-value">' + empleadosCount + '</span></div>' +
+                    '<div class="backup-stat-card"><span class="bsc-label">Correos Generados</span><span class="bsc-value">' + correosCount + '</span></div>';
 
                 document.getElementById('brPreview').classList.remove('hidden');
                 lucide.createIcons();
@@ -14120,7 +14199,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                     key.startsWith('fs_data_v' + APP_VERSION + '_') ||
                     key.startsWith('fs_res_v' + APP_VERSION + '_') ||
                     key.startsWith('fs_prov_v' + APP_VERSION + '_') ||
-                    key.startsWith('fs_rev_v' + APP_VERSION + '_')
+                    key.startsWith('fs_rev_v' + APP_VERSION + '_') ||
+                    // AGREGADO (Cambio 01): limpiar también Clientes, Empleados y Correos antes de restaurar
+                    key.startsWith('fs_clientes_v' + APP_VERSION + '_') ||
+                    key.startsWith('fs_empleados_v' + APP_VERSION + '_') ||
+                    key.startsWith('fs_correos_docs_v' + APP_VERSION + '_') ||
+                    key.startsWith('fs_correos_hist_v' + APP_VERSION + '_') ||
+                    key.startsWith('fs_correos_plant_v' + APP_VERSION + '_')
                 )) {
                     keysToRemove.push(key);
                 }
