@@ -3445,7 +3445,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                                 <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Sector</th>
                                 <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Tipo Costo/Gasto</th>
                                 <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Anexo</th>
-                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider sticky col-acciones right-0" style="background:#09090b;">Acciones</th>
+                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider sticky col-acciones" style="background:#09090b;right:148px;">Acciones</th>
                                 <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider dgii-col-th" style="background:#09090b;">Estado DGII</th>
                             </tr>
                         </thead>
@@ -12094,7 +12094,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 '<td class="px-4 py-3 text-xs">' + extractNum(r.sector) + '</td>' +
                 '<td class="px-4 py-3 text-xs">' + extractNum(r.tipoCosto) + '</td>' +
                 '<td class="px-4 py-3 text-xs text-zinc-500">5</td>' +
-                '<td class="px-4 py-3 text-xs sticky right-0 col-acciones" style="background:' + (esAnulado && !_revisionActive.excluido ? 'rgba(15,15,17,0.97)' : '#09090b') + ';">' +
+                '<td class="px-4 py-3 text-xs sticky col-acciones" style="right:148px;background:' + (esAnulado && !_revisionActive.excluido ? 'rgba(15,15,17,0.97)' : '#09090b') + ';">' +
                 '<div class="flex gap-2">' +
                 '<button onclick="openExcluidoModal(' + i + ')" class="p-1.5 hover:text-blue-500 transition" title="Editar"><i data-lucide="edit-3" class="w-4"></i></button>' +
                 btnAnularEx +
