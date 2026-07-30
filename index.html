@@ -3403,6 +3403,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                     <p class="text-zinc-500 text-sm mt-1 font-light">Libro de Compras a Sujetos Excluidos — Anexo 5.</p>
                 </div>
                 <div class="flex items-center gap-2">
+                    <button onclick="dgiiIniciarVerificacion('excluido')" class="flex items-center gap-2 px-4 py-2.5 text-[11px] font-semibold rounded-lg border transition" style="color:#60a5fa;border-color:rgba(96,165,250,0.35);background:rgba(96,165,250,0.07);" onmouseover="this.style.background='rgba(96,165,250,0.15)'" onmouseout="this.style.background='rgba(96,165,250,0.07)'" title="Consultar el estado oficial de cada DTE en el Ministerio de Hacienda">
+                        <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Consulta DTE
+                    </button>
                     <button id="btnRevisionExcluido" onclick="toggleModoRevision('excluido')" class="flex items-center gap-2 px-4 py-2.5 text-zinc-400 text-xs font-semibold rounded-lg border border-zinc-800 hover:border-zinc-600 hover:text-white transition">
                         <i data-lucide="clipboard-check" class="w-3.5 h-3.5"></i> Modo Revisión
                     </button>
@@ -3443,6 +3446,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                                 <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Tipo Costo/Gasto</th>
                                 <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Anexo</th>
                                 <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider sticky col-acciones right-0" style="background:#09090b;">Acciones</th>
+                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider dgii-col-th" style="background:#09090b;">Estado DGII</th>
                             </tr>
                         </thead>
                         <tbody id="excluidoTableBody"></tbody>
@@ -8452,10 +8456,18 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         // independiente — DTE-14 / FSE). Se marcan con _esExcluido para distinguirlas
         // al momento de construir cada fila, y se combinan con las compras normales
         // para respetar el orden cronológico del libro.
-        var filasExcluido = (excluidoRecords || []).map(function(r) {
-            return { _esExcluido: true, fecha: r.fecha, tipoDoc: r.tipoDoc, numDoc: r.numDoc, monto: r.monto,
-                     identificacion: r.identificacion, nombre: r.nombre };
-        });
+        // CORRECCIÓN 02: se excluyen del Libro de Compras Impreso los registros de
+        // Sujeto Excluido que ya fueron anulados (isRegistroAnulado), usando su
+        // índice original dentro de excluidoRecords — sin tocar la lógica de
+        // anulación ni el anexo de Sujeto Excluido, solo esta construcción de filas.
+        var filasExcluido = (excluidoRecords || [])
+            .map(function(r, idx) { return { r: r, idx: idx }; })
+            .filter(function(o) { return !isRegistroAnulado('excluido', o.idx); })
+            .map(function(o) {
+                var r = o.r;
+                return { _esExcluido: true, fecha: r.fecha, tipoDoc: r.tipoDoc, numDoc: r.numDoc, monto: r.monto,
+                         identificacion: r.identificacion, nombre: r.nombre };
+            });
 
         var sorted = comprasRecords.concat(filasExcluido)
             .sort(function(a,b) { return (a.fecha||'').localeCompare(b.fecha||''); });
@@ -10237,6 +10249,33 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         } else {
             tipoDocMapped = '2'; // Default DUI si no viene el campo
         }
+
+        // ══════════════════════════════════════════════════════════════════
+        // CORRECCIÓN 03 — Filtro adicional de validación para el "Tipo de
+        // Documento" al importar JSON en el anexo Compras a Sujeto Excluido.
+        // Se evalúa el dato de identificación del sujeto excluido contando
+        // únicamente sus dígitos numéricos (se ignoran guiones u otros
+        // caracteres de formato) y se clasifica así:
+        //   - exactamente 14 dígitos numéricos -> Tipo 1 (NIT)
+        //   - exactamente 9 dígitos numéricos  -> Tipo 2 (DUI)
+        //   - cualquier otro caso (no cumple lo anterior / caracteres o
+        //     formatos especiales) -> Tipo 3 (Otro Documento)
+        // Este filtro se ejecuta antes de asignar el Tipo de Documento final
+        // del registro y tiene prioridad sobre el mapeo por código de MH
+        // (rawTipoDoc), por ser más preciso. Solo se conserva el mapeo
+        // anterior como respaldo cuando el dato de identificación no trae
+        // ningún dígito (campo vacío o no disponible). No se altera ninguna
+        // otra lógica de lectura, validación o almacenamiento existente.
+        // ══════════════════════════════════════════════════════════════════
+        var identValor   = gv(suj,'numDocumento','nit','dui','nrc','documento','numeroDocumento') || '';
+        var identSoloNum = identValor.toString().replace(/\D/g, '');
+        if (identSoloNum.length === 14) {
+            tipoDocMapped = '1'; // NIT
+        } else if (identSoloNum.length === 9) {
+            tipoDocMapped = '2'; // DUI
+        } else if (identSoloNum.length > 0) {
+            tipoDocMapped = '3'; // Otro Documento
+        }
         // Leer retención directamente del JSON (ivaRete1 o reteRenta).
         // Solo calcular 10% si el documento efectivamente trae un valor > 0 en esos campos.
         var retencionJson =
@@ -10248,7 +10287,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         var retencionFinal = tieneRetencionField ? retencionJson : monto * 0.10;
         return {
             tipoDoc:        tipoDocMapped,
-            identificacion: gv(suj,'numDocumento','nit','dui','nrc','documento','numeroDocumento') || '',
+            identificacion: identValor,
             nombre:         gv(suj,'nombre','razonSocial','nombreComercial') || '',
             fecha:          gv(id,'fecEmi','fechaEmision') || '',
             serie:          selloRecepcion,
@@ -10523,9 +10562,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 filename = 'Anexo6_Anticipo_Cuenta.csv';
                 break;
 
-            case 'excluido':
-                if (!excluidoRecords.length) { showToast('No hay registros', 'error'); return; }
-                rows = excluidoRecords.slice().sort(function(a,b){ return (a.fecha||'').localeCompare(b.fecha||''); }).map(function(r) { return [
+            case 'excluido': {
+                var excluidoActivos = excluidoRecords.filter(function(r) { return !esAnuladoDoc(r); });
+                if (!excluidoActivos.length) { showToast('No hay registros activos (todos anulados o lista vacía)', 'error'); return; }
+                rows = excluidoActivos.slice().sort(function(a,b){ return (a.fecha||'').localeCompare(b.fecha||''); }).map(function(r) { return [
                     extractNum(r.tipoDoc),
                     r.identificacion,
                     r.nombre,
@@ -10542,6 +10582,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 ]; });
                 filename = 'Anexo5_Sujeto_Excluido.csv';
                 break;
+            }
 
             // AGREGADO NUEVO: Exportar Retenciones F14
             case 'f14':
@@ -12016,24 +12057,36 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         if (_revisionActive.excluido) updateRevStats('excluido', revStates, duplicados, excluidoRecords.length);
         else clearRevStats('excluido');
         excluidoRecords.forEach(function(r, i) {
+            var esAnulado = isRegistroAnulado('excluido', i);
             var row = document.createElement('tr');
             var revEstado = null;
             if (_revisionActive.excluido) {
                 if (duplicados[i]) { revEstado = 'duplicado'; }
                 else { revEstado = revStates[i] || 'pendiente'; }
                 row.className = 'rev-row border-b border-zinc-900/50 transition-colors rev-' + revEstado;
+            } else if (esAnulado) {
+                row.className = 'border-b border-zinc-700/40 transition-colors';
+                row.style.cssText = 'background:rgba(113,113,122,0.08);border-left:3px solid #71717a;text-decoration:line-through;opacity:0.55;';
             } else {
                 row.className = 'border-b border-zinc-900/50 hover:bg-white/5 transition-colors';
             }
+            var docIdEx = r.numDoc || '';
+            var anuBadgeEx = esAnulado && !_revisionActive.excluido
+                ? '<span style="display:inline-block;margin-left:6px;font-size:9px;font-weight:800;letter-spacing:0.07em;color:#fff;background:#71717a;border-radius:5px;padding:2px 7px;text-decoration:none;vertical-align:middle;">✕ ANULADO</span>' +
+                  (docIdEx ? '<span style="display:block;font-size:9px;color:#a1a1aa;margin-top:2px;text-decoration:none;font-family:monospace;letter-spacing:0.03em;" title="Documento anulado: ' + docIdEx + '">' + docIdEx + '</span>' : '')
+                : '';
             var revBadgeHtml   = _revisionActive.excluido ? buildRevBadge(revEstado) : '';
             var revOverlayHtml = _revisionActive.excluido ? buildRevOverlay('excluido', i, revEstado === 'duplicado') : '';
+            var btnAnularEx = esAnulado
+                ? '<button onclick="toggleAnulado(\'excluido\',' + i + ')" class="p-1.5 transition" style="color:#22c55e;background:rgba(34,197,94,0.1);border-radius:6px;border:1px solid rgba(34,197,94,0.3);" onmouseover="this.style.background=\'rgba(34,197,94,0.2)\'" onmouseout="this.style.background=\'rgba(34,197,94,0.1)\'" title="Reactivar documento (des-anular)"><i data-lucide="rotate-ccw" class="w-4"></i></button>'
+                : '<button onclick="toggleAnulado(\'excluido\',' + i + ')" class="p-1.5 transition" style="color:#52525b;" onmouseover="this.style.color=\'#ef4444\'" onmouseout="this.style.color=\'#52525b\'" title="Anular documento"><i data-lucide="ban" class="w-4"></i></button>';
             row.innerHTML =
                 '<td class="px-4 py-3 text-xs text-zinc-500">' + extractNum(r.tipoDoc) + '</td>' +
                 '<td class="px-4 py-3 text-xs font-mono">' + r.identificacion + '</td>' +
                 '<td class="px-4 py-3 text-xs text-white">' + r.nombre + '</td>' +
                 '<td class="px-4 py-3 text-xs">' + r.fecha + '</td>' +
                 '<td class="px-4 py-3 text-xs">' + r.serie + '</td>' +
-                '<td class="px-4 py-3 text-xs font-mono text-white" style="position:relative;">' + r.numDoc + revBadgeHtml + revOverlayHtml + '</td>' +
+                '<td class="px-4 py-3 text-xs font-mono text-white" style="position:relative;">' + r.numDoc + anuBadgeEx + revBadgeHtml + revOverlayHtml + '</td>' +
                 '<td class="px-4 py-3 text-xs text-right">' + f(r.monto) + '</td>' +
                 '<td class="px-4 py-3 text-xs text-right text-blue-500">' + f(r.retencion) + '</td>' +
                 '<td class="px-4 py-3 text-xs">' + extractNum(r.tipoOp) + '</td>' +
@@ -12041,11 +12094,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 '<td class="px-4 py-3 text-xs">' + extractNum(r.sector) + '</td>' +
                 '<td class="px-4 py-3 text-xs">' + extractNum(r.tipoCosto) + '</td>' +
                 '<td class="px-4 py-3 text-xs text-zinc-500">5</td>' +
-                '<td class="px-4 py-3 text-xs sticky right-0 bg-zinc-950 col-acciones">' +
+                '<td class="px-4 py-3 text-xs sticky right-0 col-acciones" style="background:' + (esAnulado && !_revisionActive.excluido ? 'rgba(15,15,17,0.97)' : '#09090b') + ';">' +
                 '<div class="flex gap-2">' +
-                '<button onclick="openExcluidoModal(' + i + ')" class="p-1.5 hover:text-blue-500 transition"><i data-lucide="edit-3" class="w-4"></i></button>' +
-                '<button onclick="deleteExcluidoRecord(' + i + ')" class="p-1.5 hover:text-red-500 transition"><i data-lucide="trash-2" class="w-4"></i></button>' +
-                '</div></td>';
+                '<button onclick="openExcluidoModal(' + i + ')" class="p-1.5 hover:text-blue-500 transition" title="Editar"><i data-lucide="edit-3" class="w-4"></i></button>' +
+                btnAnularEx +
+                '<button onclick="deleteExcluidoRecord(' + i + ')" class="p-1.5 hover:text-red-500 transition" title="Eliminar"><i data-lucide="trash-2" class="w-4"></i></button>' +
+                '</div></td>' +
+                '<td class="px-4 py-3 text-xs dgii-col-td">' + dgiiBadgeHtml(r.estadoDGII) + '</td>';
             tbody.appendChild(row);
         });
         lucide.createIcons();
@@ -14611,12 +14666,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         if (!tbody) return;
         tbody.innerHTML = '';
         var detalleLabel = { 'A': 'A — Anulado/Invalid.', 'X': 'X — Extraviado', 'D': 'D — DTE Invalidado' };
-        var origenColors = { 'manual': 'text-zinc-500', 'debito': 'text-blue-400', 'cf': 'text-emerald-400', 'json': 'text-purple-400' };
+        var origenColors = { 'manual': 'text-zinc-500', 'debito': 'text-blue-400', 'cf': 'text-emerald-400', 'json': 'text-purple-400', 'excluido': 'text-orange-400' };
         anuladosRecords.forEach(function(r, i) {
             var row = document.createElement('tr');
             row.className = 'border-b border-zinc-900/50 hover:bg-white/5 transition-colors';
             var origenColor = origenColors[r.origen] || 'text-zinc-500';
-            var origenLabel = r.origen === 'debito' ? 'CCF' : r.origen === 'cf' ? 'CF' : r.origen === 'json' ? 'JSON' : 'Manual';
+            var origenLabel = r.origen === 'debito' ? 'CCF' : r.origen === 'cf' ? 'CF' : r.origen === 'excluido' ? 'Excluido' : r.origen === 'json' ? 'JSON' : 'Manual';
             row.innerHTML =
                 '<td class="px-4 py-3 text-xs font-mono text-white">' + (r.numResolucion || '—') + '</td>' +
                 '<td class="px-4 py-3 text-xs text-zinc-500">' + extractNum(r.clase) + '</td>' +
@@ -14645,7 +14700,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     // USA _id único por registro para evitar anulación masiva por coincidencia parcial.
     // ──────────────────────────────────────────────────────────────────
     function isRegistroAnulado(tipo, index) {
-        var r = tipo === 'debito' ? debitoRecords[index] : cfRecords[index];
+        var _anulablesMap = { debito: debitoRecords, cf: cfRecords, excluido: excluidoRecords };
+        var r = _anulablesMap[tipo] ? _anulablesMap[tipo][index] : undefined;
         if (!r) return false;
         // Método primario: _id único asignado al anular
         if (r._id) {
@@ -14674,15 +14730,26 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     // anuladosRecords), si no, lo anula (agrega a anuladosRecords).
     // USA _id único para evitar anulación/desanulación masiva.
     // ──────────────────────────────────────────────────────────────────
+    function _getAnulableArray(tipo) {
+        if (tipo === 'debito') return debitoRecords;
+        if (tipo === 'cf') return cfRecords;
+        if (tipo === 'excluido') return excluidoRecords;
+        return null;
+    }
+    function _renderAnulableTable(tipo) {
+        if (tipo === 'debito') renderDebitoTable();
+        else if (tipo === 'cf') renderCfTable();
+        else if (tipo === 'excluido') renderExcluidoTable();
+    }
     function toggleAnulado(tipo, index) {
-        var r = tipo === 'debito' ? debitoRecords[index] : cfRecords[index];
+        var arr = _getAnulableArray(tipo);
+        var r = arr ? arr[index] : undefined;
         if (!r) return;
 
         // Asignar _id único al registro si no tiene uno
         if (!r._id) {
             r._id = tipo + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
-            if (tipo === 'debito') debitoRecords[index] = r;
-            else cfRecords[index] = r;
+            arr[index] = r;
         }
 
         // Buscar registro anulado vinculado a este _id específico
@@ -14697,7 +14764,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             anuladosRecords.splice(anuIdx, 1);
             saveCurrentMonthData();
             renderAnuladosTable();
-            if (tipo === 'debito') renderDebitoTable(); else renderCfTable();
+            _renderAnulableTable(tipo);
             showToast('Documento des-anulado correctamente', 'success');
         } else {
             // Anular
@@ -14712,20 +14779,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     // ──────────────────────────────────────────────────────────────────
     function reportarComoAnulado(tipo, index) {
         var r, origen, esDTE;
-        if (tipo === 'debito') {
-            r = debitoRecords[index];
-            origen = 'debito';
-        } else {
-            r = cfRecords[index];
-            origen = 'cf';
-        }
+        var arr = _getAnulableArray(tipo);
+        r = arr ? arr[index] : undefined;
+        origen = tipo;
         if (!r) return;
 
         // Asignar _id único al registro si no tiene uno
         if (!r._id) {
             r._id = tipo + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
-            if (tipo === 'debito') debitoRecords[index] = r;
-            else cfRecords[index] = r;
+            arr[index] = r;
         }
 
         // Para CF: el código de generación DTE viene en docDel (no numDoc)
@@ -14735,15 +14797,29 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         // Detectar si es DTE: clase === '4' o codigoGeneracion tiene longitud de UUID (>10 chars)
         esDTE = (String(r.clase) === '4') || !!(codigoGen && codigoGen.length > 10);
 
+        // CORRECCIÓN 01 — Compras a Sujeto Excluido:
+        // - Tipo de Documento debe ser siempre '14' (en excluido, r.tipoDoc
+        //   guarda el tipo de identificación del sujeto -NIT/DUI/Otro-, no el
+        //   tipo de documento DTE, por eso no se puede usar r.tipoDoc aquí).
+        // - N° Resolución / N° Control debe tomarse de la Serie del Documento
+        //   del registro original de Sujeto Excluido (r.serie), ya que este
+        //   anexo no maneja un campo "resolucion".
+        var tipoDocAnulado = (tipo === 'excluido')
+            ? '14'
+            : (r.tipoDoc || (tipo === 'debito' ? '03' : '01'));
+        var numResolucionAnulado = (tipo === 'excluido')
+            ? (r.serie || '')
+            : (r.resolucion || '');
+
         var anulado;
         if (esDTE) {
             // Caso 01: documento electrónico (DTE)
             anulado = {
-                numResolucion:    r.resolucion || r.ctrlDel || '',
+                numResolucion:    tipo === 'excluido' ? numResolucionAnulado : (r.resolucion || r.ctrlDel || ''),
                 clase:            r.clase || '4',
                 desdePreimpreso:  '0',
                 hastaPreimpreso:  '0',
-                tipoDoc:          r.tipoDoc || (tipo === 'debito' ? '03' : '01'),
+                tipoDoc:          tipoDocAnulado,
                 tipoDetalle:      'D',
                 serieDoc:         r.serie || '',
                 desde:            '0',
@@ -14755,11 +14831,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         } else {
             // Caso 02: documento manual / preimpreso
             anulado = {
-                numResolucion:    r.resolucion || '',
+                numResolucion:    numResolucionAnulado,
                 clase:            r.clase || '1',
                 desdePreimpreso:  tipo === 'cf' ? (r.ctrlDel || r.docDel || '') : '',
                 hastaPreimpreso:  tipo === 'cf' ? (r.ctrlAl  || r.docAl  || '') : '',
-                tipoDoc:          r.tipoDoc || (tipo === 'debito' ? '03' : '01'),
+                tipoDoc:          tipoDocAnulado,
                 tipoDetalle:      'A',
                 serieDoc:         r.serie || '',
                 desde:            tipo === 'cf' ? (r.docDel || '') : (r.numDoc || ''),
@@ -14773,7 +14849,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         anuladosRecords.push(anulado);
         saveCurrentMonthData();
         renderAnuladosTable();
-        if (tipo === 'debito') renderDebitoTable(); else renderCfTable();
+        _renderAnulableTable(tipo);
         showToast('Documento marcado como anulado', 'success');
     }
 
@@ -16456,7 +16532,18 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     var _dgiiConfig = {
         compras: { getRecords: function () { return comprasRecords; }, codField: 'numDoc', tbodyId: 'comprasTableBody', render: function () { renderComprasTable(); } },
         debito:  { getRecords: function () { return debitoRecords;  }, codField: 'numDoc', tbodyId: 'debitoTableBody',  render: function () { renderDebitoTable();  } },
-        cf:      { getRecords: function () { return cfRecords;      }, codField: 'docDel', tbodyId: 'cfTableBody',      render: function () { renderCfTable();      } }
+        cf:      { getRecords: function () { return cfRecords;      }, codField: 'docDel', tbodyId: 'cfTableBody',      render: function () { renderCfTable();      } },
+        // CAMBIO 02 — Compras a Sujeto Excluido (Anexo 5): reutiliza exactamente
+        // la misma lógica de Consulta DTE (mismo botón, proceso, validaciones y
+        // mensajes que en los demás anexos). Regla especial de este anexo: la
+        // consulta debe limitarse ÚNICAMENTE a verificar y mostrar el estado del
+        // documento (Transmitido / Invalidado / Con Evento / No encontrado /
+        // Documento Físico / Error), sin ejecutar ninguna acción adicional. Esto
+        // ya se cumple de forma natural porque el completado automático de
+        // "Sello de Recepción" dentro de procesarDocumento() está condicionado
+        // explícitamente a libro === 'compras' — para 'excluido' esa rama nunca
+        // se ejecuta, así que no se completan ni actualizan campos del registro.
+        excluido: { getRecords: function () { return excluidoRecords; }, codField: 'numDoc', tbodyId: 'excluidoTableBody', render: function () { renderExcluidoTable(); } }
     };
 
     var _dgiiEnCurso   = false;
