@@ -16960,6 +16960,24 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                         }
                     }
 
+                    // Cambio 05 — Libro de IVA Percibido: cuando la Consulta DTE se
+                    // ejecuta directamente desde este anexo, "r" ya es el propio
+                    // registro de Percibido, así que se completa su campo "Serie Doc."
+                    // (mismo campo "serie" que usa Compras) con el Sello de Recepción
+                    // obtenido de la consulta — exactamente la misma lógica y la misma
+                    // fuente de dato (resultado.selloRecepcion) que ya usa Compras,
+                    // solo que aplicada directamente sobre el registro consultado, y
+                    // únicamente si el campo está vacío. No interfiere con la rama de
+                    // 'compras' de arriba: ambas conviven de forma independiente.
+                    if (libro === 'percibido' && resultado && resultado.selloRecepcion) {
+                        var serieActualPerc = (r.serie || '').trim();
+                        if (!serieActualPerc) {
+                            r.serie = resultado.selloRecepcion.trim();
+                            percibidoActualizado = true;
+                            sellosAgregados++;
+                        }
+                    }
+
                     dgiiActualizarCeldaEnVivo(libro, idx, r.estadoDGII);
                     completados++;
                     dgiiActualizarProgreso(completados, total);
