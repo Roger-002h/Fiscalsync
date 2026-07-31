@@ -2677,7 +2677,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
                     <div class="mt-6 flex justify-between items-center">
                         <p class="text-[10px] text-zinc-600 uppercase tracking-wider">Datos históricos — no afecta el mes actual</p>
-                        <button onclick="ejecutarCsvScreenImport()" class="px-8 py-2.5 bg-amber-500 text-black text-xs font-bold rounded-lg hover:bg-amber-400 transition">Importar al Sistema</button>
+                        <button id="csvScreenImportBtn" onclick="ejecutarCsvScreenImport()" class="px-8 py-2.5 bg-amber-500 text-black text-xs font-bold rounded-lg hover:bg-amber-400 transition disabled:opacity-60 disabled:cursor-not-allowed">Importar al Sistema</button>
                     </div>
                 </div>
             </div>
@@ -3248,6 +3248,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                     <p class="text-zinc-500 text-sm mt-1 font-light">Registro de Percepciones de IVA — Anexo 8.</p>
                 </div>
                 <div class="flex items-center gap-2">
+                    <button onclick="dgiiIniciarVerificacion('percibido')" class="flex items-center gap-2 px-4 py-2.5 text-[11px] font-semibold rounded-lg border transition" style="color:#60a5fa;border-color:rgba(96,165,250,0.35);background:rgba(96,165,250,0.07);" onmouseover="this.style.background='rgba(96,165,250,0.15)'" onmouseout="this.style.background='rgba(96,165,250,0.07)'" title="Consultar el estado oficial de cada DTE en el Ministerio de Hacienda">
+                        <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Consulta DTE
+                    </button>
                     <button id="btnRevisionPercibido" onclick="toggleModoRevision('percibido')" class="flex items-center gap-2 px-4 py-2.5 text-zinc-400 text-xs font-semibold rounded-lg border border-zinc-800 hover:border-zinc-600 hover:text-white transition">
                         <i data-lucide="clipboard-check" class="w-3.5 h-3.5"></i> Modo Revisión
                     </button>
@@ -3283,7 +3286,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                                 <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider text-right text-blue-400">Percepción IVA 1%</th>
                                 <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">DUI Agente</th>
                                 <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Anexo</th>
-                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider sticky col-acciones right-0" style="background:#09090b;">Acciones</th>
+                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider sticky col-acciones" style="background:#09090b;right:148px;">Acciones</th>
+                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider dgii-col-th" style="background:#09090b;">Estado DGII</th>
                             </tr>
                         </thead>
                         <tbody id="percibidoTableBody"></tbody>
@@ -3300,6 +3304,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                     <p class="text-zinc-500 text-sm mt-1 font-light">Registro de Retenciones de IVA — Anexo 7.</p>
                 </div>
                 <div class="flex items-center gap-2">
+                    <button onclick="dgiiIniciarVerificacion('retenido')" class="flex items-center gap-2 px-4 py-2.5 text-[11px] font-semibold rounded-lg border transition" style="color:#60a5fa;border-color:rgba(96,165,250,0.35);background:rgba(96,165,250,0.07);" onmouseover="this.style.background='rgba(96,165,250,0.15)'" onmouseout="this.style.background='rgba(96,165,250,0.07)'" title="Consultar el estado oficial de cada DTE en el Ministerio de Hacienda">
+                        <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Consulta DTE
+                    </button>
                     <button id="btnRevisionRetenido" onclick="toggleModoRevision('retenido')" class="flex items-center gap-2 px-4 py-2.5 text-zinc-400 text-xs font-semibold rounded-lg border border-zinc-800 hover:border-zinc-600 hover:text-white transition">
                         <i data-lucide="clipboard-check" class="w-3.5 h-3.5"></i> Modo Revisión
                     </button>
@@ -3335,7 +3342,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                                 <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider text-right text-blue-400">Retenido IVA 1%</th>
                                 <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">DUI Agente</th>
                                 <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Anexo</th>
-                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider sticky col-acciones right-0" style="background:#09090b;">Acciones</th>
+                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider sticky col-acciones" style="background:#09090b;right:148px;">Acciones</th>
+                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider dgii-col-th" style="background:#09090b;">Estado DGII</th>
                             </tr>
                         </thead>
                         <tbody id="retenidoTableBody"></tbody>
@@ -3352,6 +3360,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                     <p class="text-zinc-500 text-sm mt-1 font-light">Registro de Anticipos a Cuenta de IVA — Anexo 6.</p>
                 </div>
                 <div class="flex items-center gap-2">
+                    <button onclick="dgiiIniciarVerificacion('anticipo')" class="flex items-center gap-2 px-4 py-2.5 text-[11px] font-semibold rounded-lg border transition" style="color:#60a5fa;border-color:rgba(96,165,250,0.35);background:rgba(96,165,250,0.07);" onmouseover="this.style.background='rgba(96,165,250,0.15)'" onmouseout="this.style.background='rgba(96,165,250,0.07)'" title="Consultar el estado oficial de cada DTE en el Ministerio de Hacienda">
+                        <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Consulta DTE
+                    </button>
                     <button id="btnRevisionAnticipo" onclick="toggleModoRevision('anticipo')" class="flex items-center gap-2 px-4 py-2.5 text-zinc-400 text-xs font-semibold rounded-lg border border-zinc-800 hover:border-zinc-600 hover:text-white transition">
                         <i data-lucide="clipboard-check" class="w-3.5 h-3.5"></i> Modo Revisión
                     </button>
@@ -3386,7 +3397,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                                 <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider text-right text-blue-400">Anticipo IVA 2%</th>
                                 <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">DUI Agente</th>
                                 <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Anexo</th>
-                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider sticky col-acciones right-0" style="background:#09090b;">Acciones</th>
+                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider sticky col-acciones" style="background:#09090b;right:148px;">Acciones</th>
+                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider dgii-col-th" style="background:#09090b;">Estado DGII</th>
                             </tr>
                         </thead>
                         <tbody id="anticipoTableBody"></tbody>
@@ -4393,17 +4405,29 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 </div>
                 <div><p class="section-label">Otros Impuestos (Informativos — no suman al total)</p></div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-zinc-950 rounded-xl border border-zinc-900 p-6">
-                    <div><label class="f-label">FOVIAL</label><input type="number" step="0.01" id="cp_fovial" value="0.00" class="amount-field" placeholder="0.00"></div>
-                    <div><label class="f-label">COTRANS</label><input type="number" step="0.01" id="cp_cotrans" value="0.00" class="amount-field" placeholder="0.00"></div>
+                    <div><label class="f-label">FOVIAL</label><input type="number" step="0.01" id="cp_fovial" value="0.00" class="amount-field" placeholder="0.00" oninput="calcTotalVisual()"></div>
+                    <div><label class="f-label">COTRANS</label><input type="number" step="0.01" id="cp_cotrans" value="0.00" class="amount-field" placeholder="0.00" oninput="calcTotalVisual()"></div>
                 </div>
                 <div><p class="section-label" style="color:#fb923c;">IVA Percibido — Anexo 8 (Informativo, alimenta el Libro de IVA Percibido)</p></div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-zinc-950 rounded-xl border border-zinc-900 p-6">
-                    <div><label class="f-label" style="color:#fb923c;">IVA Percibido</label><input type="number" step="0.01" id="cp_iva_percibido" value="0.00" class="amount-field" placeholder="0.00"></div>
+                    <div><label class="f-label" style="color:#fb923c;">IVA Percibido</label><input type="number" step="0.01" id="cp_iva_percibido" value="0.00" class="amount-field" placeholder="0.00" oninput="calcTotalVisual()"></div>
                 </div>
                 <div><p class="section-label">Cálculos</p></div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-zinc-950 rounded-xl border border-zinc-900 p-6">
                     <div><label class="f-label">Crédito Fiscal <span style="color:#52525b;font-weight:400;text-transform:none;letter-spacing:0;">(calculado 13% — editable)</span></label><input type="number" step="0.01" id="cp_credito" value="0.00" oninput="calcComprasTotal()" class="amount-field"></div>
                     <div><label class="f-label blue">Total Compras</label><input type="number" id="cp_total" readonly value="0.00" class="amount-field result"></div>
+                </div>
+                <!-- AGREGADO NUEVO — Cambio 01: Total Visual (solo referencia en pantalla, no se
+                     guarda en el registro ni participa en Anexo, Crédito Fiscal ni ningún cálculo
+                     fiscal). Suma todos los conceptos económicos de la factura para que el usuario
+                     verifique que lo digitado coincide con el total del documento. -->
+                <div><p class="section-label" style="color:#34d399;">Total Visual (Solo Referencia — No se Guarda ni Afecta el Anexo)</p></div>
+                <div class="grid grid-cols-1 gap-6 bg-zinc-950 rounded-xl border border-zinc-900 p-6">
+                    <div>
+                        <label class="f-label" style="color:#34d399;">Total Visual de la Factura</label>
+                        <input type="number" id="cp_total_visual" readonly value="0.00" class="amount-field result" style="border-color:rgba(52,211,153,0.35);color:#34d399;">
+                        <p class="text-[10px] text-zinc-500 mt-1.5 font-light">Suma informativa de todos los montos digitados (exentas, gravadas, FOVIAL, COTRANS, IVA Percibido y Crédito Fiscal) para validar contra el total de la factura. No se almacena ni se usa en cálculos fiscales, reportes ni el Anexo de Compras.</p>
+                    </div>
                 </div>
             </div>
             <div id="cp-tab-clasif" class="m-panel grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -7091,7 +7115,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         if (pb) pb.classList.add('hidden');
         if (pc) pc.innerHTML = '';
         if (fi) fi.value = '';
-        document.querySelectorAll('input[name="csv_screen_type"]').forEach(function(r){ r.checked = false; });
+        // AGREGADO NUEVO — Cambio 03: además de desmarcar el input, se retira la
+        // clase visual "checked" de la etiqueta (pill) correspondiente. El estilo
+        // seleccionado de estos controles se controla con esa clase (ver
+        // syncPillGroup()), no solo con el atributo checked del radio; sin este
+        // paso el radio quedaba lógicamente deseleccionado pero la opción seguía
+        // viéndose resaltada en pantalla tras finalizar la importación.
+        document.querySelectorAll('input[name="csv_screen_type"]').forEach(function(r) {
+            r.checked = false;
+            var lbl = r.closest('.radio-pill-item');
+            if (lbl) lbl.classList.remove('checked');
+        });
         var yi = document.getElementById('csv_screen_year');
         var mi = document.getElementById('csv_screen_month');
         if (yi) yi.value = currentYear;
@@ -7184,54 +7218,148 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         var omitidos = 0;
         var duplicados = 0;
 
-        csvParsedRows.forEach(function(row) {
-            if (esCabeceraCSV(row, tipoVal)) { omitidos++; return; }
-            if (row.every(function(c){ return !c.trim(); })) { omitidos++; return; }
-            try {
-                var rec = mapper(row);
-                // CAMBIO 02: aplicar la misma validación de documentos duplicados que el
-                // sistema ya usa para JSON (docFingerprint), también a los registros
-                // importados por CSV, revisando el período activo y el resto de períodos.
-                if (esDocumentoDuplicado(tipoVal, rec, target, null)) { duplicados++; return; }
-                target.push(rec);
-                count++;
-            } catch(e) { omitidos++; }
-        });
-
-        saveCurrentMonthData();
-
-        var provNuevos = 0;
-        var tiposConProveedor = ['compras', 'percibido', 'retenido', 'anticipo', 'excluido'];
-        if (tiposConProveedor.indexOf(tipoVal) !== -1) {
-            targets[tipoVal].forEach(function(r) {
-                var nitProv = r.nit || r.identificacion || '';
-                var nombreProv = r.nombre || '';
-                var duiProv = r.dui || '';
-                var nrcProv = r.nrc || '';
-                if (nitProv) {
-                    var added = autoRegistrarProveedor(nitProv, nombreProv, duiProv, nrcProv);
-                    if (added) provNuevos++;
-                }
-            });
+        // ══════════════════════════════════════════════════════════════
+        // REVISIÓN 01 — Rendimiento de importación CSV
+        // ══════════════════════════════════════════════════════════════
+        // Antes, esDocumentoDuplicado() recorría TODO el localStorage (todos
+        // los períodos guardados, con su propio JSON.parse) por CADA fila del
+        // CSV — esto era la causa real de la pausa perceptible con archivos
+        // grandes (costo O(filas × períodos), repitiendo el mismo trabajo una
+        // y otra vez). Aquí se construye el mismo conjunto de huellas
+        // (fingerprints) UNA sola vez antes de procesar el archivo, y luego
+        // cada fila se valida contra ese conjunto en tiempo O(1). El criterio
+        // de duplicados (docFingerprint) y el resultado final no cambian.
+        var dupSet = {};
+        target.forEach(function(r) { dupSet[docFingerprint(tipoVal, r)] = true; });
+        if (activeEmpresaId) {
+            var _prefix = 'fs_data_v' + APP_VERSION + '_' + activeEmpresaId + '_';
+            var _currentKey = monthKey(activeEmpresaId, currentYear, currentMonth);
+            var _len = fsStore.length();
+            for (var _i = 0; _i < _len; _i++) {
+                var _k = fsStore.key(_i);
+                if (!_k || _k.indexOf(_prefix) !== 0 || _k === _currentKey) continue;
+                try {
+                    var _raw = fsStore.getItem(_k);
+                    if (!_raw) continue;
+                    var _data = JSON.parse(_raw);
+                    var _records = _data[tipoVal] || [];
+                    _records.forEach(function(rec) { dupSet[docFingerprint(tipoVal, rec)] = true; });
+                } catch(e) { /* ignorar período corrupto */ }
+            }
         }
 
-        currentYear  = prevYear;
-        currentMonth = prevMonth;
-        loadCurrentMonthData();
-        renderAllTables();
-        updateMonthLabel();
-        refreshOpenLibroLegal(); // AGREGADO NUEVO: refresca el Libro Legal si estaba abierto al restaurar el mes
+        // Procesamiento por lotes: se cede el hilo principal entre cada lote
+        // (setTimeout) para que la interfaz nunca deje de responder, incluso
+        // con archivos de miles de filas, y se muestra el progreso en el
+        // propio botón de importación.
+        var btn = document.getElementById('csvScreenImportBtn');
+        var btnTextOriginal = btn ? btn.innerText : '';
+        if (btn) { btn.disabled = true; btn.innerText = 'Procesando…'; }
+        showToast('Procesando ' + csvParsedRows.length + ' fila(s)…', 'info');
 
-        var MONTH_NAMES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-        var msg = count + ' registros cargados en ' + MONTH_NAMES_ES[month] + ' ' + year;
-        if (omitidos > 0) msg += ' (' + omitidos + ' filas omitidas)';
-        if (duplicados > 0) msg += ' · ' + duplicados + ' duplicado(s) omitido(s)';
-        if (provNuevos > 0) msg += ' · ' + provNuevos + ' proveedor(es) nuevos';
-        showToast(msg, 'success');
-        if (provNuevos > 0) renderProveedoresTable();
+        var CHUNK_SIZE = 400;
+        var idx = 0;
 
-        // Limpiar pantalla después de importar
-        initCsvScreen();
+        function procesarLote() {
+            var fin = Math.min(idx + CHUNK_SIZE, csvParsedRows.length);
+            for (; idx < fin; idx++) {
+                var row = csvParsedRows[idx];
+                if (esCabeceraCSV(row, tipoVal)) { omitidos++; continue; }
+                if (row.every(function(c){ return !c.trim(); })) { omitidos++; continue; }
+                try {
+                    var rec = mapper(row);
+                    var fp = docFingerprint(tipoVal, rec);
+                    if (dupSet[fp]) { duplicados++; continue; }
+                    dupSet[fp] = true;
+                    target.push(rec);
+                    count++;
+                } catch(e) { omitidos++; }
+            }
+            if (btn) { btn.innerText = 'Procesando… ' + Math.round((idx / csvParsedRows.length) * 100) + '%'; }
+            if (idx < csvParsedRows.length) {
+                setTimeout(procesarLote, 0);
+            } else {
+                finalizarImport();
+            }
+        }
+
+        function finalizarImport() {
+            saveCurrentMonthData();
+
+            // OPTIMIZACIÓN: registrar proveedores en un solo lote — se carga el
+            // catálogo una vez, se actualiza en memoria y se guarda una sola vez,
+            // en lugar de leer/escribir localStorage por cada registro importado
+            // (mismo criterio de coincidencia y de datos completados que
+            // autoRegistrarProveedor, sin cambiar el resultado).
+            var provNuevos = 0;
+            var tiposConProveedor = ['compras', 'percibido', 'retenido', 'anticipo', 'excluido'];
+            if (tiposConProveedor.indexOf(tipoVal) !== -1) {
+                provNuevos = _autoRegistrarProveedoresBatch(targets[tipoVal]);
+            }
+
+            currentYear  = prevYear;
+            currentMonth = prevMonth;
+            loadCurrentMonthData();
+            renderAllTables();
+            updateMonthLabel();
+            refreshOpenLibroLegal(); // AGREGADO NUEVO: refresca el Libro Legal si estaba abierto al restaurar el mes
+
+            var MONTH_NAMES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+            var msg = count + ' registros cargados en ' + MONTH_NAMES_ES[month] + ' ' + year;
+            if (omitidos > 0) msg += ' (' + omitidos + ' filas omitidas)';
+            if (duplicados > 0) msg += ' · ' + duplicados + ' duplicado(s) omitido(s)';
+            if (provNuevos > 0) msg += ' · ' + provNuevos + ' proveedor(es) nuevos';
+            showToast(msg, 'success');
+            if (provNuevos > 0) renderProveedoresTable();
+
+            if (btn) { btn.disabled = false; btn.innerText = btnTextOriginal || 'Importar al Sistema'; }
+
+            // Limpiar pantalla después de importar
+            initCsvScreen();
+        }
+
+        setTimeout(procesarLote, 0);
+    }
+
+    // Registra en el catálogo de proveedores, en un solo lote, todos los NIT/NRC
+    // presentes en `records` que aún no existan (misma lógica de coincidencia y
+    // de completado de datos que autoRegistrarProveedor, pero con una sola
+    // lectura y una sola escritura a localStorage, en vez de una por registro).
+    function _autoRegistrarProveedoresBatch(records) {
+        if (!activeEmpresaId) return 0;
+        var list = loadProveedores();
+        var byNit = {}, byNrc = {};
+        list.forEach(function(p, i) {
+            var pNit = p.nit ? String(p.nit).trim() : '';
+            var pNrc = p.nrc ? String(p.nrc).trim() : '';
+            if (pNit) byNit[pNit] = i;
+            if (pNrc) byNrc[pNrc] = i;
+        });
+        var nuevos = 0;
+        var cambiado = false;
+        records.forEach(function(r) {
+            var nitProv = (r.nit || r.identificacion || '').toString().trim();
+            var nrcProv = (r.nrc || '').toString().trim();
+            if (!nitProv) return;
+            var idx = (nitProv && byNit[nitProv] !== undefined) ? byNit[nitProv] :
+                      (nrcProv && byNrc[nrcProv] !== undefined) ? byNrc[nrcProv] : -1;
+            if (idx !== -1) {
+                var pExist = list[idx];
+                if (!pExist.nit && nitProv)   { pExist.nit = nitProv; cambiado = true; }
+                if (!pExist.nrc && nrcProv)   { pExist.nrc = nrcProv; cambiado = true; }
+                if (!pExist.dui && r.dui)     { pExist.dui = r.dui; cambiado = true; }
+                if (!pExist.nombre && r.nombre) { pExist.nombre = r.nombre; cambiado = true; }
+            } else {
+                list.push({ nit: nitProv, nrc: nrcProv, dui: r.dui || '', nombre: r.nombre || '', clasif: '', sector: '', tipoCosto: '' });
+                var newIdx = list.length - 1;
+                if (nitProv) byNit[nitProv] = newIdx;
+                if (nrcProv) byNrc[nrcProv] = newIdx;
+                nuevos++;
+                cambiado = true;
+            }
+        });
+        if (cambiado) saveProveedores(list);
+        return nuevos;
     }
 
     // ══════════════════════════════════════════════
@@ -10163,20 +10291,18 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 if (prov.nombre) nombreProv = prov.nombre;
             }
         }
-        // AGREGADO NUEVO: Sello de Recepción e IVA Percibido — se extraen del mismo
-        // .json (cuando el documento los contiene) para llenar automáticamente estos
-        // dos campos informativos del registro de Compras. No participan en ningún
+        // AGREGADO NUEVO — Cambio 02: Sello de Recepción e IVA Percibido — se extraen
+        // del mismo .json (cuando el documento los contiene) para llenar automáticamente
+        // estos dos campos informativos del registro de Compras. No participan en ningún
         // cálculo de este módulo (crédito fiscal / total de Compras siguen igual).
+        // El IVA Percibido reutiliza exactamente detectarPercibidoDeCompra() — la misma
+        // función que genera el registro del Libro de IVA Percibido (Anexo 8) — en lugar
+        // de duplicar la extracción, para garantizar que el valor mostrado en el formulario
+        // de Compras sea siempre idéntico al que ya se registró en dicho anexo, sin
+        // recalcularlo ni crear una segunda fuente de verdad.
         var selloRecepcionCp = gv(j,'selloRecibido','selloRecepcion','respuestaMH.selloRecibido') || buscarClaveProfundo(j,'selloRecibido') || '';
-        var resumenPercCp = j.resumen || j.resumenDocumento || {};
-        var ivaPercibidoCp =
-            parseFloat(resumenPercCp.ivaPercibido) ||
-            parseFloat(resumenPercCp.ivaPerci1) ||
-            parseFloat(resumenPercCp.montoPercepcion) ||
-            parseFloat(resumenPercCp.totalPercibido) ||
-            parseFloat(resumenPercCp.totalIVAPercibido) ||
-            parseFloat(resumenPercCp.ivaPercibido1) ||
-            0;
+        var percDetectadoCp = detectarPercibidoDeCompra(j);
+        var ivaPercibidoCp = percDetectadoCp ? percDetectadoCp.iva : 0;
         return {
             fecha:    gv(id,'fecEmi','fechaEmision') || '',
             clase:    '4',
@@ -11247,7 +11373,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         document.getElementById('cp_editIndex').value = index;
         document.getElementById('cp_perc_link_id').value = '';
         ['cp_fecha','cp_num','cp_sello','cp_nit','cp_nrc','cp_dui','cp_nombre'].forEach(function(id) { document.getElementById(id).value = ''; });
-        ['cp_int_exentas','cp_intern_exentas','cp_imp_exentas','cp_int_gravadas','cp_intern_grav','cp_imp_grav','cp_imp_serv','cp_credito','cp_total','cp_fovial','cp_cotrans','cp_iva_percibido'].forEach(function(id) { document.getElementById(id).value = '0.00'; });
+        ['cp_int_exentas','cp_intern_exentas','cp_imp_exentas','cp_int_gravadas','cp_intern_grav','cp_imp_grav','cp_imp_serv','cp_credito','cp_total','cp_fovial','cp_cotrans','cp_iva_percibido','cp_total_visual'].forEach(function(id) { var f = document.getElementById(id); if (f) f.value = '0.00'; });
         document.getElementById('cp_clase').value = '1';
         document.getElementById('cp_tipo_doc').value = '03';
         document.getElementById('cp_tipo_op').value = '1';
@@ -11324,6 +11450,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         // FOVIAL y COTRANS son informativos — NO entran en el total
         var total = totalExentas + totalGravadas + credito;
         document.getElementById('cp_total').value = total.toFixed(2);
+        calcTotalVisual();
     }
     function calcComprasTotal() {
         // Se llama cuando el usuario edita manualmente el crédito fiscal
@@ -11334,6 +11461,27 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         // Total = exentas + gravadas + crédito (IVA) — FOVIAL/COTRANS nunca suman
         var total = totalExentas + totalGravadas + credito;
         document.getElementById('cp_total').value = total.toFixed(2);
+        calcTotalVisual();
+    }
+    // ══════════════════════════════════════════════════════════════
+    // AGREGADO NUEVO — Cambio 01: Total Visual
+    // ══════════════════════════════════════════════════════════════
+    // Suma exclusivamente informativa/visual de TODOS los conceptos económicos
+    // de la factura (exentas, gravadas, FOVIAL, COTRANS, IVA Percibido y Crédito
+    // Fiscal) para que el usuario pueda comparar contra el total real del
+    // documento físico y detectar errores de digitación. NO se guarda en
+    // comprasRecords, NO se envía a saveComprasRecord, y NO participa en el
+    // cálculo del Anexo de Compras, del Crédito Fiscal, ni de ningún reporte,
+    // exportación o libro impreso. La lógica fiscal existente (calcCompras /
+    // calcComprasTotal / saveComprasRecord) permanece intacta.
+    function calcTotalVisual() {
+        var el = document.getElementById('cp_total_visual');
+        if (!el) return;
+        var n = function(id) { var f = document.getElementById(id); return f ? (parseFloat(f.value) || 0) : 0; };
+        var totalVisual = n('cp_int_exentas') + n('cp_intern_exentas') + n('cp_imp_exentas') +
+                           n('cp_int_gravadas') + n('cp_intern_grav') + n('cp_imp_grav') + n('cp_imp_serv') +
+                           n('cp_fovial') + n('cp_cotrans') + n('cp_iva_percibido') + n('cp_credito');
+        el.value = totalVisual.toFixed(2);
     }
     function saveComprasRecord() {
         var index = document.getElementById('cp_editIndex').value;
@@ -11712,11 +11860,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 '<td class="px-4 py-3 text-xs text-right text-blue-500">' + f(r.iva) + '</td>' +
                 '<td class="px-4 py-3 text-xs text-zinc-600">' + (r.dui || '—') + '</td>' +
                 '<td class="px-4 py-3 text-xs text-zinc-500">8</td>' +
-                '<td class="px-4 py-3 text-xs sticky right-0 bg-zinc-950 col-acciones">' +
+                '<td class="px-4 py-3 text-xs sticky col-acciones" style="right:148px;background:#09090b;">' +
                 '<div class="flex gap-2">' +
                 '<button onclick="openPercibidoModal(' + i + ')" class="p-1.5 hover:text-blue-500 transition"><i data-lucide="edit-3" class="w-4"></i></button>' +
                 '<button onclick="deletePercibidoRecord(' + i + ')" class="p-1.5 hover:text-red-500 transition"><i data-lucide="trash-2" class="w-4"></i></button>' +
-                '</div></td>';
+                '</div></td>' +
+                '<td class="px-4 py-3 text-xs dgii-col-td">' + dgiiBadgeHtml(r.estadoDGII) + '</td>';
             tbody.appendChild(row);
         });
         lucide.createIcons();
@@ -11836,11 +11985,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 '<td class="px-4 py-3 text-xs text-right text-blue-500">' + f(r.iva) + '</td>' +
                 '<td class="px-4 py-3 text-xs text-zinc-600">' + (r.dui || '—') + '</td>' +
                 '<td class="px-4 py-3 text-xs text-zinc-500">7</td>' +
-                '<td class="px-4 py-3 text-xs sticky right-0 bg-zinc-950 col-acciones">' +
+                '<td class="px-4 py-3 text-xs sticky col-acciones" style="right:148px;background:#09090b;">' +
                 '<div class="flex gap-2">' +
                 '<button onclick="openRetenidoModal(' + i + ')" class="p-1.5 hover:text-blue-500 transition"><i data-lucide="edit-3" class="w-4"></i></button>' +
                 '<button onclick="deleteRetenidoRecord(' + i + ')" class="p-1.5 hover:text-red-500 transition"><i data-lucide="trash-2" class="w-4"></i></button>' +
-                '</div></td>';
+                '</div></td>' +
+                '<td class="px-4 py-3 text-xs dgii-col-td">' + dgiiBadgeHtml(r.estadoDGII) + '</td>';
             tbody.appendChild(row);
         });
         lucide.createIcons();
@@ -11957,11 +12107,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 '<td class="px-4 py-3 text-xs text-right text-blue-500">' + f(r.iva) + '</td>' +
                 '<td class="px-4 py-3 text-xs text-zinc-600">' + (r.dui || '—') + '</td>' +
                 '<td class="px-4 py-3 text-xs text-zinc-500">6</td>' +
-                '<td class="px-4 py-3 text-xs sticky right-0 bg-zinc-950 col-acciones">' +
+                '<td class="px-4 py-3 text-xs sticky col-acciones" style="right:148px;background:#09090b;">' +
                 '<div class="flex gap-2">' +
                 '<button onclick="openAnticipoModal(' + i + ')" class="p-1.5 hover:text-blue-500 transition"><i data-lucide="edit-3" class="w-4"></i></button>' +
                 '<button onclick="deleteAnticipoRecord(' + i + ')" class="p-1.5 hover:text-red-500 transition"><i data-lucide="trash-2" class="w-4"></i></button>' +
-                '</div></td>';
+                '</div></td>' +
+                '<td class="px-4 py-3 text-xs dgii-col-td">' + dgiiBadgeHtml(r.estadoDGII) + '</td>';
             tbody.appendChild(row);
         });
         lucide.createIcons();
@@ -16543,7 +16694,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         // "Sello de Recepción" dentro de procesarDocumento() está condicionado
         // explícitamente a libro === 'compras' — para 'excluido' esa rama nunca
         // se ejecuta, así que no se completan ni actualizan campos del registro.
-        excluido: { getRecords: function () { return excluidoRecords; }, codField: 'numDoc', tbodyId: 'excluidoTableBody', render: function () { renderExcluidoTable(); } }
+        excluido: { getRecords: function () { return excluidoRecords; }, codField: 'numDoc', tbodyId: 'excluidoTableBody', render: function () { renderExcluidoTable(); } },
+        // Cambio 04 — IVA Percibido (Anexo 8), IVA Retenido (Anexo 7) y Anticipo a
+        // Cuenta (Anexo 6): reutilizan exactamente la misma lógica de Consulta DTE
+        // (mismo botón, proceso, validaciones y mensajes que en los demás anexos).
+        // En estos tres libros, igual que en Compras/Débito/CF/Excluido, el campo
+        // "N° Documento" (numDoc) contiene el codigoGeneracion del DTE.
+        percibido: { getRecords: function () { return percibidoRecords; }, codField: 'numDoc', tbodyId: 'percibidoTableBody', render: function () { renderPercibidoTable(); } },
+        retenido:  { getRecords: function () { return retenidoRecords;  }, codField: 'numDoc', tbodyId: 'retenidoTableBody',  render: function () { renderRetenidoTable();  } },
+        anticipo:  { getRecords: function () { return anticipoRecords;  }, codField: 'numDoc', tbodyId: 'anticipoTableBody',  render: function () { renderAnticipoTable();  } }
     };
 
     var _dgiiEnCurso   = false;
