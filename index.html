@@ -10260,10 +10260,23 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         // Leer IVA real desde resumen.tributos (array) — fuente más confiable del MH
         // SOLO sumar tributo con código 20 (IVA 13%) — excluir FOVIAL (59) y COTRANS (71)
         var creditoTributos = 0;
+        // AGREGADO NUEVO — Cambio 06: capturar FOVIAL (código 59) y COTRANS (código 71)
+        // del mismo arreglo resumen.tributos, únicamente para mostrarlos en el formulario
+        // de Compras (campos cp_fovial / cp_cotrans). Son montos puramente informativos:
+        // no se suman a creditoTributos ni a ningún otro total, y no alteran la lógica
+        // fiscal existente (ver notas "FOVIAL y COTRANS son informativos" más abajo).
+        var fovialJson = 0;
+        var cotransJson = 0;
         if (j.resumen && Array.isArray(j.resumen.tributos)) {
             j.resumen.tributos.forEach(function(t) {
                 var cod = String(t.codigo || t.codigoTributo || '').trim();
                 if (cod === '20') { creditoTributos += parseFloat(t.valor) || 0; }
+                // AGREGADO NUEVO — Cambio 06: se reconocen ambos juegos de códigos de tributo
+                // observados en los JSON de DTE: '59'/'71' (esquema numérico antiguo) y
+                // 'D1'/'C8' (catálogo CAT-015 vigente, usado por la mayoría de emisores).
+                // Puramente detección de código — no cambia dónde ni cómo se usa el valor.
+                else if (cod === '59' || cod === 'D1') { fovialJson += parseFloat(t.valor) || 0; }
+                else if (cod === '71' || cod === 'C8') { cotransJson += parseFloat(t.valor) || 0; }
             });
         }
         var credito = creditoTributos > 0 ? creditoTributos : (gn(j,'resumen.totalIva') || (intGravadas * 0.13));
@@ -10316,7 +10329,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             intGravadas: intGravadas, internGrav: 0, impGrav: 0, impServ: 0,
             credito: credito, total: total,
             tipoOp: '1', clasif: defClasif, sector: defSector, tipoCosto: defTipoCosto,
-            selloRecepcion: selloRecepcionCp, ivaPercibido: ivaPercibidoCp
+            selloRecepcion: selloRecepcionCp, ivaPercibido: ivaPercibidoCp,
+            // AGREGADO NUEVO — Cambio 06: FOVIAL y COTRANS detectados en el JSON importado.
+            // Solo se muestran en el formulario (openComprasModal ya los lee vía r.fovial /
+            // r.cotrans); no participan en credito, total, ni en ningún otro cálculo.
+            fovial: fovialJson, cotrans: cotransJson
         };
     }
 
