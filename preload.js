@@ -109,6 +109,61 @@ contextBridge.exposeInMainWorld('fiscalAPI', {
     resetPrintConfig: (tipo) => ipcRenderer.invoke('reset-print-config', { tipo })
 });
 
+// ── CAMBIO 01: Escaneo de Documentos Físicos vía QR ─────────────────
+contextBridge.exposeInMainWorld('qrScan', {
+
+    // Inicia el módulo: levanta el servidor local y genera el QR de vinculación.
+    // proveedores: array del catálogo de la empresa activa (lo lee el renderer con loadProveedores()).
+    // clientes: array del catálogo de clientes de la empresa activa (loadClientes()) — usado por
+    // el flujo de Ventas — Crédito Fiscal.
+    // Devuelve { ok, qrDataUrl, ip, port, error }
+    iniciar: (proveedores, clientes, empresaNombre) => ipcRenderer.invoke('iniciar-qr-scan', { proveedores, clientes, empresaNombre }),
+
+    // Detiene el servidor y cierra cualquier sesión activa con el teléfono
+    detener: () => ipcRenderer.invoke('detener-qr-scan'),
+
+    // Reenvía un catálogo de proveedores actualizado al teléfono (si cambió mientras el módulo está abierto)
+    actualizarCatalogo: (proveedores) => ipcRenderer.invoke('qr-actualizar-catalogo', proveedores),
+
+    // Reenvía un catálogo de clientes actualizado al teléfono (si cambió mientras el módulo está abierto)
+    actualizarClientes: (clientes) => ipcRenderer.invoke('qr-actualizar-clientes', clientes),
+
+    // cb(data) — data: { conectado: true|false } — se dispara cuando el teléfono se conecta o se desconecta
+    onEstadoConexion: (cb) => ipcRenderer.on('qr-estado-conexion', (event, data) => cb(data)),
+
+    // cb(combinado) — combinado: resultado de la consulta pública + proveedor elegido,
+    // listo para autocompletar "Nuevo Registro — Compras"
+    onDocumentoEscaneado: (cb) => ipcRenderer.on('qr-documento-escaneado', (event, data) => cb(data)),
+
+    // cb(combinado) — combinado: resultado de la consulta pública + si la venta
+    // es exenta o no, listo para guardar directo en el Libro de Ventas —
+    // Consumidor Final (Anexo 2)
+    onDocumentoEscaneadoCF: (cb) => ipcRenderer.on('qr-documento-escaneado-cf', (event, data) => cb(data)),
+
+    // cb(combinado) — combinado: resultado de la consulta pública + cliente elegido/nuevo +
+    // si la venta es exenta o no, listo para guardar directo en el Libro de Ventas —
+    // Crédito Fiscal (Anexo 1)
+    onDocumentoEscaneadoCCF: (cb) => ipcRenderer.on('qr-documento-escaneado-ccf', (event, data) => cb(data)),
+
+    // cb(proveedor) — proveedor nuevo creado desde el teléfono, para registrar
+    // con autoRegistrarProveedor() en el catálogo real del renderer
+    onProveedorNuevo: (cb) => ipcRenderer.on('qr-proveedor-nuevo', (event, data) => cb(data)),
+
+    // cb(cliente) — cliente nuevo creado desde el teléfono (flujo Crédito Fiscal),
+    // para registrar con autoRegistrarCliente() en el catálogo real del renderer
+    onClienteNuevo: (cb) => ipcRenderer.on('qr-cliente-nuevo', (event, data) => cb(data)),
+
+    // Limpia los listeners registrados arriba (llamar al cerrar el módulo, para no acumular)
+    removerListeners: () => {
+        ipcRenderer.removeAllListeners('qr-estado-conexion');
+        ipcRenderer.removeAllListeners('qr-documento-escaneado');
+        ipcRenderer.removeAllListeners('qr-documento-escaneado-cf');
+        ipcRenderer.removeAllListeners('qr-documento-escaneado-ccf');
+        ipcRenderer.removeAllListeners('qr-proveedor-nuevo');
+        ipcRenderer.removeAllListeners('qr-cliente-nuevo');
+    }
+});
+
 // ── electronAPI — usado por el módulo de Correos DTE ──
 // Se expone por separado para compatibilidad con el módulo de correos
 // que detecta window.electronAPI.sendEmail, selectFolder, readFolder

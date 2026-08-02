@@ -893,6 +893,599 @@ ipcMain.handle('verificar-dte-mh', async (event, fechaGeneracion, codigoGeneraci
   }
 });
 
+// ══════════════════════════════════════════════════════════════════════
+// CAMBIO 01 — Escaneo de Documentos Físicos vía QR (Libro de Compras)
+//
+// Reutiliza el patrón ya probado de _dgiiGetWindow/_dgiiWaitFor/_dgiiSleep
+// y el vocabulario DGII_ESTADOS de arriba, pero con una función de
+// extracción MÁS AMPLIA (extraerCamposCompras) que además del Estado y el
+// Sello de Recepción (que ya extraía selloScript) también saca: Tipo de
+// DTE, Fecha y Hora de Generación, Monto Total de la Operación e IVA
+// percibido — campos que _dgiiConsultarUno nunca necesitó y por eso nunca
+// extrajo. No se modifica ninguna línea de _dgiiConsultarUno, DGII_ESTADOS,
+// ni de los handlers ya existentes: este bloque solo agrega funciones
+// hermanas, llamadas exclusivamente desde el flujo de escaneo QR.
+//
+// Usa su propio "carril" de ventana oculta ('qr'), separado de los carriles
+// numéricos (0,1,2…) que usa la verificación en lote, para poder escanear
+// documentos sin pisar ni esperar a un lote de Consulta DTE que esté
+// corriendo al mismo tiempo.
+// ══════════════════════════════════════════════════════════════════════
+const QR_SLOT = 'qr-compras';
+
+// Extrae, en un solo executeJavaScript, todos los labels que necesita el
+// autocompletado de "Nuevo Registro — Compras". Devuelve texto crudo tal
+// cual aparece en la página; la interpretación/mapeo se hace después en
+// _dgiiConsultarParaCompras. Nunca lanza — ante cualquier error devuelve
+// cadenas vacías para los campos que no pudo leer.
+async function extraerCamposCompras(win) {
+  const script = `
+    (function() {
+      function norm(s) {
+        return (s || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+      }
+      function valorDespuesDeLabel(labels, buscado) {
+        var idx = labels.findIndex(function(l) { return norm(l.textContent).indexOf(buscado) !== -1; });
+        if (idx === -1) return '';
+        for (var i = idx + 1; i < labels.length; i++) {
+          var txt = (labels[i].textContent || '').trim();
+          if (txt && norm(txt).indexOf(buscado) === -1) return txt;
+        }
+        return '';
+      }
+      try {
+        var labels = Array.from(document.querySelectorAll('label'));
+        return {
+          tipoDte:      valorDespuesDeLabel(labels, 'tipo de dte'),
+          fechaHora:    valorDespuesDeLabel(labels, 'fecha y hora de generacion'),
+          sello:        valorDespuesDeLabel(labels, 'sello de recepcion'),
+          montoTotal:   valorDespuesDeLabel(labels, 'monto total de la operacion'),
+          ivaPercibido: valorDespuesDeLabel(labels, 'iva percibido'),
+          numeroControl: valorDespuesDeLabel(labels, 'numero de control')
+        };
+      } catch (e) {
+        return { tipoDte: '', fechaHora: '', sello: '', montoTotal: '', ivaPercibido: '', numeroControl: '' };
+      }
+    })();
+  `;
+  return await win.webContents.executeJavaScript(script, true).catch(() => ({
+    tipoDte: '', fechaHora: '', sello: '', montoTotal: '', ivaPercibido: '', numeroControl: ''
+  }));
+}
+
+// Convierte un texto tipo "$1,234.56" o "1234.56" a número. Si no puede, devuelve 0.
+function _parseMontoQr(texto) {
+  const limpio = String(texto || '').replace(/[^0-9.\-]/g, '');
+  const n = parseFloat(limpio);
+  return isNaN(n) ? 0 : n;
+}
+
+// Deriva el código de Tipo de Documento (03/05) a partir del texto exacto
+// que muestra la consulta pública. Cualquier otro valor -> null (no soportado aún).
+function _mapearTipoDteQr(textoTipoDte) {
+  const n = String(textoTipoDte || '').toUpperCase();
+  if (n.indexOf('COMPROBANTE DE CRÉDITO FISCAL') !== -1 || n.indexOf('COMPROBANTE DE CREDITO FISCAL') !== -1) return '03';
+  if (n.indexOf('NOTA DE CRÉDITO') !== -1 || n.indexOf('NOTA DE CREDITO') !== -1) return '05';
+  return null;
+}
+
+// Igual que _mapearTipoDteQr pero para el Libro de Ventas — Consumidor Final
+// (Anexo 2): Factura -> 01, Nota de Crédito -> 05. Cualquier otro valor -> null.
+function _mapearTipoDteQrCF(textoTipoDte) {
+  const n = String(textoTipoDte || '').toUpperCase();
+  if (n.indexOf('NOTA DE CRÉDITO') !== -1 || n.indexOf('NOTA DE CREDITO') !== -1) return '05';
+  if (n.indexOf('FACTURA') !== -1) return '01';
+  return null;
+}
+
+// Ejecuta la consulta pública igual que _dgiiConsultarUno (misma URL, mismo
+// llenado de formulario, mismo botón "Realizar Búsqueda"), pero usando el
+// carril QR_SLOT y llamando a extraerCamposCompras al final en vez de solo
+// buscar el Sello. Devuelve el paquete ya interpretado y listo para el
+// autocompletado del formulario de Compras.
+async function _dgiiConsultarParaCompras(fechaGeneracion, codigoGeneracion) {
+  const win = _dgiiGetWindow(QR_SLOT);
+  const logPrefix = '[QR-Compras]';
+
+  console.log(logPrefix + ' Cargando página...');
+  try {
+    await win.loadURL(DGII_CONSULTA_URL);
+  } catch (e) {
+    return { estado: 'ERROR', error: 'No se pudo cargar la página del Ministerio: ' + e.message };
+  }
+
+  const listo = await _dgiiWaitFor(
+    win,
+    "!!(document.querySelector('input[formcontrolname=\"fechaGeneracion\"]') && document.querySelector('input[formcontrolname=\"codGen\"]'))",
+    35000, 300
+  );
+  if (!listo) {
+    return { estado: 'ERROR', error: 'La página del Ministerio no cargó a tiempo (timeout esperando el formulario)' };
+  }
+
+  const fillScript = `
+    (function() {
+      function setVal(el, val) {
+        var proto = Object.getPrototypeOf(el);
+        var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+        setter.call(el, val);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        el.dispatchEvent(new Event('blur', { bubbles: true }));
+      }
+      var fechaEl = document.querySelector('input[formcontrolname="fechaGeneracion"]');
+      var codEl   = document.querySelector('input[formcontrolname="codGen"]');
+      if (!fechaEl || !codEl) return false;
+      setVal(fechaEl, ${JSON.stringify(fechaGeneracion)});
+      setVal(codEl, ${JSON.stringify(codigoGeneracion)});
+      return true;
+    })();
+  `;
+  const llenado = await win.webContents.executeJavaScript(fillScript, true).catch(() => false);
+  if (!llenado) return { estado: 'ERROR', error: 'No se pudieron llenar los campos del formulario' };
+
+  await win.webContents.executeJavaScript("window.__dgiiPrevText = document.body.innerText;", true).catch(() => {});
+
+  const clickScript = `
+    (function() {
+      var btns = Array.from(document.querySelectorAll('button'));
+      var buscar = btns.find(function(b) { return (b.textContent || '').trim().indexOf('Realizar Búsqueda') !== -1; });
+      if (!buscar) return false;
+      buscar.click();
+      return true;
+    })();
+  `;
+  const clickeado = await win.webContents.executeJavaScript(clickScript, true).catch(() => false);
+  if (!clickeado) return { estado: 'ERROR', error: 'No se encontró el botón "Realizar Búsqueda" en la página' };
+
+  const cambio = await _dgiiWaitFor(win, "document.body.innerText !== window.__dgiiPrevText", 8000, 250);
+  if (!cambio) console.warn(logPrefix + ' El texto de la página no cambió tras 8s de espera.');
+  await _dgiiSleep(600);
+
+  const bodyText = await win.webContents.executeJavaScript("document.body.innerText || ''", true).catch(() => '');
+  const lower = bodyText.toLowerCase();
+
+  let estadoCode = 'ERROR';
+  let estadoTexto = '';
+  for (const item of DGII_ESTADOS) {
+    for (const frase of item.match) {
+      if (lower.indexOf(frase) !== -1) { estadoCode = item.code; estadoTexto = frase; break; }
+    }
+    if (estadoTexto) break;
+  }
+
+  const campos = await extraerCamposCompras(win);
+  const tipoDocMapeado = _mapearTipoDteQr(campos.tipoDte);
+
+  // "Fecha y Hora de Generación" viene como "31/07/2026 14:32:10" o similar —
+  // se toma solo la parte de fecha y se normaliza a YYYY-MM-DD si se puede.
+  let fechaSolo = fechaGeneracion; // respaldo: la que ya venía del QR
+  const m = String(campos.fechaHora || '').match(/(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+  if (m) fechaSolo = m[3] + '-' + m[2] + '-' + m[1];
+  else {
+    const m2 = String(campos.fechaHora || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (m2) fechaSolo = m2[0];
+  }
+
+  return {
+    estado: estadoCode,
+    estadoTexto: estadoTexto,
+    tipoDocMapeado: tipoDocMapeado,       // '03' | '05' | null (no soportado aún)
+    tipoDteTexto: campos.tipoDte || '',
+    fecha: fechaSolo,
+    selloRecepcion: campos.sello || '',
+    montoTotal: _parseMontoQr(campos.montoTotal),
+    ivaPercibido: _parseMontoQr(campos.ivaPercibido)
+  };
+}
+
+// ── Consulta DGII para Ventas — Consumidor Final (Anexo 2) vía escaneo QR ──
+// Mismo patrón que _dgiiConsultarParaCompras (misma URL, mismo formulario,
+// mismo botón "Realizar Búsqueda"), pero usando su propio carril de ventana
+// oculta (QR_SLOT_CF) para no pisar una consulta de Compras que esté
+// corriendo al mismo tiempo, y mapeando el Tipo de DTE a los códigos que usa
+// el Libro de Consumidor Final (01 Factura / 05 Nota de Crédito) en vez de
+// los de Compras (03/05). También extrae el Número de Control, que Compras
+// no necesita pero Consumidor Final sí (se usa como N° Resolución y como
+// Control Interno DEL/AL).
+const QR_SLOT_CF = 'qr-cf';
+
+async function _dgiiConsultarParaCF(fechaGeneracion, codigoGeneracion) {
+  const win = _dgiiGetWindow(QR_SLOT_CF);
+  const logPrefix = '[QR-ConsumidorFinal]';
+
+  console.log(logPrefix + ' Cargando página...');
+  try {
+    await win.loadURL(DGII_CONSULTA_URL);
+  } catch (e) {
+    return { estado: 'ERROR', error: 'No se pudo cargar la página del Ministerio: ' + e.message };
+  }
+
+  const listo = await _dgiiWaitFor(
+    win,
+    "!!(document.querySelector('input[formcontrolname=\"fechaGeneracion\"]') && document.querySelector('input[formcontrolname=\"codGen\"]'))",
+    35000, 300
+  );
+  if (!listo) {
+    return { estado: 'ERROR', error: 'La página del Ministerio no cargó a tiempo (timeout esperando el formulario)' };
+  }
+
+  const fillScript = `
+    (function() {
+      function setVal(el, val) {
+        var proto = Object.getPrototypeOf(el);
+        var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+        setter.call(el, val);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        el.dispatchEvent(new Event('blur', { bubbles: true }));
+      }
+      var fechaEl = document.querySelector('input[formcontrolname="fechaGeneracion"]');
+      var codEl   = document.querySelector('input[formcontrolname="codGen"]');
+      if (!fechaEl || !codEl) return false;
+      setVal(fechaEl, ${JSON.stringify(fechaGeneracion)});
+      setVal(codEl, ${JSON.stringify(codigoGeneracion)});
+      return true;
+    })();
+  `;
+  const llenado = await win.webContents.executeJavaScript(fillScript, true).catch(() => false);
+  if (!llenado) return { estado: 'ERROR', error: 'No se pudieron llenar los campos del formulario' };
+
+  await win.webContents.executeJavaScript("window.__dgiiPrevText = document.body.innerText;", true).catch(() => {});
+
+  const clickScript = `
+    (function() {
+      var btns = Array.from(document.querySelectorAll('button'));
+      var buscar = btns.find(function(b) { return (b.textContent || '').trim().indexOf('Realizar Búsqueda') !== -1; });
+      if (!buscar) return false;
+      buscar.click();
+      return true;
+    })();
+  `;
+  const clickeado = await win.webContents.executeJavaScript(clickScript, true).catch(() => false);
+  if (!clickeado) return { estado: 'ERROR', error: 'No se encontró el botón "Realizar Búsqueda" en la página' };
+
+  const cambio = await _dgiiWaitFor(win, "document.body.innerText !== window.__dgiiPrevText", 8000, 250);
+  if (!cambio) console.warn(logPrefix + ' El texto de la página no cambió tras 8s de espera.');
+  await _dgiiSleep(600);
+
+  const bodyText = await win.webContents.executeJavaScript("document.body.innerText || ''", true).catch(() => '');
+  const lower = bodyText.toLowerCase();
+
+  let estadoCode = 'ERROR';
+  let estadoTexto = '';
+  for (const item of DGII_ESTADOS) {
+    for (const frase of item.match) {
+      if (lower.indexOf(frase) !== -1) { estadoCode = item.code; estadoTexto = frase; break; }
+    }
+    if (estadoTexto) break;
+  }
+
+  const campos = await extraerCamposCompras(win);
+  const tipoDocMapeado = _mapearTipoDteQrCF(campos.tipoDte);
+
+  let fechaSolo = fechaGeneracion; // respaldo: la que ya venía del QR
+  const m = String(campos.fechaHora || '').match(/(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+  if (m) fechaSolo = m[3] + '-' + m[2] + '-' + m[1];
+  else {
+    const m2 = String(campos.fechaHora || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (m2) fechaSolo = m2[0];
+  }
+
+  return {
+    estado: estadoCode,
+    estadoTexto: estadoTexto,
+    tipoDocMapeado: tipoDocMapeado,       // '01' | '05' | null (no soportado aún)
+    tipoDteTexto: campos.tipoDte || '',
+    fecha: fechaSolo,
+    selloRecepcion: campos.sello || '',
+    numeroControl: campos.numeroControl || '',
+    montoTotal: _parseMontoQr(campos.montoTotal)
+  };
+}
+
+// ── Consulta DGII para Ventas — Crédito Fiscal (Anexo 1) vía escaneo QR ──
+// Mismo patrón que _dgiiConsultarParaCF (misma URL, mismo formulario, mismo
+// botón "Realizar Búsqueda"), pero usando su propio carril de ventana oculta
+// (QR_SLOT_CCF) para no pisar una consulta de Compras o de Consumidor Final
+// que esté corriendo al mismo tiempo, y mapeando el Tipo de DTE con
+// _mapearTipoDteQr (03 Comprobante de Crédito Fiscal / 05 Nota de Crédito —
+// los mismos códigos que ya usa Compras) en vez de _mapearTipoDteQrCF
+// (01/05), que es el mapeo que usa Consumidor Final.
+const QR_SLOT_CCF = 'qr-ccf';
+
+async function _dgiiConsultarParaCCF(fechaGeneracion, codigoGeneracion) {
+  const win = _dgiiGetWindow(QR_SLOT_CCF);
+  const logPrefix = '[QR-CreditoFiscal]';
+
+  console.log(logPrefix + ' Cargando página...');
+  try {
+    await win.loadURL(DGII_CONSULTA_URL);
+  } catch (e) {
+    return { estado: 'ERROR', error: 'No se pudo cargar la página del Ministerio: ' + e.message };
+  }
+
+  const listo = await _dgiiWaitFor(
+    win,
+    "!!(document.querySelector('input[formcontrolname=\"fechaGeneracion\"]') && document.querySelector('input[formcontrolname=\"codGen\"]'))",
+    35000, 300
+  );
+  if (!listo) {
+    return { estado: 'ERROR', error: 'La página del Ministerio no cargó a tiempo (timeout esperando el formulario)' };
+  }
+
+  const fillScript = `
+    (function() {
+      function setVal(el, val) {
+        var proto = Object.getPrototypeOf(el);
+        var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+        setter.call(el, val);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        el.dispatchEvent(new Event('blur', { bubbles: true }));
+      }
+      var fechaEl = document.querySelector('input[formcontrolname="fechaGeneracion"]');
+      var codEl   = document.querySelector('input[formcontrolname="codGen"]');
+      if (!fechaEl || !codEl) return false;
+      setVal(fechaEl, ${JSON.stringify(fechaGeneracion)});
+      setVal(codEl, ${JSON.stringify(codigoGeneracion)});
+      return true;
+    })();
+  `;
+  const llenado = await win.webContents.executeJavaScript(fillScript, true).catch(() => false);
+  if (!llenado) return { estado: 'ERROR', error: 'No se pudieron llenar los campos del formulario' };
+
+  await win.webContents.executeJavaScript("window.__dgiiPrevText = document.body.innerText;", true).catch(() => {});
+
+  const clickScript = `
+    (function() {
+      var btns = Array.from(document.querySelectorAll('button'));
+      var buscar = btns.find(function(b) { return (b.textContent || '').trim().indexOf('Realizar Búsqueda') !== -1; });
+      if (!buscar) return false;
+      buscar.click();
+      return true;
+    })();
+  `;
+  const clickeado = await win.webContents.executeJavaScript(clickScript, true).catch(() => false);
+  if (!clickeado) return { estado: 'ERROR', error: 'No se encontró el botón "Realizar Búsqueda" en la página' };
+
+  const cambio = await _dgiiWaitFor(win, "document.body.innerText !== window.__dgiiPrevText", 8000, 250);
+  if (!cambio) console.warn(logPrefix + ' El texto de la página no cambió tras 8s de espera.');
+  await _dgiiSleep(600);
+
+  const bodyText = await win.webContents.executeJavaScript("document.body.innerText || ''", true).catch(() => '');
+  const lower = bodyText.toLowerCase();
+
+  let estadoCode = 'ERROR';
+  let estadoTexto = '';
+  for (const item of DGII_ESTADOS) {
+    for (const frase of item.match) {
+      if (lower.indexOf(frase) !== -1) { estadoCode = item.code; estadoTexto = frase; break; }
+    }
+    if (estadoTexto) break;
+  }
+
+  const campos = await extraerCamposCompras(win);
+  const tipoDocMapeado = _mapearTipoDteQr(campos.tipoDte);
+
+  let fechaSolo = fechaGeneracion; // respaldo: la que ya venía del QR
+  const m = String(campos.fechaHora || '').match(/(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+  if (m) fechaSolo = m[3] + '-' + m[2] + '-' + m[1];
+  else {
+    const m2 = String(campos.fechaHora || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (m2) fechaSolo = m2[0];
+  }
+
+  return {
+    estado: estadoCode,
+    estadoTexto: estadoTexto,
+    tipoDocMapeado: tipoDocMapeado,       // '03' | '05' | null (no soportado aún)
+    tipoDteTexto: campos.tipoDte || '',
+    fecha: fechaSolo,
+    selloRecepcion: campos.sello || '',
+    numeroControl: campos.numeroControl || '',
+    montoTotal: _parseMontoQr(campos.montoTotal)
+  };
+}
+
+// ── Servidor de emparejamiento QR (proceso principal) ──────────────────
+// Instancia única — se crea/destruye completa cada vez que el usuario abre
+// o cierra el módulo desde la interfaz, así nunca queda nada corriendo en
+// segundo plano sin que el usuario lo haya pedido explícitamente.
+let _qrServerModule = null;
+let _qrEventosEnganchados = false;
+
+function _obtenerQrServerModule() {
+  if (!_qrServerModule) {
+    _qrServerModule = require('./qrPairingServer');
+  }
+  if (!_qrEventosEnganchados) {
+    _qrEventosEnganchados = true;
+    _qrServerModule.eventos.on('conexion', (data) => {
+      if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+        mainWindowRef.webContents.send('qr-estado-conexion', data);
+      }
+    });
+
+    _qrServerModule.eventos.on('proveedor-nuevo', (proveedor) => {
+      if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+        mainWindowRef.webContents.send('qr-proveedor-nuevo', proveedor);
+      }
+    });
+
+    _qrServerModule.eventos.on('cliente-nuevo', (cliente) => {
+      if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+        mainWindowRef.webContents.send('qr-cliente-nuevo', cliente);
+      }
+    });
+
+    _qrServerModule.eventos.on('documento-escaneado', async (payload) => {
+      const libro = payload.libro || 'compras';
+      try {
+        if (libro === 'cf') {
+          const resultado = await _dgiiConsultarParaCF(payload.qr.fechaEmi, payload.qr.codGen);
+
+          // Tipo de DTE no soportado aún (tipoDocMapeado null) -> no se agrega
+          // al Libro de Consumidor Final, se avisa al teléfono y se corta aquí.
+          if (resultado.estado !== 'ERROR' && !resultado.tipoDocMapeado) {
+            _qrServerModule.enviarResultadoDocumento({
+              ok: false,
+              estado: resultado.estado,
+              mensaje: 'Tipo de documento no soportado para Consumidor Final' +
+                (resultado.tipoDteTexto ? (' (' + resultado.tipoDteTexto + ')') : '') +
+                '. No se agregó.'
+            });
+            return;
+          }
+
+          const combinado = Object.assign({}, resultado, {
+            codGen: payload.qr.codGen,
+            ambiente: payload.qr.ambiente,
+            exenta: !!payload.exenta
+          });
+          if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+            mainWindowRef.webContents.send('qr-documento-escaneado-cf', combinado);
+          }
+          const ok = resultado.estado !== 'ERROR';
+          _qrServerModule.enviarResultadoDocumento({
+            ok: ok,
+            estado: resultado.estado,
+            mensaje: ok
+              ? 'Documento cargado en FiscalSync — revisa y guarda en la computadora.'
+              : ('No se pudo consultar el documento: ' + (resultado.error || 'error desconocido'))
+          });
+          return;
+        }
+
+        if (libro === 'ccf') {
+          const resultado = await _dgiiConsultarParaCCF(payload.qr.fechaEmi, payload.qr.codGen);
+
+          // Tipo de DTE no soportado aún (tipoDocMapeado null) -> no se agrega
+          // al Libro de Crédito Fiscal, se avisa al teléfono y se corta aquí.
+          if (resultado.estado !== 'ERROR' && !resultado.tipoDocMapeado) {
+            _qrServerModule.enviarResultadoDocumento({
+              ok: false,
+              estado: resultado.estado,
+              mensaje: 'Tipo de documento no soportado para Crédito Fiscal' +
+                (resultado.tipoDteTexto ? (' (' + resultado.tipoDteTexto + ')') : '') +
+                '. No se agregó.'
+            });
+            return;
+          }
+
+          const combinado = Object.assign({}, resultado, {
+            codGen: payload.qr.codGen,
+            ambiente: payload.qr.ambiente,
+            cliente: payload.cliente,
+            exenta: !!payload.exenta
+          });
+          if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+            mainWindowRef.webContents.send('qr-documento-escaneado-ccf', combinado);
+          }
+          const ok = resultado.estado !== 'ERROR';
+          _qrServerModule.enviarResultadoDocumento({
+            ok: ok,
+            estado: resultado.estado,
+            mensaje: ok
+              ? 'Documento cargado en FiscalSync — revisa y guarda en la computadora.'
+              : ('No se pudo consultar el documento: ' + (resultado.error || 'error desconocido'))
+          });
+          return;
+        }
+
+        const resultado = await _dgiiConsultarParaCompras(payload.qr.fechaEmi, payload.qr.codGen);
+
+        // Tipo de DTE no soportado aún (tipoDocMapeado null) -> no se agrega
+        // al Libro de Compras, se avisa al teléfono y se corta aquí.
+        if (resultado.estado !== 'ERROR' && !resultado.tipoDocMapeado) {
+          _qrServerModule.enviarResultadoDocumento({
+            ok: false,
+            estado: resultado.estado,
+            mensaje: 'Tipo de documento no soportado para Compras' +
+              (resultado.tipoDteTexto ? (' (' + resultado.tipoDteTexto + ')') : '') +
+              '. No se agregó.'
+          });
+          return;
+        }
+
+        const combinado = Object.assign({}, resultado, {
+          codGen: payload.qr.codGen,
+          ambiente: payload.qr.ambiente,
+          proveedor: payload.proveedor
+        });
+        if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+          mainWindowRef.webContents.send('qr-documento-escaneado', combinado);
+        }
+        const ok = resultado.estado !== 'ERROR';
+        _qrServerModule.enviarResultadoDocumento({
+          ok: ok,
+          estado: resultado.estado,
+          mensaje: ok
+            ? 'Documento cargado en FiscalSync — revisa y guarda en la computadora.'
+            : ('No se pudo consultar el documento: ' + (resultado.error || 'error desconocido'))
+        });
+      } catch (e) {
+        _qrServerModule.enviarResultadoDocumento({ ok: false, mensaje: 'Error inesperado: ' + e.message });
+      }
+    });
+  }
+  return _qrServerModule;
+}
+
+// Recibe { proveedores, empresaNombre } — el catálogo lo manda el RENDERER
+// (fuente de verdad real, ver preload.js/index.html), este handler nunca
+// lee fiscaldata.json directamente para evitar condiciones de carrera.
+ipcMain.handle('iniciar-qr-scan', async (event, { proveedores, clientes, empresaNombre } = {}) => {
+  try {
+    const mod = _obtenerQrServerModule();
+    return await mod.iniciar({ app, proveedores: proveedores || [], clientes: clientes || [], empresaNombre: empresaNombre || '' });
+  } catch (e) {
+    return { ok: false, error: e.message || 'Error desconocido al iniciar el módulo de escaneo' };
+  }
+});
+
+ipcMain.handle('detener-qr-scan', async () => {
+  try {
+    if (_qrServerModule) return await _qrServerModule.detener();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+// El renderer llama esto si el catálogo cambia mientras el módulo sigue abierto
+// (ej. el usuario edita proveedores manualmente en el desktop durante el escaneo).
+ipcMain.handle('qr-actualizar-catalogo', async (event, proveedores) => {
+  try {
+    if (_qrServerModule && _qrServerModule.estaCorriendo()) {
+      _qrServerModule.actualizarCatalogo(proveedores || []);
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+// Igual que arriba pero para el catálogo de clientes (usado por Ventas — Crédito Fiscal).
+ipcMain.handle('qr-actualizar-clientes', async (event, clientes) => {
+  try {
+    if (_qrServerModule && _qrServerModule.estaCorriendo()) {
+      _qrServerModule.actualizarClientes(clientes || []);
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+// Cierra el módulo automáticamente si la ventana principal se destruye,
+// para no dejar el servidor HTTPS local corriendo en segundo plano.
+app.on('before-quit', () => {
+  if (_qrServerModule && _qrServerModule.estaCorriendo()) {
+    _qrServerModule.detener().catch(() => {});
+  }
+});
+
 // Cierra y descarta todas las ventanas ocultas del pool de consulta DGII.
 // Se usa tanto al cancelar una verificación como al terminarla normalmente,
 // para no dejar ventanas abiertas en segundo plano sin necesidad — la
