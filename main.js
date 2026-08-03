@@ -1561,6 +1561,26 @@ ipcMain.handle('qr-actualizar-clientes', async (event, clientes) => {
   }
 });
 
+// Corrección Bug 01: el renderer es quien sabe, después de recibir el
+// documento combinado (qr-documento-escaneado / -cf / -ccf), si el
+// documento ya existía en el libro correspondiente (registrado antes de
+// forma manual, por JSON, por CSV o por un escaneo previo) y por lo tanto
+// NO lo guardó. Como el mensaje "cargado" que main.js le manda al teléfono
+// justo después de consultar el Ministerio se envía ANTES de que el
+// renderer tome esa decisión, este handler permite que el renderer corrija
+// ese mensaje en el teléfono una vez que ya sabe el resultado real —
+// sin tocar en nada la lógica de escaneo/consulta existente.
+ipcMain.handle('qr-reportar-resultado', async (event, resultado) => {
+  try {
+    if (_qrServerModule && _qrServerModule.estaCorriendo()) {
+      _qrServerModule.enviarResultadoDocumento(resultado || {});
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
 // Cierra el módulo automáticamente si la ventana principal se destruye,
 // para no dejar el servidor HTTPS local corriendo en segundo plano.
 app.on('before-quit', () => {

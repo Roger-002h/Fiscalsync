@@ -174,6 +174,14 @@ contextBridge.exposeInMainWorld('qrScan', {
     // para registrar con autoRegistrarCliente() en el catálogo real del renderer
     onClienteNuevo: (cb) => ipcRenderer.on('qr-cliente-nuevo', (event, data) => cb(data)),
 
+    // Corrección Bug 01: le permite al renderer corregir, en el teléfono, el
+    // mensaje de resultado de un documento escaneado — se usa cuando el
+    // renderer detecta que el documento YA estaba registrado en el libro
+    // (por cualquier vía) y por lo tanto no lo guardó, para que el teléfono
+    // deje de mostrar el mensaje genérico de "cargado" enviado antes de esa
+    // verificación. resultado: { ok: false, mensaje: 'Documento ya procesado.' }
+    reportarResultado: (resultado) => ipcRenderer.invoke('qr-reportar-resultado', resultado),
+
     // Limpia los listeners registrados arriba (llamar al cerrar el módulo, para no acumular)
     removerListeners: () => {
         ipcRenderer.removeAllListeners('qr-estado-conexion');

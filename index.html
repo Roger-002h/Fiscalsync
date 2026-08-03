@@ -6245,6 +6245,29 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         return index;
     }
 
+    // Corrección Bug 01: verifica si un Código de Generación (UUID del DTE)
+    // ya existe en el libro indicado — SIN importar los montos, la fecha
+    // exacta, ni cómo se registró el documento original (manual, JSON, CSV,
+    // o un escaneo QR previo). A diferencia de esDocumentoDuplicado (que
+    // compara un "fingerprint" completo incluyendo montos calculados y por
+    // eso puede fallar en detectar el mismo documento si algún monto quedó
+    // redondeado distinto), esta función solo compara el identificador único
+    // del documento — igual que ya se hace para los archivos JSON arrastrados
+    // a la cola de importación (ver más abajo, "isDupCurrentMonth").
+    // Retorna el nombre del período donde ya existe ('Julio 2026') o null si
+    // no se encontró.
+    function _codigoGenYaExisteEnLibro(libroKey, codGenNorm, arrActual) {
+        if (!codGenNorm || codGenNorm.length < 32) return null;
+        var enActual = (arrActual || []).some(function(r) {
+            var candidates = [r.numDoc, r.serie, r.docDel, r.docAl, r.resolucion, r.codigoGen];
+            return candidates.some(function(c) { return c && normalizeUUID(c) === codGenNorm; });
+        });
+        if (enActual) return MONTH_NAMES[currentMonth] + ' ' + currentYear;
+        var idxOtros = buildCrossMonthIndex(libroKey);
+        if (idxOtros[codGenNorm]) return idxOtros[codGenNorm];
+        return null;
+    }
+
     // Extrae el UUID normalizado de un registro importado (del JSON crudo)
     function _getCodigoGenFromParsed(parsed) {
         var id = parsed.identificacion || {};
@@ -15457,9 +15480,20 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             _percLinkId: ''
         };
 
-        var _dupPeriodoCp = esDocumentoDuplicado('compras', r, comprasRecords, null);
+        // Corrección Bug 01: si el documento ya fue registrado en el Libro de
+        // Compras (manual, JSON, CSV o un escaneo previo), no se procesa de
+        // nuevo — se avisa al usuario tanto en la computadora como en el
+        // teléfono (que ya había recibido el mensaje genérico de "cargado")
+        // y se corta aquí sin tocar el resto de la lógica de escaneo. Se
+        // verifica por el Código de Generación del DTE (no por los montos),
+        // para que detecte el duplicado aunque el registro original tenga
+        // algún monto calculado distinto.
+        var _dupPeriodoCp = _codigoGenYaExisteEnLibro('compras', normalizeUUID(combinado.codGen || ''), comprasRecords);
         if (_dupPeriodoCp) {
-            showToast('Documento duplicado — ya existe un registro idéntico en ' + _dupPeriodoCp + '. No se guardó.', 'error');
+            showToast('Documento ya procesado.', 'error');
+            if (window.qrScan && window.qrScan.reportarResultado) {
+                window.qrScan.reportarResultado({ ok: false, mensaje: 'Documento ya procesado.' });
+            }
             _minimizarModuloEscaneo();
             return;
         }
@@ -15524,9 +15558,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             total: subtotal, tipoOp: '1', tipoIng: empTipoIng
         };
 
-        var _dupPeriodoCf = esDocumentoDuplicado('cf', r, cfRecords, null);
+        // Corrección Bug 01: mismo criterio que en Compras — si el documento
+        // ya existe en el Libro de Consumidor Final (por cualquier vía), no
+        // se procesa de nuevo y se corrige el mensaje en el teléfono. Se
+        // verifica por el Código de Generación del DTE, no por los montos.
+        var _dupPeriodoCf = _codigoGenYaExisteEnLibro('cf', normalizeUUID(combinado.codGen || ''), cfRecords);
         if (_dupPeriodoCf) {
-            showToast('Documento duplicado — ya existe un registro idéntico en ' + _dupPeriodoCf + '. No se guardó.', 'error');
+            showToast('Documento ya procesado.', 'error');
+            if (window.qrScan && window.qrScan.reportarResultado) {
+                window.qrScan.reportarResultado({ ok: false, mensaje: 'Documento ya procesado.' });
+            }
             _minimizarModuloEscaneo();
             return;
         }
@@ -15671,9 +15712,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             total: subtotal, tipoOp: tipoOpFinal, tipoIng: tipoIngFinal
         };
 
-        var _dupPeriodoD = esDocumentoDuplicado('debito', r, debitoRecords, null);
+        // Corrección Bug 01: mismo criterio que en Compras — si el documento
+        // ya existe en el Libro de Crédito Fiscal (por cualquier vía), no se
+        // procesa de nuevo y se corrige el mensaje en el teléfono. Se
+        // verifica por el Código de Generación del DTE, no por los montos.
+        var _dupPeriodoD = _codigoGenYaExisteEnLibro('debito', normalizeUUID(combinado.codGen || ''), debitoRecords);
         if (_dupPeriodoD) {
-            showToast('Documento duplicado — ya existe un registro idéntico en ' + _dupPeriodoD + '. No se guardó.', 'error');
+            showToast('Documento ya procesado.', 'error');
+            if (window.qrScan && window.qrScan.reportarResultado) {
+                window.qrScan.reportarResultado({ ok: false, mensaje: 'Documento ya procesado.' });
+            }
             _minimizarModuloEscaneo();
             return;
         }
