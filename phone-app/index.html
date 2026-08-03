@@ -45,6 +45,7 @@
   .prov-item:active{background:#0f0f11;}
   .prov-item .nombre{font-weight:600; font-size:13px;}
   .prov-item .nit{font-size:12px; color:var(--dim);}
+  .prov-item .clasif{font-size:11px; color:var(--teal); margin-top:2px;}
   .toast{position:fixed; left:16px; right:16px; bottom:16px; background:var(--card); border:1px solid var(--border);
     border-radius:12px; padding:13px 14px; font-size:13px; display:none; z-index:50;}
   .toast.show{display:block;}
@@ -131,13 +132,39 @@
         <input type="text" id="pnNrc">
         <label>DUI (opcional)</label>
         <input type="text" id="pnDui">
+        <label>Clasificación</label>
+        <select id="pnClasif"></select>
         <button class="btn-teal" id="btnPnConfirmar" style="margin-top:14px;">Usar este proveedor</button>
       </div>
 
       <div id="provElegido" class="card hidden">
         <h2>Proveedor seleccionado</h2>
         <p class="hint" id="provElegidoTxt"></p>
-        <button class="btn-teal" id="btnConfirmarDocumento" style="margin-top:6px;">Confirmar y enviar a FiscalSync</button>
+        <div id="provElegidoClasif" style="margin-top:6px; display:flex; flex-direction:column; gap:2px;"></div>
+        <button class="btn-outline" id="btnEditarProveedor" style="margin-top:12px;">Editar proveedor</button>
+        <button class="btn-teal" id="btnConfirmarDocumento" style="margin-top:10px;">Confirmar y enviar a FiscalSync</button>
+      </div>
+
+      <div id="provEditarForm" class="card hidden">
+        <h2>Editar proveedor</h2>
+        <label>Nombre / Razón social</label>
+        <input type="text" id="peNombre">
+        <label>NIT</label>
+        <input type="text" id="peNit" placeholder="0000-000000-000-0">
+        <label>NRC (opcional)</label>
+        <input type="text" id="peNrc">
+        <label>DUI (opcional)</label>
+        <input type="text" id="peDui">
+        <label>Clasificación</label>
+        <select id="peClasif"></select>
+        <label>Sector</label>
+        <select id="peSector"></select>
+        <label>Tipo de Costo/Gasto</label>
+        <select id="peTipoCosto"></select>
+        <div class="btn-row" style="margin-top:14px;">
+          <button class="btn-outline" id="btnPeCancelar">Cancelar</button>
+          <button class="btn-teal" id="btnPeGuardar">Guardar cambios</button>
+        </div>
       </div>
 
       <button class="btn-danger" id="btnCancelarDocumento">Cancelar este documento</button>
@@ -197,6 +224,26 @@
       <div id="clienteElegido" class="card hidden">
         <h2>Cliente seleccionado</h2>
         <p class="hint" id="clienteElegidoTxt"></p>
+        <p class="hint" id="clienteElegidoClasif"></p>
+        <button class="btn-outline" id="btnEditarCliente" style="margin-top:12px;">Editar cliente</button>
+      </div>
+
+      <div id="clienteEditarForm" class="card hidden">
+        <h2>Editar cliente</h2>
+        <label>Nombre / Razón social</label>
+        <input type="text" id="ceNombre">
+        <label>NIT</label>
+        <input type="text" id="ceNit" placeholder="0000-000000-000-0">
+        <label>NRC (opcional)</label>
+        <input type="text" id="ceNrc">
+        <label>Tipo de Operación</label>
+        <select id="ceTipoOp"></select>
+        <label>Tipo de Ingreso</label>
+        <select id="ceTipoIng"></select>
+        <div class="btn-row" style="margin-top:14px;">
+          <button class="btn-outline" id="btnCeCancelar">Cancelar</button>
+          <button class="btn-teal" id="btnCeGuardar">Guardar cambios</button>
+        </div>
       </div>
 
       <div class="card">

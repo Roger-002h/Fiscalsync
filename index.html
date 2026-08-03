@@ -15194,7 +15194,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         var proveedoresList = loadProveedores();
         var clientesList = loadClientes();
 
-        window.qrScan.iniciar(proveedoresList, clientesList, empresaNombre).then(function(res) {
+        window.qrScan.iniciar(proveedoresList, clientesList, empresaNombre, CLASIF_LABELS, SECTOR_LABELS, COSTO_LABELS).then(function(res) {
             if (!res || !res.ok) {
                 _renderQrScanBody('error', (res && res.error) || 'No se pudo iniciar el módulo de escaneo.');
                 return;
@@ -15290,7 +15290,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             var empSector = '1';
             var empActiva = empresas.find(function(e) { return e.id === activeEmpresaId; });
             if (empActiva && empActiva.sector) empSector = empActiva.sector;
-            autoRegistrarProveedor(proveedor.nit, proveedor.nombre, proveedor.dui, proveedor.nrc, '1', empSector, '1');
+            autoRegistrarProveedor(proveedor.nit, proveedor.nombre, proveedor.dui, proveedor.nrc, (proveedor.clasif || '1'), empSector, '1');
             // Refresca el catálogo que tiene el teléfono, por si escanea otro
             // documento del mismo proveedor recién creado en este mismo lote.
             if (window.qrScan.actualizarCatalogo) window.qrScan.actualizarCatalogo(loadProveedores());
@@ -15308,6 +15308,21 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             if (window.qrScan.actualizarClientes) window.qrScan.actualizarClientes(loadClientes());
         });
 
+        // Cambio 01 (ampliación): un proveedor YA EXISTENTE en el catálogo fue
+        // editado desde el teléfono (nombre/NIT/NRC/DUI y/o clasificación
+        // completa). Se aplica con la MISMA estructura que usa el catálogo de
+        // Proveedores del escritorio, sin abrir ningún modal.
+        window.qrScan.onProveedorEditado(function(proveedorEditado) {
+            _aplicarEdicionProveedorDesdeQR(proveedorEditado);
+        });
+
+        // Cambio 01 (ampliación): un cliente YA EXISTENTE en el catálogo fue
+        // editado desde el teléfono (flujo Ventas — Crédito Fiscal). Mismo
+        // patrón que onProveedorEditado.
+        window.qrScan.onClienteEditado(function(clienteEditado) {
+            _aplicarEdicionClienteDesdeQR(clienteEditado);
+        });
+
         window.qrScan.onDocumentoEscaneado(function(combinado) {
             _autocompletarComprasDesdeQR(combinado);
         });
@@ -15319,6 +15334,68 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         window.qrScan.onDocumentoEscaneadoCCF(function(combinado) {
             _autocompletarVentaCCFDesdeQR(combinado);
         });
+    }
+
+    // Cambio 01 (ampliación): aplica al catálogo real de Proveedores (mismo
+    // storage que usa openProveedorModal/saveProveedorRecord) una edición
+    // hecha desde el teléfono. proveedorEditado: { nitOriginal, nit, nrc, dui,
+    // nombre, clasif, sector, tipoCosto } — nitOriginal identifica el registro
+    // a modificar (puede diferir de nit si también se corrigió el NIT).
+    // No abre ningún modal ni toca el flujo de escaneo; solo reutiliza
+    // loadProveedores/saveProveedores/aplicarClasifProveedorACompras, que ya
+    // usa el resto del programa, para no duplicar lógica de negocio.
+    function _aplicarEdicionProveedorDesdeQR(proveedorEditado) {
+        if (!proveedorEditado || !activeEmpresaId) return;
+        var nitBuscar = (proveedorEditado.nitOriginal || proveedorEditado.nit || '').trim();
+        if (!nitBuscar) return;
+
+        var list = loadProveedores();
+        var idx = list.findIndex(function(p) {
+            var pNit = p.nit ? String(p.nit).trim() : '';
+            var pNrc = p.nrc ? String(p.nrc).trim() : '';
+            return (pNit && pNit === nitBuscar) || (pNrc && pNrc === nitBuscar);
+        });
+        // El teléfono solo puede editar proveedores que YA están en el catálogo
+        // sincronizado — si no se encuentra, no hay nada que actualizar.
+        if (idx === -1) return;
+
+        var nit       = (proveedorEditado.nit || list[idx].nit || '').trim();
+        var nrc       = (proveedorEditado.nrc !== undefined ? proveedorEditado.nrc : list[idx].nrc) || '';
+        var dui       = (proveedorEditado.dui !== undefined ? proveedorEditado.dui : list[idx].dui) || '';
+        var nombre    = (proveedorEditado.nombre !== undefined ? proveedorEditado.nombre : list[idx].nombre) || '';
+        var clasif    = (proveedorEditado.clasif !== undefined ? proveedorEditado.clasif : list[idx].clasif) || '';
+        var sector    = (proveedorEditado.sector !== undefined ? proveedorEditado.sector : list[idx].sector) || '';
+        var tipoCosto = (proveedorEditado.tipoCosto !== undefined ? proveedorEditado.tipoCosto : list[idx].tipoCosto) || '';
+
+        list[idx].nit = nit;
+        list[idx].nrc = nrc;
+        list[idx].dui = dui;
+        list[idx].nombre = nombre;
+        list[idx].clasif = clasif;
+        list[idx].sector = sector;
+        list[idx].tipoCosto = tipoCosto;
+        saveProveedores(list);
+
+        // Propaga la nueva clasificación a los registros de Compras del mes
+        // activo que coincidan con este proveedor — misma función que ya usa
+        // saveProveedorRecord() al editar desde la computadora.
+        if (nit) {
+            var actualizados = aplicarClasifProveedorACompras(nit, clasif, sector, tipoCosto);
+            if (actualizados > 0) {
+                saveCurrentMonthData();
+                renderComprasTable();
+            }
+        }
+
+        // Si la tabla de Proveedores está visible en este momento, se refresca.
+        if (typeof renderProveedoresTable === 'function') renderProveedoresTable();
+
+        // Reenvía el catálogo ya actualizado al teléfono, para que quede
+        // sincronizado si el usuario sigue escaneando documentos de este
+        // mismo proveedor en la misma sesión.
+        if (window.qrScan && window.qrScan.actualizarCatalogo) window.qrScan.actualizarCatalogo(loadProveedores());
+
+        showToast('Proveedor actualizado desde el teléfono', 'success');
     }
 
     // Combina el resultado de la consulta pública + el proveedor elegido/creado
@@ -15479,6 +15556,69 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     // Reutiliza la MISMA lógica de catálogo de clientes (autoRegistrarCliente)
     // y de duplicados (esDocumentoDuplicado) que ya usa el registro manual
     // (saveDebitoRecord), sin tocar la UI del modal.
+    // Cambio 01 (ampliación): aplica al catálogo real de Clientes (mismo
+    // storage que usa openClienteModal/saveClienteRecord) una edición hecha
+    // desde el teléfono (flujo Ventas — Crédito Fiscal). clienteEditado:
+    // { nitOriginal, nit, nrc, nombre, tipoOp, tipoIng } — nitOriginal
+    // identifica el registro a modificar (puede diferir de nit si también
+    // se corrigió el NIT). No abre ningún modal ni toca el flujo de escaneo.
+    function _aplicarEdicionClienteDesdeQR(clienteEditado) {
+        if (!clienteEditado || !activeEmpresaId) return;
+        var nitBuscar = (clienteEditado.nitOriginal || clienteEditado.nit || '').trim();
+        if (!nitBuscar) return;
+
+        var list = loadClientes();
+        var idx = list.findIndex(function(c) {
+            var cNit = c.nit ? String(c.nit).trim() : '';
+            var cNrc = c.nrc ? String(c.nrc).trim() : '';
+            return (cNit && cNit === nitBuscar) || (cNrc && cNrc === nitBuscar);
+        });
+        // El teléfono solo puede editar clientes que YA están en el catálogo
+        // sincronizado — si no se encuentra, no hay nada que actualizar.
+        if (idx === -1) return;
+
+        var nit     = (clienteEditado.nit || list[idx].nit || '').trim();
+        var nrc     = (clienteEditado.nrc !== undefined ? clienteEditado.nrc : list[idx].nrc) || '';
+        var nombre  = (clienteEditado.nombre !== undefined ? clienteEditado.nombre : list[idx].nombre) || '';
+        var tipoOp  = (clienteEditado.tipoOp !== undefined ? clienteEditado.tipoOp : list[idx].tipoOp) || '';
+        var tipoIng = (clienteEditado.tipoIng !== undefined ? clienteEditado.tipoIng : list[idx].tipoIng) || '';
+
+        list[idx].nit = nit;
+        list[idx].nrc = nrc;
+        list[idx].nombre = nombre;
+        list[idx].tipoOp = tipoOp;
+        list[idx].tipoIng = tipoIng;
+        saveClientes(list);
+
+        // Propaga la nueva clasificación a los registros de Ventas — Crédito
+        // Fiscal (debitoRecords) del mes activo que coincidan con este cliente —
+        // mismo criterio que ya usa aplicarCodificacionDebito().
+        if (nit) {
+            var actualizadosCli = 0;
+            debitoRecords.forEach(function(r) {
+                var rNit = (r.nit || r.nrc || '').trim();
+                if (rNit === nit || rNit === nrc) {
+                    if (tipoOp)  { r.tipoOp  = tipoOp;  actualizadosCli++; }
+                    if (tipoIng) { r.tipoIng = tipoIng; }
+                }
+            });
+            if (actualizadosCli > 0) {
+                saveCurrentMonthData();
+                renderDebitoTable();
+            }
+        }
+
+        // Si la tabla de Clientes está visible en este momento, se refresca.
+        if (typeof renderClientesTable === 'function') renderClientesTable();
+
+        // Reenvía el catálogo ya actualizado al teléfono, para que quede
+        // sincronizado si el usuario sigue escaneando documentos de este
+        // mismo cliente en la misma sesión.
+        if (window.qrScan && window.qrScan.actualizarClientes) window.qrScan.actualizarClientes(loadClientes());
+
+        showToast('Cliente actualizado desde el teléfono', 'success');
+    }
+
     function _autocompletarVentaCCFDesdeQR(combinado) {
         if (!combinado) return;
         var cli = combinado.cliente || {};

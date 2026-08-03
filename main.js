@@ -1305,6 +1305,14 @@ function _obtenerQrServerModule() {
       if (mainWindowRef && !mainWindowRef.isDestroyed()) {
         mainWindowRef.webContents.send('qr-estado-conexion', data);
       }
+      // Cambio 01: el teléfono se desconectó — cerrar las ventanas ocultas
+      // que el escaneo haya podido dejar abiertas (carriles 'qr-compras',
+      // 'qr-cf', 'qr-ccf'), sin tocar las de la Consulta DTE en lote. Si el
+      // usuario vuelve a conectar el teléfono, se recrean solas al escanear
+      // el primer documento (mismo comportamiento de siempre).
+      if (data && data.conectado === false) {
+        _dgiiCerrarVentanasQR();
+      }
     });
 
     _qrServerModule.eventos.on('proveedor-nuevo', (proveedor) => {
@@ -1316,6 +1324,23 @@ function _obtenerQrServerModule() {
     _qrServerModule.eventos.on('cliente-nuevo', (cliente) => {
       if (mainWindowRef && !mainWindowRef.isDestroyed()) {
         mainWindowRef.webContents.send('qr-cliente-nuevo', cliente);
+      }
+    });
+
+    // Cambio 01 (ampliación): un proveedor EXISTENTE fue editado desde el
+    // teléfono — se reenvía tal cual al renderer, que es quien sabe cómo
+    // actualizar fiscaldata.json (misma estructura que el catálogo de escritorio).
+    _qrServerModule.eventos.on('proveedor-editado', (proveedorEditado) => {
+      if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+        mainWindowRef.webContents.send('qr-proveedor-editado', proveedorEditado);
+      }
+    });
+
+    // Cambio 01 (ampliación): mismo patrón que proveedor-editado, pero para un
+    // cliente existente editado desde el teléfono (flujo Ventas — Crédito Fiscal).
+    _qrServerModule.eventos.on('cliente-editado', (clienteEditado) => {
+      if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+        mainWindowRef.webContents.send('qr-cliente-editado', clienteEditado);
       }
     });
 
@@ -1435,10 +1460,20 @@ function _obtenerQrServerModule() {
 // Recibe { proveedores, empresaNombre } — el catálogo lo manda el RENDERER
 // (fuente de verdad real, ver preload.js/index.html), este handler nunca
 // lee fiscaldata.json directamente para evitar condiciones de carrera.
-ipcMain.handle('iniciar-qr-scan', async (event, { proveedores, clientes, empresaNombre } = {}) => {
+ipcMain.handle('iniciar-qr-scan', async (event, { proveedores, clientes, empresaNombre, clasifLabels, sectorLabels, costoLabels } = {}) => {
   try {
     const mod = _obtenerQrServerModule();
-    return await mod.iniciar({ app, proveedores: proveedores || [], clientes: clientes || [], empresaNombre: empresaNombre || '' });
+    return await mod.iniciar({
+      app,
+      proveedores: proveedores || [],
+      clientes: clientes || [],
+      empresaNombre: empresaNombre || '',
+      clasifLabels: clasifLabels || {},
+      // Cambio 01 (ampliación): Sector y Tipo de Costo/Gasto, para que el teléfono
+      // pueda mostrar y editar la clasificación completa del proveedor.
+      sectorLabels: sectorLabels || {},
+      costoLabels: costoLabels || {}
+    });
   } catch (e) {
     return { ok: false, error: e.message || 'Error desconocido al iniciar el módulo de escaneo' };
   }
@@ -1450,6 +1485,12 @@ ipcMain.handle('detener-qr-scan', async () => {
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e.message };
+  } finally {
+    // Cambio 01: al cerrar el módulo (aunque el teléfono siguiera
+    // conectado en ese momento), cerrar también las ventanas ocultas del
+    // escaneo QR. Si ya se habían cerrado por el evento de desconexión,
+    // esto no hace nada (quedaron en null).
+    _dgiiCerrarVentanasQR();
   }
 });
 
@@ -1492,6 +1533,22 @@ app.on('before-quit', () => {
 // próxima consulta las vuelve a crear automáticamente desde cero.
 function _dgiiCerrarTodasLasVentanas() {
   Object.keys(_dgiiWins).forEach((slot) => {
+    const w = _dgiiWins[slot];
+    if (w && !w.isDestroyed()) { try { w.destroy(); } catch (e) { /* ya cerrada */ } }
+    _dgiiWins[slot] = null;
+  });
+}
+
+// Cambio 01 — Igual que _dgiiCerrarTodasLasVentanas, pero cierra ÚNICAMENTE
+// los carriles ocultos que usa el escaneo QR (QR_SLOT / QR_SLOT_CF /
+// QR_SLOT_CCF), sin tocar los carriles numéricos (0,1,2…) que usa la
+// Consulta DTE en lote — así un lote que esté corriendo en paralelo no se
+// ve afectado. Se llama cuando el teléfono se desconecta y cuando el
+// usuario cierra el módulo de escaneo. La próxima vez que se escanee un
+// documento, _dgiiGetWindow las vuelve a crear solas (mismo patrón de
+// siempre, no se toca esa lógica).
+function _dgiiCerrarVentanasQR() {
+  [QR_SLOT, QR_SLOT_CF, QR_SLOT_CCF].forEach((slot) => {
     const w = _dgiiWins[slot];
     if (w && !w.isDestroyed()) { try { w.destroy(); } catch (e) { /* ya cerrada */ } }
     _dgiiWins[slot] = null;

@@ -116,8 +116,15 @@ contextBridge.exposeInMainWorld('qrScan', {
     // proveedores: array del catálogo de la empresa activa (lo lee el renderer con loadProveedores()).
     // clientes: array del catálogo de clientes de la empresa activa (loadClientes()) — usado por
     // el flujo de Ventas — Crédito Fiscal.
+    // clasifLabels: mapa {valor: etiqueta} de la clasificación configurada para Proveedores (CLASIF_LABELS),
+    // solo para que el teléfono pueda MOSTRAR la clasificación con el mismo texto que usa el programa.
+    // sectorLabels / costoLabels (Cambio 01 — ampliación): mismos mapas {valor: etiqueta} para Sector
+    // (SECTOR_LABELS) y Tipo de Costo/Gasto (COSTO_LABELS), para que el teléfono pueda mostrar y editar
+    // la clasificación COMPLETA del proveedor con el mismo texto que usa el programa. Opcionales — si se
+    // omiten, el teléfono simplemente no podrá mostrar esas dos etiquetas (no rompe nada existente).
     // Devuelve { ok, qrDataUrl, ip, port, error }
-    iniciar: (proveedores, clientes, empresaNombre) => ipcRenderer.invoke('iniciar-qr-scan', { proveedores, clientes, empresaNombre }),
+    iniciar: (proveedores, clientes, empresaNombre, clasifLabels, sectorLabels, costoLabels) =>
+        ipcRenderer.invoke('iniciar-qr-scan', { proveedores, clientes, empresaNombre, clasifLabels, sectorLabels, costoLabels }),
 
     // Detiene el servidor y cierra cualquier sesión activa con el teléfono
     detener: () => ipcRenderer.invoke('detener-qr-scan'),
@@ -149,6 +156,20 @@ contextBridge.exposeInMainWorld('qrScan', {
     // con autoRegistrarProveedor() en el catálogo real del renderer
     onProveedorNuevo: (cb) => ipcRenderer.on('qr-proveedor-nuevo', (event, data) => cb(data)),
 
+    // Cambio 01 (ampliación): cb(proveedorEditado) — un proveedor YA EXISTENTE del
+    // catálogo fue editado desde el teléfono (nombre, NIT, NRC, DUI y/o clasificación
+    // completa). proveedorEditado: { nitOriginal, nit, nrc, dui, nombre, clasif, sector, tipoCosto }.
+    // El renderer debe localizarlo por nitOriginal y actualizarlo con la MISMA
+    // estructura que usa el catálogo de Proveedores del escritorio.
+    onProveedorEditado: (cb) => ipcRenderer.on('qr-proveedor-editado', (event, data) => cb(data)),
+
+    // Cambio 01 (ampliación): cb(clienteEditado) — un cliente YA EXISTENTE del
+    // catálogo fue editado desde el teléfono (flujo Ventas — Crédito Fiscal).
+    // clienteEditado: { nitOriginal, nit, nrc, nombre, tipoOp, tipoIng }.
+    // El renderer debe localizarlo por nitOriginal y actualizarlo con la MISMA
+    // estructura que usa el catálogo de Clientes del escritorio.
+    onClienteEditado: (cb) => ipcRenderer.on('qr-cliente-editado', (event, data) => cb(data)),
+
     // cb(cliente) — cliente nuevo creado desde el teléfono (flujo Crédito Fiscal),
     // para registrar con autoRegistrarCliente() en el catálogo real del renderer
     onClienteNuevo: (cb) => ipcRenderer.on('qr-cliente-nuevo', (event, data) => cb(data)),
@@ -160,6 +181,8 @@ contextBridge.exposeInMainWorld('qrScan', {
         ipcRenderer.removeAllListeners('qr-documento-escaneado-cf');
         ipcRenderer.removeAllListeners('qr-documento-escaneado-ccf');
         ipcRenderer.removeAllListeners('qr-proveedor-nuevo');
+        ipcRenderer.removeAllListeners('qr-proveedor-editado');
+        ipcRenderer.removeAllListeners('qr-cliente-editado');
         ipcRenderer.removeAllListeners('qr-cliente-nuevo');
     }
 });

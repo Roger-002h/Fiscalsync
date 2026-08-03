@@ -50,6 +50,12 @@ let _phoneSocket = null; // socket activo del teléfono (uno solo a la vez)
 let _empresaNombre = '';
 let _proveedoresCache = [];
 let _clientesCache = []; // catálogo de clientes (usado por el flujo de Ventas — Crédito Fiscal)
+let _clasifLabelsCache = {}; // mapa v->l de la clasificación de proveedores (config. de la empresa activa), solo para mostrarla en el teléfono
+// Cambio 01 (ampliación): mapas v->l de Sector y Tipo de Costo/Gasto de proveedores —
+// mismo propósito que _clasifLabelsCache (solo para mostrar/editar en el teléfono con
+// el mismo texto que usa el programa), y mismo patrón de cacheo.
+let _sectorLabelsCache = {};
+let _costoLabelsCache = {};
 
 function estaCorriendo() {
   return !!_httpsServer;
@@ -161,7 +167,14 @@ function manejarConexionWs(ws) {
       }
       _phoneSocket = ws;
       enviarAlTelefono({ tipo: 'auth-ok' });
-      enviarAlTelefono({ tipo: 'catalogo-proveedores', empresa: _empresaNombre, proveedores: _proveedoresCache });
+      enviarAlTelefono({
+        tipo: 'catalogo-proveedores',
+        empresa: _empresaNombre,
+        proveedores: _proveedoresCache,
+        clasifLabels: _clasifLabelsCache,
+        sectorLabels: _sectorLabelsCache,
+        costoLabels: _costoLabelsCache
+      });
       enviarAlTelefono({ tipo: 'catalogo-clientes', clientes: _clientesCache });
       eventos.emit('conexion', { conectado: true });
       return;
@@ -205,6 +218,50 @@ function manejarConexionWs(ws) {
         cliente: cliente,
         libro: libro,
         exenta: !!msg.exenta
+      });
+      return;
+    }
+
+    // Cambio 01 (ampliación): edición de un proveedor YA EXISTENTE en el catálogo,
+    // hecha desde el teléfono. No toca nada del flujo de escaneo — es un mensaje
+    // aparte que main.js reenvía al renderer para que actualice fiscaldata.json
+    // con la MISMA estructura que usa el catálogo de Proveedores del escritorio
+    // (ver autoRegistrarProveedor / saveProveedorRecord en index.html).
+    // 'nitOriginal' identifica al proveedor a modificar (puede diferir de 'nit'
+    // si el usuario también corrigió el NIT durante la edición).
+    if (msg.tipo === 'proveedor-editado') {
+      const prov = msg.proveedor || null;
+      const nitOriginal = prov && (prov.nitOriginal || prov.nit);
+      if (!prov || !nitOriginal) return; // datos insuficientes — se ignora en silencio
+      eventos.emit('proveedor-editado', {
+        nitOriginal: String(nitOriginal),
+        nit: String(prov.nit || ''),
+        nrc: String(prov.nrc || ''),
+        dui: String(prov.dui || ''),
+        nombre: String(prov.nombre || ''),
+        clasif: String(prov.clasif || ''),
+        sector: String(prov.sector || ''),
+        tipoCosto: String(prov.tipoCosto || '')
+      });
+      return;
+    }
+
+    // Cambio 01 (ampliación): edición de un cliente YA EXISTENTE en el catálogo
+    // (flujo Ventas — Crédito Fiscal), hecha desde el teléfono. Mismo patrón que
+    // 'proveedor-editado' — no toca nada del flujo de escaneo.
+    // 'nitOriginal' identifica al cliente a modificar (puede diferir de 'nit'
+    // si el usuario también corrigió el NIT durante la edición).
+    if (msg.tipo === 'cliente-editado') {
+      const cli = msg.cliente || null;
+      const nitOriginalCli = cli && (cli.nitOriginal || cli.nit);
+      if (!cli || !nitOriginalCli) return; // datos insuficientes — se ignora en silencio
+      eventos.emit('cliente-editado', {
+        nitOriginal: String(nitOriginalCli),
+        nit: String(cli.nit || ''),
+        nrc: String(cli.nrc || ''),
+        nombre: String(cli.nombre || ''),
+        tipoOp: String(cli.tipoOp || ''),
+        tipoIng: String(cli.tipoIng || '')
       });
       return;
     }
@@ -253,6 +310,9 @@ async function iniciar(params) {
   _empresaNombre = (params.empresaNombre || '').toString();
   _proveedoresCache = Array.isArray(params.proveedores) ? params.proveedores : [];
   _clientesCache = Array.isArray(params.clientes) ? params.clientes : [];
+  _clasifLabelsCache = (params.clasifLabels && typeof params.clasifLabels === 'object') ? params.clasifLabels : {};
+  _sectorLabelsCache = (params.sectorLabels && typeof params.sectorLabels === 'object') ? params.sectorLabels : {};
+  _costoLabelsCache = (params.costoLabels && typeof params.costoLabels === 'object') ? params.costoLabels : {};
   _token = crypto.randomBytes(24).toString('hex');
   _pairingExpiresAt = Date.now() + PAIRING_TOKEN_TTL_MS;
   _pareado = false;
@@ -293,7 +353,14 @@ function enviarResultadoDocumento(resultado) {
 // agrega proveedores manualmente en el desktop mientras el módulo sigue abierto)
 function actualizarCatalogo(proveedores) {
   _proveedoresCache = Array.isArray(proveedores) ? proveedores : [];
-  enviarAlTelefono({ tipo: 'catalogo-proveedores', empresa: _empresaNombre, proveedores: _proveedoresCache });
+  enviarAlTelefono({
+    tipo: 'catalogo-proveedores',
+    empresa: _empresaNombre,
+    proveedores: _proveedoresCache,
+    clasifLabels: _clasifLabelsCache,
+    sectorLabels: _sectorLabelsCache,
+    costoLabels: _costoLabelsCache
+  });
 }
 
 // Refresca el catálogo de clientes que se le manda al teléfono (usado por el
