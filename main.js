@@ -739,6 +739,34 @@ function _dgiiGetWindow(slot) {
 
 function _dgiiSleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
+// Espera hasta que el texto visible de la página contenga alguna de las
+// frases reconocidas de DGII_ESTADOS (o hasta agotar timeoutMs). En vez de
+// esperar un cambio de texto genérico y luego leer a ciegas tras un margen
+// fijo, se pregunta directamente "¿ya hay un estado reconocible?" en cada
+// intervalo — así el margen se adapta solo: si la respuesta llega rápido,
+// se detecta rápido; si tarda, se sigue esperando en vez de leer temprano.
+// Devuelve el bodyText en el que se detectó el estado, o el último bodyText
+// leído si se agotó el tiempo sin reconocer ninguna frase (para no perder
+// la información de diagnóstico en ese caso).
+async function _dgiiEsperarResultado(win, timeoutMs, step) {
+  const start = Date.now();
+  let bodyText = '';
+  while (Date.now() - start < timeoutMs) {
+    if (_dgiiCancelado) break;
+    try {
+      bodyText = await win.webContents.executeJavaScript("document.body.innerText || ''", true);
+    } catch (e) { bodyText = ''; }
+    const lower = bodyText.toLowerCase();
+    for (const item of DGII_ESTADOS) {
+      for (const frase of item.match) {
+        if (lower.indexOf(frase) !== -1) return bodyText;
+      }
+    }
+    await _dgiiSleep(step);
+  }
+  return bodyText; // timeout: se devuelve lo último leído aunque no se haya reconocido nada
+}
+
 // Espera hasta que una expresión evaluada en la página deje de ser falsy,
 // revisando cada `step` ms hasta agotar `timeoutMs`.
 async function _dgiiWaitFor(win, expression, timeoutMs, step) {
@@ -810,11 +838,6 @@ async function _dgiiConsultarUno(fechaGeneracion, codigoGeneracion, slot) {
   if (!llenado) return { estado: 'ERROR', error: 'No se pudieron llenar los campos del formulario' };
   console.log(logPrefix + ' Campos llenados, presionando Buscar...');
 
-  // Marca de referencia para detectar cuándo cambia el resultado en pantalla
-  await win.webContents.executeJavaScript(
-    "window.__dgiiPrevText = document.body.innerText;", true
-  ).catch(() => {});
-
   const clickScript = `
     (function() {
       var btns = Array.from(document.querySelectorAll('button'));
@@ -828,16 +851,15 @@ async function _dgiiConsultarUno(fechaGeneracion, codigoGeneracion, slot) {
   if (!clickeado) return { estado: 'ERROR', error: 'No se encontró el botón "Realizar Búsqueda" en la página' };
   console.log(logPrefix + ' Buscar presionado, esperando resultado...');
 
-  // Esperar a que el texto de la página cambie respecto al estado anterior
-  const cambio = await _dgiiWaitFor(win, "document.body.innerText !== window.__dgiiPrevText", 8000, 250);
-  if (!cambio) console.warn(logPrefix + ' El texto de la página no cambió tras 8s de espera — puede que la búsqueda esté tardando más de lo esperado.');
-  // Margen adicional para que Angular termine de pintar el resultado
-  await _dgiiSleep(600);
-
-  const bodyText = await win.webContents.executeJavaScript(
-    "document.body.innerText || ''", true
-  ).catch(() => '');
+  // Esperar a que aparezca una frase reconocible de DGII_ESTADOS (en vez de
+  // esperar un cambio de texto genérico + margen fijo). Timeout de 18s: da
+  // tiempo real a una respuesta lenta del Ministerio, sin ser tan largo como
+  // para chocar con el límite de 50s del handler de arriba.
+  const bodyText = await _dgiiEsperarResultado(win, 18000, 300);
   const lower = bodyText.toLowerCase();
+  if (!DGII_ESTADOS.some((item) => item.match.some((frase) => lower.indexOf(frase) !== -1))) {
+    console.warn(logPrefix + ' No se reconoció ningún estado tras 18s de espera — puede que la búsqueda esté tardando más de lo esperado.');
+  }
 
   // Extraer el Sello de Recepción del resultado (si la página lo muestra).
   // Se busca el <label> cuyo texto sea "Sello de Recepción" y se toma el
@@ -879,15 +901,44 @@ async function _dgiiConsultarUno(fechaGeneracion, codigoGeneracion, slot) {
   return { estado: 'ERROR', error: 'No se pudo interpretar la respuesta de la página (revisa la consola para ver el texto recibido)', selloRecepcion: selloRecepcion };
 }
 
+// Corre _dgiiConsultarUno con un límite de 50s. Si se agota el tiempo, la
+// operación abandonada puede seguir viva dentro de la ventana del carril —
+// como Promise.race por sí solo no la detiene, se destruye la ventana de ese
+// carril para que la próxima consulta arranque de una ventana limpia en vez
+// de reutilizar una que todavía podría estar navegando o rellenando el
+// formulario del documento anterior. La ventana se vuelve a crear sola (ver
+// _dgiiGetWindow) la próxima vez que se necesite ese carril.
+async function _dgiiConsultarConTimeout(fechaGeneracion, codigoGeneracion, slot) {
+  let timeoutId;
+  const timeout = new Promise((resolve) => {
+    timeoutId = setTimeout(() => {
+      const slotKey = slot || 0;
+      const w = _dgiiWins[slotKey];
+      if (w && !w.isDestroyed()) { try { w.destroy(); } catch (e) {} }
+      _dgiiWins[slotKey] = null;
+      resolve({ estado: 'ERROR', error: 'Tiempo de espera agotado (50s) consultando el documento' });
+    }, 50000);
+  });
+  const resultado = await Promise.race([_dgiiConsultarUno(fechaGeneracion, codigoGeneracion, slot), timeout]);
+  clearTimeout(timeoutId);
+  return resultado;
+}
+
 ipcMain.handle('verificar-dte-mh', async (event, fechaGeneracion, codigoGeneracion, slot) => {
   try {
     if (!fechaGeneracion || !codigoGeneracion) {
       return { estado: 'ERROR', error: 'Documento sin fecha o código de generación' };
     }
-    const timeout = new Promise((resolve) => {
-      setTimeout(() => resolve({ estado: 'ERROR', error: 'Tiempo de espera agotado (50s) consultando el documento' }), 50000);
-    });
-    return await Promise.race([_dgiiConsultarUno(fechaGeneracion, codigoGeneracion, slot), timeout]);
+    let resultado = await _dgiiConsultarConTimeout(fechaGeneracion, codigoGeneracion, slot);
+    // Red de seguridad: si dio ERROR (timeout, respuesta no reconocida, fallo
+    // de carga, etc.) se reintenta una sola vez automáticamente antes de darlo
+    // por fallido — sin necesidad de que el usuario note el error y vuelva a
+    // correr el lote a mano. No se reintenta si el lote fue cancelado.
+    if (resultado.estado === 'ERROR' && !_dgiiCancelado) {
+      console.warn('[DGII][slot ' + (slot || 0) + '] Primer intento falló (' + resultado.error + '), reintentando una vez...');
+      resultado = await _dgiiConsultarConTimeout(fechaGeneracion, codigoGeneracion, slot);
+    }
+    return resultado;
   } catch (e) {
     return { estado: 'ERROR', error: e.message || 'Error desconocido al consultar el Ministerio de Hacienda' };
   }
@@ -1024,8 +1075,6 @@ async function _dgiiConsultarParaCompras(fechaGeneracion, codigoGeneracion) {
   const llenado = await win.webContents.executeJavaScript(fillScript, true).catch(() => false);
   if (!llenado) return { estado: 'ERROR', error: 'No se pudieron llenar los campos del formulario' };
 
-  await win.webContents.executeJavaScript("window.__dgiiPrevText = document.body.innerText;", true).catch(() => {});
-
   const clickScript = `
     (function() {
       var btns = Array.from(document.querySelectorAll('button'));
@@ -1038,12 +1087,11 @@ async function _dgiiConsultarParaCompras(fechaGeneracion, codigoGeneracion) {
   const clickeado = await win.webContents.executeJavaScript(clickScript, true).catch(() => false);
   if (!clickeado) return { estado: 'ERROR', error: 'No se encontró el botón "Realizar Búsqueda" en la página' };
 
-  const cambio = await _dgiiWaitFor(win, "document.body.innerText !== window.__dgiiPrevText", 8000, 250);
-  if (!cambio) console.warn(logPrefix + ' El texto de la página no cambió tras 8s de espera.');
-  await _dgiiSleep(600);
-
-  const bodyText = await win.webContents.executeJavaScript("document.body.innerText || ''", true).catch(() => '');
+  const bodyText = await _dgiiEsperarResultado(win, 18000, 300);
   const lower = bodyText.toLowerCase();
+  if (!DGII_ESTADOS.some((item) => item.match.some((frase) => lower.indexOf(frase) !== -1))) {
+    console.warn(logPrefix + ' No se reconoció ningún estado tras 18s de espera.');
+  }
 
   let estadoCode = 'ERROR';
   let estadoTexto = '';
@@ -1131,8 +1179,6 @@ async function _dgiiConsultarParaCF(fechaGeneracion, codigoGeneracion) {
   const llenado = await win.webContents.executeJavaScript(fillScript, true).catch(() => false);
   if (!llenado) return { estado: 'ERROR', error: 'No se pudieron llenar los campos del formulario' };
 
-  await win.webContents.executeJavaScript("window.__dgiiPrevText = document.body.innerText;", true).catch(() => {});
-
   const clickScript = `
     (function() {
       var btns = Array.from(document.querySelectorAll('button'));
@@ -1145,12 +1191,11 @@ async function _dgiiConsultarParaCF(fechaGeneracion, codigoGeneracion) {
   const clickeado = await win.webContents.executeJavaScript(clickScript, true).catch(() => false);
   if (!clickeado) return { estado: 'ERROR', error: 'No se encontró el botón "Realizar Búsqueda" en la página' };
 
-  const cambio = await _dgiiWaitFor(win, "document.body.innerText !== window.__dgiiPrevText", 8000, 250);
-  if (!cambio) console.warn(logPrefix + ' El texto de la página no cambió tras 8s de espera.');
-  await _dgiiSleep(600);
-
-  const bodyText = await win.webContents.executeJavaScript("document.body.innerText || ''", true).catch(() => '');
+  const bodyText = await _dgiiEsperarResultado(win, 18000, 300);
   const lower = bodyText.toLowerCase();
+  if (!DGII_ESTADOS.some((item) => item.match.some((frase) => lower.indexOf(frase) !== -1))) {
+    console.warn(logPrefix + ' No se reconoció ningún estado tras 18s de espera.');
+  }
 
   let estadoCode = 'ERROR';
   let estadoTexto = '';
@@ -1235,8 +1280,6 @@ async function _dgiiConsultarParaCCF(fechaGeneracion, codigoGeneracion) {
   const llenado = await win.webContents.executeJavaScript(fillScript, true).catch(() => false);
   if (!llenado) return { estado: 'ERROR', error: 'No se pudieron llenar los campos del formulario' };
 
-  await win.webContents.executeJavaScript("window.__dgiiPrevText = document.body.innerText;", true).catch(() => {});
-
   const clickScript = `
     (function() {
       var btns = Array.from(document.querySelectorAll('button'));
@@ -1249,12 +1292,11 @@ async function _dgiiConsultarParaCCF(fechaGeneracion, codigoGeneracion) {
   const clickeado = await win.webContents.executeJavaScript(clickScript, true).catch(() => false);
   if (!clickeado) return { estado: 'ERROR', error: 'No se encontró el botón "Realizar Búsqueda" en la página' };
 
-  const cambio = await _dgiiWaitFor(win, "document.body.innerText !== window.__dgiiPrevText", 8000, 250);
-  if (!cambio) console.warn(logPrefix + ' El texto de la página no cambió tras 8s de espera.');
-  await _dgiiSleep(600);
-
-  const bodyText = await win.webContents.executeJavaScript("document.body.innerText || ''", true).catch(() => '');
+  const bodyText = await _dgiiEsperarResultado(win, 18000, 300);
   const lower = bodyText.toLowerCase();
+  if (!DGII_ESTADOS.some((item) => item.match.some((frase) => lower.indexOf(frase) !== -1))) {
+    console.warn(logPrefix + ' No se reconoció ningún estado tras 18s de espera.');
+  }
 
   let estadoCode = 'ERROR';
   let estadoTexto = '';
