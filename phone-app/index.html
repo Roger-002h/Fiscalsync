@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>FiscalSync — Escaneo de Documentos</title>
+<style>
+  :root{
+    --bg:#09090b; --card:#18181b; --border:#27272a; --teal:#2dd4bf;
+    --text:#f4f4f5; --dim:#a1a1aa; --danger:#f87171; --warn:#fbbf24;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
+  body{min-height:100vh; display:flex; flex-direction:column;}
+  header{padding:16px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px;}
+  header .dot{width:9px;height:9px;border-radius:50%;background:var(--dim); flex-shrink:0;}
+  header .dot.on{background:var(--teal); box-shadow:0 0 8px var(--teal);}
+  header .dot.off{background:var(--danger);}
+  header h1{font-size:15px; font-weight:600; margin:0;}
+  header .sub{font-size:12px; color:var(--dim); margin-left:auto;}
+  main{flex:1; padding:16px; display:flex; flex-direction:column; gap:14px;}
+  .card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px;}
+  .center{display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:10px;}
+  h2{font-size:16px; margin:0 0 4px; font-weight:600;}
+  p.hint{color:var(--dim); font-size:13px; margin:0; line-height:1.5;}
+  button{font:inherit; cursor:pointer; border:none; border-radius:10px; padding:13px 16px;
+    font-weight:600; font-size:14px; width:100%; transition:opacity .15s;}
+  button:active{opacity:.75;}
+  .btn-teal{background:var(--teal); color:#052e2b;}
+  .btn-outline{background:transparent; color:var(--text); border:1px solid var(--border);}
+  .btn-danger{background:transparent; color:var(--danger); border:1px solid rgba(248,113,113,.35);}
+  #cameraWrap{position:relative; width:100%; aspect-ratio:1/1; border-radius:14px; overflow:hidden;
+    background:#000; border:1px solid var(--border);}
+  #video{width:100%; height:100%; object-fit:cover;}
+  #scanFrame{position:absolute; inset:12%; border:2px solid var(--teal); border-radius:16px; pointer-events:none;
+    box-shadow:0 0 0 2000px rgba(0,0,0,.35);}
+  input, select{width:100%; background:#0f0f11; border:1px solid var(--border); color:var(--text);
+    border-radius:9px; padding:11px 12px; font-size:14px; margin-top:5px;}
+  label{font-size:12px; color:var(--dim); display:block; margin-top:12px;}
+  .badge{display:inline-block; padding:4px 10px; border-radius:99px; font-size:12px; font-weight:600;}
+  .badge-03{background:rgba(45,212,191,.12); color:var(--teal);}
+  .badge-05{background:rgba(251,191,36,.12); color:var(--warn);}
+  .prov-item{padding:11px 12px; border:1px solid var(--border); border-radius:10px; margin-top:8px; cursor:pointer;}
+  .prov-item:active{background:#0f0f11;}
+  .prov-item .nombre{font-weight:600; font-size:13px;}
+  .prov-item .nit{font-size:12px; color:var(--dim);}
+  .prov-item .clasif{font-size:11px; color:var(--teal); margin-top:2px;}
+  .toast{position:fixed; left:16px; right:16px; bottom:16px; background:var(--card); border:1px solid var(--border);
+    border-radius:12px; padding:13px 14px; font-size:13px; display:none; z-index:50;}
+  .toast.show{display:block;}
+  .toast.err{border-color:rgba(248,113,113,.4); color:var(--danger);}
+  .toast.ok{border-color:rgba(45,212,191,.4); color:var(--teal);}
+  .hidden{display:none !important;}
+  .spinner{width:26px;height:26px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--teal);
+    animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .btn-row{display:flex; gap:10px;}
+  .btn-toggle{background:#0f0f11; color:var(--text); border:1px solid var(--border);}
+  .btn-toggle.sel{background:var(--teal); color:#052e2b; border-color:var(--teal);}
+  .switch-row{display:flex; align-items:center; justify-content:space-between; gap:12px;}
+  .switch-row .switch-label{font-size:14px; font-weight:600; color:var(--text);}
+  .switch-row .switch-sub{font-size:12px; color:var(--dim); margin-top:2px;}
+  .switch{position:relative; width:50px; height:28px; flex-shrink:0;}
+  .switch input{opacity:0; width:0; height:0; position:absolute;}
+  .switch-track{position:absolute; inset:0; background:#27272a; border-radius:99px; cursor:pointer; transition:background .18s;}
+  .switch-track::before{content:''; position:absolute; width:22px; height:22px; left:3px; top:3px; background:#f4f4f5; border-radius:50%; transition:transform .18s;}
+  .switch input:checked + .switch-track{background:var(--teal);}
+  .switch input:checked + .switch-track::before{transform:translateX(22px);}
+</style>
+</head>
+<body>
+
+  <header>
+    <div id="connDot" class="dot off"></div>
+    <h1>FiscalSync — Escaneo</h1>
+    <div class="sub" id="connSub">Conectando…</div>
+  </header>
+
+  <main>
+
+    <!-- Pantalla: conectando / desconectado -->
+    <div id="screenConnecting" class="card center" style="padding:40px 16px;">
+      <div class="spinner"></div>
+      <h2 id="connTitle">Conectando con FiscalSync…</h2>
+      <p class="hint" id="connHint">Asegúrate de estar en la misma red WiFi que la computadora.</p>
+    </div>
+
+    <!-- Pantalla: listo para escanear -->
+    <div id="screenReady" class="hidden" style="display:flex; flex-direction:column; gap:14px;">
+      <div class="card center">
+        <h2>Conectado a FiscalSync</h2>
+        <p class="hint" id="empresaLabel"></p>
+      </div>
+      <button class="btn-teal" id="btnEscanearCompra"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px;margin-right:7px;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Escanear Compra</button>
+      <button class="btn-outline" id="btnEscanearCF"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px;margin-right:7px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="14" x2="15" y2="14"/><line x1="9" y1="17" x2="13" y2="17"/></svg>Escanear Venta (Consumidor Final)</button>
+      <button class="btn-outline" id="btnEscanearCCF"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px;margin-right:7px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Escanear Venta (Crédito Fiscal)</button>
+    </div>
+
+    <!-- Pantalla: cámara activa -->
+    <div id="screenCamera" class="hidden" style="display:flex; flex-direction:column; gap:12px;">
+      <div id="cameraWrap">
+        <video id="video" playsinline autoplay muted></video>
+        <div id="scanFrame"></div>
+      </div>
+      <p class="hint" style="text-align:center;">Apunta al código QR del documento (esquina superior derecha del comprobante)</p>
+      <button class="btn-outline" id="btnCancelarCamara">Cancelar</button>
+    </div>
+
+    <!-- Pantalla: documento detectado + selección de proveedor -->
+    <div id="screenDocumento" class="hidden" style="display:flex; flex-direction:column; gap:14px;">
+      <div class="card">
+        <h2>Documento detectado</h2>
+        <p class="hint">Código: <span id="docCodGen" style="color:var(--text)"></span></p>
+        <p class="hint">Fecha: <span id="docFecha" style="color:var(--text)"></span></p>
+      </div>
+
+      <div class="card">
+        <label>Buscar proveedor por nombre</label>
+        <input type="text" id="provSearch" placeholder="Escribe el nombre para buscar…" autocomplete="off">
+        <div id="provResults"></div>
+        <button class="btn-outline" id="btnProvNuevo" style="margin-top:12px;">+ Agregar proveedor nuevo</button>
+      </div>
+
+      <div id="provNuevoForm" class="card hidden">
+        <h2>Proveedor nuevo</h2>
+        <label>Nombre / Razón social</label>
+        <input type="text" id="pnNombre">
+        <label>NIT</label>
+        <input type="text" id="pnNit" placeholder="0000-000000-000-0">
+        <label>NRC (opcional)</label>
+        <input type="text" id="pnNrc">
+        <label>DUI (opcional)</label>
+        <input type="text" id="pnDui">
+        <label>Clasificación</label>
+        <select id="pnClasif"></select>
+        <label>Sector</label>
+        <select id="pnSector"></select>
+        <label>Tipo de Costo/Gasto</label>
+        <select id="pnTipoCosto"></select>
+        <button class="btn-teal" id="btnPnConfirmar" style="margin-top:14px;">Usar este proveedor</button>
+      </div>
+
+      <div id="provElegido" class="card hidden">
+        <h2>Proveedor seleccionado</h2>
+        <p class="hint" id="provElegidoTxt"></p>
+        <div id="provElegidoClasif" style="margin-top:6px; display:flex; flex-direction:column; gap:2px;"></div>
+        <button class="btn-outline" id="btnEditarProveedor" style="margin-top:12px;">Editar proveedor</button>
+        <button class="btn-teal" id="btnConfirmarDocumento" style="margin-top:10px;">Confirmar y enviar a FiscalSync</button>
+      </div>
+
+      <div id="provEditarForm" class="card hidden">
+        <h2>Editar proveedor</h2>
+        <label>Nombre / Razón social</label>
+        <input type="text" id="peNombre">
+        <label>NIT</label>
+        <input type="text" id="peNit" placeholder="0000-000000-000-0">
+        <label>NRC (opcional)</label>
+        <input type="text" id="peNrc">
+        <label>DUI (opcional)</label>
+        <input type="text" id="peDui">
+        <label>Clasificación</label>
+        <select id="peClasif"></select>
+        <label>Sector</label>
+        <select id="peSector"></select>
+        <label>Tipo de Costo/Gasto</label>
+        <select id="peTipoCosto"></select>
+        <div class="btn-row" style="margin-top:14px;">
+          <button class="btn-outline" id="btnPeCancelar">Cancelar</button>
+          <button class="btn-teal" id="btnPeGuardar">Guardar cambios</button>
+        </div>
+      </div>
+
+      <button class="btn-danger" id="btnCancelarDocumento">Cancelar este documento</button>
+    </div>
+
+    <!-- Pantalla: venta a Consumidor Final detectada (sin proveedor) -->
+    <div id="screenVentaCF" class="hidden" style="display:flex; flex-direction:column; gap:14px;">
+      <div class="card">
+        <h2>Venta a Consumidor Final detectada</h2>
+        <p class="hint">Código: <span id="docCfCodGen" style="color:var(--text)"></span></p>
+        <p class="hint">Fecha: <span id="docCfFecha" style="color:var(--text)"></span></p>
+      </div>
+
+      <div class="card">
+        <div class="switch-row">
+          <div>
+            <div class="switch-label">Venta Exenta</div>
+            <div class="switch-sub">Actívalo si esta venta no genera IVA</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="swExentaCf">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+      </div>
+
+      <button class="btn-teal" id="btnConfirmarVentaCF">Confirmar y enviar a FiscalSync</button>
+      <button class="btn-danger" id="btnCancelarVentaCF">Cancelar este documento</button>
+    </div>
+
+    <!-- Pantalla: documento detectado + selección de cliente + exenta (Crédito Fiscal) -->
+    <div id="screenDocumentoCCF" class="hidden" style="display:flex; flex-direction:column; gap:14px;">
+      <div class="card">
+        <h2>Documento detectado</h2>
+        <p class="hint">Código: <span id="ccfDocCodGen" style="color:var(--text)"></span></p>
+        <p class="hint">Fecha: <span id="ccfDocFecha" style="color:var(--text)"></span></p>
+      </div>
+
+      <div class="card">
+        <label>Buscar cliente por nombre</label>
+        <input type="text" id="clienteSearch" placeholder="Escribe el nombre para buscar…" autocomplete="off">
+        <div id="clienteResults"></div>
+        <button class="btn-outline" id="btnClienteNuevo" style="margin-top:12px;">+ Agregar cliente nuevo</button>
+      </div>
+
+      <div id="clienteNuevoForm" class="card hidden">
+        <h2>Cliente nuevo</h2>
+        <label>Nombre / Razón social</label>
+        <input type="text" id="cnNombre">
+        <label>NIT</label>
+        <input type="text" id="cnNit" placeholder="0000-000000-000-0">
+        <label>NRC (opcional)</label>
+        <input type="text" id="cnNrc">
+        <label>Tipo de Operación</label>
+        <select id="cnTipoOp"></select>
+        <label>Tipo de Ingreso</label>
+        <select id="cnTipoIng"></select>
+        <button class="btn-teal" id="btnCnConfirmar" style="margin-top:14px;">Usar este cliente</button>
+      </div>
+
+      <div id="clienteElegido" class="card hidden">
+        <h2>Cliente seleccionado</h2>
+        <p class="hint" id="clienteElegidoTxt"></p>
+        <p class="hint" id="clienteElegidoClasif"></p>
+        <button class="btn-outline" id="btnEditarCliente" style="margin-top:12px;">Editar cliente</button>
+      </div>
+
+      <div id="clienteEditarForm" class="card hidden">
+        <h2>Editar cliente</h2>
+        <label>Nombre / Razón social</label>
+        <input type="text" id="ceNombre">
+        <label>NIT</label>
+        <input type="text" id="ceNit" placeholder="0000-000000-000-0">
+        <label>NRC (opcional)</label>
+        <input type="text" id="ceNrc">
+        <label>Tipo de Operación</label>
+        <select id="ceTipoOp"></select>
+        <label>Tipo de Ingreso</label>
+        <select id="ceTipoIng"></select>
+        <div class="btn-row" style="margin-top:14px;">
+          <button class="btn-outline" id="btnCeCancelar">Cancelar</button>
+          <button class="btn-teal" id="btnCeGuardar">Guardar cambios</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="switch-row">
+          <div>
+            <div class="switch-label">Venta Exenta</div>
+            <div class="switch-sub">Actívalo si esta venta no genera IVA</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="swExentaCcf">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+      </div>
+
+      <button class="btn-teal" id="btnConfirmarCCF">Confirmar y enviar a FiscalSync</button>
+      <button class="btn-danger" id="btnCancelarCCF">Cancelar este documento</button>
+    </div>
+
+    <!-- Pantalla: procesando -->
+    <div id="screenProcesando" class="hidden card center" style="padding:40px 16px;">
+      <div class="spinner"></div>
+      <h2>Consultando en el Ministerio de Hacienda…</h2>
+      <p class="hint">Esto puede tardar unos segundos.</p>
+    </div>
+
+    <!-- Pantalla: resultado -->
+    <div id="screenResultado" class="hidden card center" style="padding:32px 16px;">
+      <h2 id="resTitulo"></h2>
+      <p class="hint" id="resMensaje"></p>
+      <button class="btn-teal" id="btnOtroDocumento" style="margin-top:10px;">Escanear otro documento</button>
+    </div>
+
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="jsqr.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
