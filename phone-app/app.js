@@ -312,6 +312,33 @@
     return { ambiente: ambiente || '01', codGen: codGen, fechaEmi: fechaEmi };
   }
 
+  // Feedback de escaneo exitoso: sonido corto (Web Audio, sin archivos
+  // externos) + vibración breve del dispositivo, si el navegador lo soporta.
+  function feedbackEscaneoExitoso() {
+    try {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) {
+        var ctx = new Ctx();
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.9, ctx.currentTime + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.2);
+        osc.onended = function () { ctx.close(); };
+      }
+    } catch (e) { /* audio no disponible — se ignora */ }
+
+    try {
+      if (navigator.vibrate) navigator.vibrate(120);
+    } catch (e) { /* vibración no disponible — se ignora */ }
+  }
+
   function onQrDecodificado(texto) {
     cerrarCamara();
     var datos = parsearQrDte(texto);
@@ -320,6 +347,7 @@
       mostrarPantalla('screenReady');
       return;
     }
+    feedbackEscaneoExitoso();
     qrActual = datos;
 
     if (modoActual === 'cf') {
