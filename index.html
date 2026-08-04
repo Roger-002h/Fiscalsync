@@ -15472,6 +15472,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         window.qrScan.onDocumentoEscaneadoCCF(function(combinado) {
             _autocompletarVentaCCFDesdeQR(combinado);
         });
+
+        window.qrScan.onDocumentoEscaneadoRetencion(function(combinado) {
+            _autocompletarRetencionDesdeQR(combinado);
+        });
     }
 
     // Cambio 01 (ampliación): aplica al catálogo real de Proveedores (mismo
@@ -15692,6 +15696,96 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             showToast('Documento guardado — pero su estado en el Ministerio es: ' + combinado.estado + '. Revísalo.', 'error');
         } else {
             showToast('Venta a Consumidor Final guardada automáticamente ✓', 'success');
+        }
+
+        _minimizarModuloEscaneo();
+    }
+
+    // Combina el resultado de la consulta pública (sin selección de proveedor/
+    // cliente ni "exenta" en el teléfono) y GUARDA DIRECTO el registro en el
+    // Libro de Retenciones de IVA — Anexo 7, sin abrir el modal "Nuevo
+    // Registro — Retenido". Mapeo acordado:
+    //   Tipo de DTE (Comprobante de Retención/Nota de Crédito/Nota de Débito)
+    //                                           -> Tipo de Documento (07/05/06)
+    //   Fecha y Hora de Generación              -> Fecha de Emisión
+    //   Sello de Recepción                      -> Serie de Documento
+    //   Código de Generación                    -> N° Documento
+    //   Monto Total de la Operación             -> Monto Sujeto
+    // NIT/DUI del Agente no vienen en la consulta pública (no los expone
+    // Hacienda) — se toman del MISMO catálogo de Proveedores que ya usa
+    // Compras, eligiéndolo/creándolo en el teléfono en la misma pantalla que
+    // usa el flujo de Compras (el registro de Retenciones solo guarda NIT y
+    // DUI, pero se registra/actualiza igual el proveedor completo en el
+    // catálogo para que quede disponible en futuros escaneos).
+    function _autocompletarRetencionDesdeQR(combinado) {
+        if (!combinado) return;
+        var prov = combinado.proveedor || {};
+
+        var empSector = '1';
+        if (activeEmpresaId) {
+            var empActiva = empresas.find(function(e) { return e.id === activeEmpresaId; });
+            if (empActiva && empActiva.sector) empSector = empActiva.sector;
+        }
+
+        var tipoDoc = combinado.tipoDocMapeado || '07';
+        var monto = combinado.montoTotal || 0;
+
+        // Si el proveedor ya existe en el catálogo con una clasificación
+        // asignada, se respeta (igual que en Compras) — Retenciones solo usa
+        // NIT/DUI, pero se conserva para no perder la clasificación al
+        // registrar el proveedor si hiciera falta crearlo.
+        var nitBuscado = (prov.nit || '').trim();
+        var nrcBuscado = (prov.nrc || '').trim();
+        var clasifFinal = '1', sectorFinal = empSector, tipoCostoFinal = '1';
+        if (nitBuscado || nrcBuscado) {
+            var catalogo = loadProveedores();
+            var pExistente = catalogo.find(function(p) {
+                var pNit = p.nit ? String(p.nit).trim() : '';
+                var pNrc = p.nrc ? String(p.nrc).trim() : '';
+                return (nitBuscado && pNit === nitBuscado) || (nrcBuscado && pNrc === nrcBuscado);
+            });
+            if (pExistente) {
+                if (pExistente.clasif) clasifFinal = pExistente.clasif;
+                if (pExistente.sector) sectorFinal = pExistente.sector;
+                if (pExistente.tipoCosto) tipoCostoFinal = pExistente.tipoCosto;
+            }
+        }
+
+        var r = {
+            nit: nitBuscado, dui: (prov.dui || '').trim(), fecha: combinado.fecha || '',
+            tipoDoc: tipoDoc, serie: combinado.selloRecepcion || '', numDoc: combinado.codGen || '',
+            monto: monto, iva: monto * 0.01
+        };
+
+        // Corrección Bug 01: mismo criterio que en Compras/CF — si el documento
+        // ya existe en el Libro de Retenciones (por cualquier vía), no se
+        // procesa de nuevo y se corrige el mensaje en el teléfono. Se verifica
+        // por el Código de Generación del DTE, no por los montos.
+        var _dupPeriodoRet = _codigoGenYaExisteEnLibro('retenido', normalizeUUID(combinado.codGen || ''), retenidoRecords);
+        if (_dupPeriodoRet) {
+            showToast('Documento ya procesado.', 'error');
+            if (window.qrScan && window.qrScan.reportarResultado) {
+                window.qrScan.reportarResultado({ ok: false, mensaje: 'Documento ya procesado.' });
+            }
+            _minimizarModuloEscaneo();
+            return;
+        }
+
+        retenidoRecords.push(r);
+        saveCurrentMonthData();
+        renderRetenidoTable();
+
+        if (nitBuscado) {
+            autoRegistrarProveedor(prov.nit || '', prov.nombre || '', prov.dui || '', prov.nrc || '', clasifFinal, sectorFinal, tipoCostoFinal);
+            renderProveedoresTable();
+        }
+
+        if (!combinado.tipoDocMapeado) {
+            showToast('Tipo de documento no soportado aún — se guardó como Comprobante de Retención (07), verifica el registro manualmente.', 'error');
+        } else if (combinado.estado && combinado.estado !== 'TRANSMITIDO') {
+            showToast('Documento guardado — pero su estado en el Ministerio es: ' + combinado.estado + '. Revísalo.', 'error');
+        } else {
+            showToast('Retención escaneada guardada automáticamente en Anexo 7 ✓', 'success');
         }
 
         _minimizarModuloEscaneo();

@@ -1029,6 +1029,17 @@ function _mapearTipoDteQrCF(textoTipoDte) {
   return null;
 }
 
+// Igual que _mapearTipoDteQr pero para el Libro de Retenciones de IVA
+// (Anexo 7): Comprobante de Retención -> 07, Nota de Crédito -> 05, Nota de
+// Débito -> 06. Cualquier otro valor -> null (no soportado aún).
+function _mapearTipoDteQrRetencion(textoTipoDte) {
+  const n = String(textoTipoDte || '').toUpperCase();
+  if (n.indexOf('COMPROBANTE DE RETENCIÓN') !== -1 || n.indexOf('COMPROBANTE DE RETENCION') !== -1) return '07';
+  if (n.indexOf('NOTA DE CRÉDITO') !== -1 || n.indexOf('NOTA DE CREDITO') !== -1) return '05';
+  if (n.indexOf('NOTA DE DÉBITO') !== -1 || n.indexOf('NOTA DE DEBITO') !== -1) return '06';
+  return null;
+}
+
 // Ejecuta la consulta pública igual que _dgiiConsultarUno (misma URL, mismo
 // llenado de formulario, mismo botón "Realizar Búsqueda"), pero usando el
 // carril QR_SLOT y llamando a extraerCamposCompras al final en vez de solo
@@ -1225,6 +1236,109 @@ async function _dgiiConsultarParaCF(fechaGeneracion, codigoGeneracion) {
     fecha: fechaSolo,
     selloRecepcion: campos.sello || '',
     numeroControl: campos.numeroControl || '',
+    montoTotal: _parseMontoQr(campos.montoTotal)
+  };
+}
+
+// ── Consulta DGII para Retenciones de IVA (Anexo 7) vía escaneo QR ──
+// Mismo patrón que _dgiiConsultarParaCF (misma URL, mismo formulario, mismo
+// botón "Realizar Búsqueda"), pero usando su propio carril de ventana oculta
+// (QR_SLOT_RETENCION) para no pisar una consulta de Compras/CF/CCF que esté
+// corriendo al mismo tiempo, y mapeando el Tipo de DTE con
+// _mapearTipoDteQrRetencion (07 Comprobante de Retención / 05 Nota de
+// Crédito / 06 Nota de Débito) en vez de los mapeos que usan los otros
+// libros. No requiere Número de Control (el registro de Retenciones no lo
+// usa) — sí usa el Sello de Recepción (-> Serie de Documento) y el Monto
+// Total de la Operación (-> Monto Sujeto), igual que ya extrae
+// extraerCamposCompras para los demás libros.
+const QR_SLOT_RETENCION = 'qr-retencion';
+
+async function _dgiiConsultarParaRetencion(fechaGeneracion, codigoGeneracion) {
+  const win = _dgiiGetWindow(QR_SLOT_RETENCION);
+  const logPrefix = '[QR-Retencion]';
+
+  console.log(logPrefix + ' Cargando página...');
+  try {
+    await win.loadURL(DGII_CONSULTA_URL);
+  } catch (e) {
+    return { estado: 'ERROR', error: 'No se pudo cargar la página del Ministerio: ' + e.message };
+  }
+
+  const listo = await _dgiiWaitFor(
+    win,
+    "!!(document.querySelector('input[formcontrolname=\"fechaGeneracion\"]') && document.querySelector('input[formcontrolname=\"codGen\"]'))",
+    35000, 300
+  );
+  if (!listo) {
+    return { estado: 'ERROR', error: 'La página del Ministerio no cargó a tiempo (timeout esperando el formulario)' };
+  }
+
+  const fillScript = `
+    (function() {
+      function setVal(el, val) {
+        var proto = Object.getPrototypeOf(el);
+        var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+        setter.call(el, val);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        el.dispatchEvent(new Event('blur', { bubbles: true }));
+      }
+      var fechaEl = document.querySelector('input[formcontrolname="fechaGeneracion"]');
+      var codEl   = document.querySelector('input[formcontrolname="codGen"]');
+      if (!fechaEl || !codEl) return false;
+      setVal(fechaEl, ${JSON.stringify(fechaGeneracion)});
+      setVal(codEl, ${JSON.stringify(codigoGeneracion)});
+      return true;
+    })();
+  `;
+  const llenado = await win.webContents.executeJavaScript(fillScript, true).catch(() => false);
+  if (!llenado) return { estado: 'ERROR', error: 'No se pudieron llenar los campos del formulario' };
+
+  const clickScript = `
+    (function() {
+      var btns = Array.from(document.querySelectorAll('button'));
+      var buscar = btns.find(function(b) { return (b.textContent || '').trim().indexOf('Realizar Búsqueda') !== -1; });
+      if (!buscar) return false;
+      buscar.click();
+      return true;
+    })();
+  `;
+  const clickeado = await win.webContents.executeJavaScript(clickScript, true).catch(() => false);
+  if (!clickeado) return { estado: 'ERROR', error: 'No se encontró el botón "Realizar Búsqueda" en la página' };
+
+  const bodyText = await _dgiiEsperarResultado(win, 18000, 300);
+  const lower = bodyText.toLowerCase();
+  if (!DGII_ESTADOS.some((item) => item.match.some((frase) => lower.indexOf(frase) !== -1))) {
+    console.warn(logPrefix + ' No se reconoció ningún estado tras 18s de espera.');
+  }
+
+  let estadoCode = 'ERROR';
+  let estadoTexto = '';
+  for (const item of DGII_ESTADOS) {
+    for (const frase of item.match) {
+      if (lower.indexOf(frase) !== -1) { estadoCode = item.code; estadoTexto = frase; break; }
+    }
+    if (estadoTexto) break;
+  }
+
+  const campos = await extraerCamposCompras(win);
+  const tipoDocMapeado = _mapearTipoDteQrRetencion(campos.tipoDte);
+
+  let fechaSolo = fechaGeneracion; // respaldo: la que ya venía del QR
+  const m = String(campos.fechaHora || '').match(/(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+  if (m) fechaSolo = m[3] + '-' + m[2] + '-' + m[1];
+  else {
+    const m2 = String(campos.fechaHora || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (m2) fechaSolo = m2[0];
+  }
+
+  return {
+    estado: estadoCode,
+    estadoTexto: estadoTexto,
+    tipoDocMapeado: tipoDocMapeado,       // '07' | '05' | '06' | null (no soportado aún)
+    tipoDteTexto: campos.tipoDte || '',
+    fecha: fechaSolo,
+    selloRecepcion: campos.sello || '',
     montoTotal: _parseMontoQr(campos.montoTotal)
   };
 }
@@ -1460,6 +1574,41 @@ function _obtenerQrServerModule() {
           return;
         }
 
+        if (libro === 'retencion') {
+          const resultado = await _dgiiConsultarParaRetencion(payload.qr.fechaEmi, payload.qr.codGen);
+
+          // Tipo de DTE no soportado aún (tipoDocMapeado null) -> no se agrega
+          // al Libro de Retenciones, se avisa al teléfono y se corta aquí.
+          if (resultado.estado !== 'ERROR' && !resultado.tipoDocMapeado) {
+            _qrServerModule.enviarResultadoDocumento({
+              ok: false,
+              estado: resultado.estado,
+              mensaje: 'Tipo de documento no soportado para Retenciones' +
+                (resultado.tipoDteTexto ? (' (' + resultado.tipoDteTexto + ')') : '') +
+                '. No se agregó.'
+            });
+            return;
+          }
+
+          const combinado = Object.assign({}, resultado, {
+            codGen: payload.qr.codGen,
+            ambiente: payload.qr.ambiente,
+            proveedor: payload.proveedor
+          });
+          if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+            mainWindowRef.webContents.send('qr-documento-escaneado-retencion', combinado);
+          }
+          const ok = resultado.estado !== 'ERROR';
+          _qrServerModule.enviarResultadoDocumento({
+            ok: ok,
+            estado: resultado.estado,
+            mensaje: ok
+              ? 'Documento cargado en FiscalSync — revisa y guarda en la computadora.'
+              : ('No se pudo consultar el documento: ' + (resultado.error || 'error desconocido'))
+          });
+          return;
+        }
+
         const resultado = await _dgiiConsultarParaCompras(payload.qr.fechaEmi, payload.qr.codGen);
 
         // Tipo de DTE no soportado aún (tipoDocMapeado null) -> no se agrega
@@ -1603,14 +1752,14 @@ function _dgiiCerrarTodasLasVentanas() {
 
 // Cambio 01 — Igual que _dgiiCerrarTodasLasVentanas, pero cierra ÚNICAMENTE
 // los carriles ocultos que usa el escaneo QR (QR_SLOT / QR_SLOT_CF /
-// QR_SLOT_CCF), sin tocar los carriles numéricos (0,1,2…) que usa la
-// Consulta DTE en lote — así un lote que esté corriendo en paralelo no se
-// ve afectado. Se llama cuando el teléfono se desconecta y cuando el
-// usuario cierra el módulo de escaneo. La próxima vez que se escanee un
-// documento, _dgiiGetWindow las vuelve a crear solas (mismo patrón de
-// siempre, no se toca esa lógica).
+// QR_SLOT_CCF / QR_SLOT_RETENCION), sin tocar los carriles numéricos (0,1,2…)
+// que usa la Consulta DTE en lote — así un lote que esté corriendo en
+// paralelo no se ve afectado. Se llama cuando el teléfono se desconecta y
+// cuando el usuario cierra el módulo de escaneo. La próxima vez que se
+// escanee un documento, _dgiiGetWindow las vuelve a crear solas (mismo
+// patrón de siempre, no se toca esa lógica).
 function _dgiiCerrarVentanasQR() {
-  [QR_SLOT, QR_SLOT_CF, QR_SLOT_CCF].forEach((slot) => {
+  [QR_SLOT, QR_SLOT_CF, QR_SLOT_CCF, QR_SLOT_RETENCION].forEach((slot) => {
     const w = _dgiiWins[slot];
     if (w && !w.isDestroyed()) { try { w.destroy(); } catch (e) { /* ya cerrada */ } }
     _dgiiWins[slot] = null;

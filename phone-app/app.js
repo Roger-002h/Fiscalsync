@@ -25,6 +25,8 @@
     btnEscanearCompra: document.getElementById('btnEscanearCompra'),
     btnEscanearCF: document.getElementById('btnEscanearCF'),
     btnEscanearCCF: document.getElementById('btnEscanearCCF'),
+    btnEscanearRetencion: document.getElementById('btnEscanearRetencion'),
+    docDetectadoTitulo: document.getElementById('docDetectadoTitulo'),
     btnCancelarCamara: document.getElementById('btnCancelarCamara'),
     video: document.getElementById('video'),
     docCodGen: document.getElementById('docCodGen'),
@@ -243,10 +245,37 @@
   // ── Cámara + lectura de QR ──────────────────────────────────────────
   function abrirCamara() {
     mostrarPantalla('screenCamera');
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+
+    var constraintsAlta = {
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1920, min: 1280 },
+        height: { ideal: 1080, min: 720 },
+        advanced: [{ focusMode: 'continuous' }]
+      }
+    };
+    var constraintsBasica = { video: { facingMode: 'environment' } };
+
+    navigator.mediaDevices.getUserMedia(constraintsAlta)
+      .catch(function () {
+        // Si el dispositivo no soporta las restricciones avanzadas, se reintenta con lo básico.
+        return navigator.mediaDevices.getUserMedia(constraintsBasica);
+      })
       .then(function (stream) {
         streamCamara = stream;
         els.video.srcObject = stream;
+
+        // Intenta forzar enfoque continuo si el track lo soporta (mejora nitidez al escanear documentos).
+        var track = stream.getVideoTracks()[0];
+        if (track && typeof track.getCapabilities === 'function') {
+          try {
+            var caps = track.getCapabilities();
+            if (caps.focusMode && caps.focusMode.indexOf('continuous') !== -1) {
+              track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+            }
+          } catch (e) { /* no soportado, se ignora */ }
+        }
+
         els.video.onloadedmetadata = function () {
           els.video.play();
           loopEscaneo();
@@ -370,6 +399,14 @@
       mostrarPantalla('screenDocumentoCCF');
       return;
     }
+
+    // 'retencion' reutiliza la MISMA pantalla y catálogo de proveedores que
+    // 'compras' — el NIT/DUI del Agente de Retención se toma de ahí (la
+    // consulta pública de Hacienda no lo expone). El único dato adicional es
+    // el título, para dejar claro qué documento se está registrando.
+    els.docDetectadoTitulo.textContent = (modoActual === 'retencion')
+      ? 'Comprobante de Retención detectado'
+      : 'Documento detectado';
 
     proveedorElegido = null;
     els.docCodGen.textContent = datos.codGen;
@@ -539,7 +576,7 @@
     if (!qrActual || !proveedorElegido) return;
     ws.send(JSON.stringify({
       tipo: 'documento-escaneado',
-      libro: 'compras',
+      libro: (modoActual === 'retencion') ? 'retencion' : 'compras',
       qr: qrActual,
       proveedor: proveedorElegido
     }));
@@ -805,6 +842,7 @@
   els.btnEscanearCompra.addEventListener('click', function () { modoActual = 'compras'; abrirCamara(); });
   els.btnEscanearCF.addEventListener('click', function () { modoActual = 'cf'; abrirCamara(); });
   els.btnEscanearCCF.addEventListener('click', function () { modoActual = 'ccf'; abrirCamara(); });
+  els.btnEscanearRetencion.addEventListener('click', function () { modoActual = 'retencion'; abrirCamara(); });
   els.btnCancelarCamara.addEventListener('click', function () { cerrarCamara(); mostrarPantalla('screenReady'); });
   els.btnOtroDocumento.addEventListener('click', function () { mostrarPantalla('screenReady'); });
 

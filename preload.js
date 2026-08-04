@@ -152,6 +152,12 @@ contextBridge.exposeInMainWorld('qrScan', {
     // Crédito Fiscal (Anexo 1)
     onDocumentoEscaneadoCCF: (cb) => ipcRenderer.on('qr-documento-escaneado-ccf', (event, data) => cb(data)),
 
+    // cb(combinado) — combinado: resultado de la consulta pública, listo para
+    // guardar directo en el Libro de Retenciones de IVA (Anexo 7). No requiere
+    // proveedor/cliente ni "exenta" — solo el QR del Comprobante de Retención,
+    // Nota de Crédito o Nota de Débito asociada.
+    onDocumentoEscaneadoRetencion: (cb) => ipcRenderer.on('qr-documento-escaneado-retencion', (event, data) => cb(data)),
+
     // cb(proveedor) — proveedor nuevo creado desde el teléfono, para registrar
     // con autoRegistrarProveedor() en el catálogo real del renderer
     onProveedorNuevo: (cb) => ipcRenderer.on('qr-proveedor-nuevo', (event, data) => cb(data)),
@@ -188,6 +194,7 @@ contextBridge.exposeInMainWorld('qrScan', {
         ipcRenderer.removeAllListeners('qr-documento-escaneado');
         ipcRenderer.removeAllListeners('qr-documento-escaneado-cf');
         ipcRenderer.removeAllListeners('qr-documento-escaneado-ccf');
+        ipcRenderer.removeAllListeners('qr-documento-escaneado-retencion');
         ipcRenderer.removeAllListeners('qr-proveedor-nuevo');
         ipcRenderer.removeAllListeners('qr-proveedor-editado');
         ipcRenderer.removeAllListeners('qr-cliente-editado');

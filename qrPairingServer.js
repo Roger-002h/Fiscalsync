@@ -202,11 +202,14 @@ function manejarConexionWs(ws) {
         eventos.emit('cliente-nuevo', cliente);
       }
       // 'compras' (default, requiere proveedor), 'cf' (Consumidor Final — no
-      // requiere cliente, pero sí si la venta es exenta o no) o 'ccf' (Ventas
-      // — Crédito Fiscal — requiere cliente Y si la venta es exenta o no).
+      // requiere cliente, pero sí si la venta es exenta o no), 'ccf' (Ventas
+      // — Crédito Fiscal — requiere cliente Y si la venta es exenta o no) o
+      // 'retencion' (Comprobantes de Retención — Anexo 7, no requiere
+      // proveedor/cliente ni exenta, solo el QR del documento).
       let libro = 'compras';
       if (msg.libro === 'cf') libro = 'cf';
       else if (msg.libro === 'ccf') libro = 'ccf';
+      else if (msg.libro === 'retencion') libro = 'retencion';
 
       eventos.emit('documento-escaneado', {
         qr: {
