@@ -2537,7 +2537,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                     </button>
                     <input type="file" id="jsonFileSingle" class="hidden" accept=".json" onchange="handleFolderSelect(this.files)">
                 </div>
-                <div class="col-span-12 lg:col-span-7 card-bento p-8">
+                <div class="col-span-12 lg:col-span-7 card-bento p-8 flex flex-col" style="height:400px;">
                     <div class="flex justify-between items-center mb-6">
                         <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Cola de Procesamiento</h3>
                         <div class="flex items-center gap-4">
@@ -2554,7 +2554,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                         <span id="pill-nc" class="hidden text-[10px] px-3 py-1 rounded-full bg-amber-600/10 border border-amber-600/20 text-amber-400 font-mono"></span>
                         <span id="pill-other" class="hidden text-[10px] px-3 py-1 rounded-full bg-zinc-700/30 border border-zinc-700 text-zinc-400 font-mono"></span>
                     </div>
-                    <div id="fileContainer" class="space-y-2 overflow-y-auto" style="max-height:220px;">
+                    <div id="fileContainer" class="space-y-2 overflow-y-auto flex-1 min-h-0">
                         <p class="text-xs text-zinc-700 italic">Esperando archivos...</p>
                     </div>
                     <div class="mt-8 flex justify-between items-center">
@@ -2592,7 +2592,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                     </div>
                 </div>
                 <!-- Columna derecha: configuración y cola -->
-                <div class="col-span-12 lg:col-span-7 card-bento p-8">
+                <div class="col-span-12 lg:col-span-7 card-bento p-8 flex flex-col" style="height:400px;">
                     <div class="flex justify-between items-center mb-6">
                         <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Configuración de Importación</h3>
                         <div class="flex items-center gap-4">
@@ -2601,91 +2601,96 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                         </div>
                     </div>
 
-                    <!-- Archivo seleccionado -->
-                    <div class="mb-5" style="background:#0a0a0c;border:1px solid #18181b;border-radius:10px;padding:10px 14px;">
-                        <p style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#3f3f46;margin-bottom:4px;">Archivo</p>
-                        <p id="csvScreenFileName" style="font-size:12px;color:#a1a1aa;font-family:monospace;word-break:break-all;">Ningún archivo seleccionado</p>
-                    </div>
+                    <!-- AGREGADO NUEVO: contenido central con scroll propio, para que la tarjeta
+                         mantenga siempre la misma altura (400px) sin importar cuánto contenido
+                         (vista previa, tipos de libro, etc.) esté visible -->
+                    <div class="flex-1 overflow-y-auto min-h-0 pr-1">
+                        <!-- Archivo seleccionado -->
+                        <div class="mb-5" style="background:#0a0a0c;border:1px solid #18181b;border-radius:10px;padding:10px 14px;">
+                            <p style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#3f3f46;margin-bottom:4px;">Archivo</p>
+                            <p id="csvScreenFileName" style="font-size:12px;color:#a1a1aa;font-family:monospace;word-break:break-all;">Ningún archivo seleccionado</p>
+                        </div>
 
-                    <!-- Período destino -->
-                    <div class="mb-5">
-                        <p class="section-label">Período de destino</p>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="f-label">Año</label>
-                                <div class="num-stepper-wrap" style="height:38px;">
-                                    <button type="button" class="num-stepper-btn left" onclick="stepNum('csv_screen_year',-1,2020,2035)">−</button>
-                                    <input type="number" id="csv_screen_year" placeholder="2024" min="2020" max="2035">
-                                    <button type="button" class="num-stepper-btn right" onclick="stepNum('csv_screen_year',1,2020,2035)">+</button>
+                        <!-- Período destino -->
+                        <div class="mb-5">
+                            <p class="section-label">Período de destino</p>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="f-label">Año</label>
+                                    <div class="num-stepper-wrap" style="height:38px;">
+                                        <button type="button" class="num-stepper-btn left" onclick="stepNum('csv_screen_year',-1,2020,2035)">−</button>
+                                        <input type="number" id="csv_screen_year" placeholder="2024" min="2020" max="2035">
+                                        <button type="button" class="num-stepper-btn right" onclick="stepNum('csv_screen_year',1,2020,2035)">+</button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="f-label">Mes</label>
+                                    <select id="csv_screen_month" class="f-input">
+                                        <option value="0">Enero</option>
+                                        <option value="1">Febrero</option>
+                                        <option value="2">Marzo</option>
+                                        <option value="3">Abril</option>
+                                        <option value="4">Mayo</option>
+                                        <option value="5">Junio</option>
+                                        <option value="6">Julio</option>
+                                        <option value="7">Agosto</option>
+                                        <option value="8">Septiembre</option>
+                                        <option value="9">Octubre</option>
+                                        <option value="10">Noviembre</option>
+                                        <option value="11">Diciembre</option>
+                                    </select>
                                 </div>
                             </div>
-                            <div>
-                                <label class="f-label">Mes</label>
-                                <select id="csv_screen_month" class="f-input">
-                                    <option value="0">Enero</option>
-                                    <option value="1">Febrero</option>
-                                    <option value="2">Marzo</option>
-                                    <option value="3">Abril</option>
-                                    <option value="4">Mayo</option>
-                                    <option value="5">Junio</option>
-                                    <option value="6">Julio</option>
-                                    <option value="7">Agosto</option>
-                                    <option value="8">Septiembre</option>
-                                    <option value="9">Octubre</option>
-                                    <option value="10">Noviembre</option>
-                                    <option value="11">Diciembre</option>
-                                </select>
+                        </div>
+
+                        <!-- Tipo de libro -->
+                        <div class="mb-5">
+                            <p class="section-label">Tipo de libro</p>
+                            <div class="radio-pill-group cols2" id="csvScreenTypeList">
+                                <label class="radio-pill-item amber-variant">
+                                    <input type="radio" name="csv_screen_type" value="debito" onchange="syncPillGroup(this)">
+                                    <span class="radio-pill-dot"></span> <span class="text-xs">Crédito Fiscal (Anexo 1)</span>
+                                </label>
+                                <label class="radio-pill-item amber-variant">
+                                    <input type="radio" name="csv_screen_type" value="consumidor" onchange="syncPillGroup(this)">
+                                    <span class="radio-pill-dot"></span> <span class="text-xs">Consumidor Final (Anexo 2)</span>
+                                </label>
+                                <label class="radio-pill-item amber-variant">
+                                    <input type="radio" name="csv_screen_type" value="compras" onchange="syncPillGroup(this)">
+                                    <span class="radio-pill-dot"></span> <span class="text-xs">Compras (Anexo 3)</span>
+                                </label>
+                                <label class="radio-pill-item amber-variant">
+                                    <input type="radio" name="csv_screen_type" value="excluido" onchange="syncPillGroup(this)">
+                                    <span class="radio-pill-dot"></span> <span class="text-xs">Sujeto Excluido (Anexo 5)</span>
+                                </label>
+                                <label class="radio-pill-item amber-variant">
+                                    <input type="radio" name="csv_screen_type" value="anticipo" onchange="syncPillGroup(this)">
+                                    <span class="radio-pill-dot"></span> <span class="text-xs">Anticipo a Cuenta (Anexo 6)</span>
+                                </label>
+                                <label class="radio-pill-item amber-variant">
+                                    <input type="radio" name="csv_screen_type" value="retenido" onchange="syncPillGroup(this)">
+                                    <span class="radio-pill-dot"></span> <span class="text-xs">IVA Retenido (Anexo 7)</span>
+                                </label>
+                                <label class="radio-pill-item amber-variant">
+                                    <input type="radio" name="csv_screen_type" value="percibido" onchange="syncPillGroup(this)">
+                                    <span class="radio-pill-dot"></span> <span class="text-xs">IVA Percibido (Anexo 8)</span>
+                                </label>
+                                <label class="radio-pill-item amber-variant">
+                                    <input type="radio" name="csv_screen_type" value="f14" onchange="syncPillGroup(this)">
+                                    <span class="radio-pill-dot"></span> <span class="text-xs">Retenciones F14</span>
+                                </label>
+                                <label class="radio-pill-item amber-variant">
+                                    <input type="radio" name="csv_screen_type" value="anulados" onchange="syncPillGroup(this)">
+                                    <span class="radio-pill-dot"></span> <span class="text-xs">Documentos Anulados</span>
+                                </label>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Tipo de libro -->
-                    <div class="mb-5">
-                        <p class="section-label">Tipo de libro</p>
-                        <div class="radio-pill-group cols2" id="csvScreenTypeList">
-                            <label class="radio-pill-item amber-variant">
-                                <input type="radio" name="csv_screen_type" value="debito" onchange="syncPillGroup(this)">
-                                <span class="radio-pill-dot"></span> <span class="text-xs">Crédito Fiscal (Anexo 1)</span>
-                            </label>
-                            <label class="radio-pill-item amber-variant">
-                                <input type="radio" name="csv_screen_type" value="consumidor" onchange="syncPillGroup(this)">
-                                <span class="radio-pill-dot"></span> <span class="text-xs">Consumidor Final (Anexo 2)</span>
-                            </label>
-                            <label class="radio-pill-item amber-variant">
-                                <input type="radio" name="csv_screen_type" value="compras" onchange="syncPillGroup(this)">
-                                <span class="radio-pill-dot"></span> <span class="text-xs">Compras (Anexo 3)</span>
-                            </label>
-                            <label class="radio-pill-item amber-variant">
-                                <input type="radio" name="csv_screen_type" value="excluido" onchange="syncPillGroup(this)">
-                                <span class="radio-pill-dot"></span> <span class="text-xs">Sujeto Excluido (Anexo 5)</span>
-                            </label>
-                            <label class="radio-pill-item amber-variant">
-                                <input type="radio" name="csv_screen_type" value="anticipo" onchange="syncPillGroup(this)">
-                                <span class="radio-pill-dot"></span> <span class="text-xs">Anticipo a Cuenta (Anexo 6)</span>
-                            </label>
-                            <label class="radio-pill-item amber-variant">
-                                <input type="radio" name="csv_screen_type" value="retenido" onchange="syncPillGroup(this)">
-                                <span class="radio-pill-dot"></span> <span class="text-xs">IVA Retenido (Anexo 7)</span>
-                            </label>
-                            <label class="radio-pill-item amber-variant">
-                                <input type="radio" name="csv_screen_type" value="percibido" onchange="syncPillGroup(this)">
-                                <span class="radio-pill-dot"></span> <span class="text-xs">IVA Percibido (Anexo 8)</span>
-                            </label>
-                            <label class="radio-pill-item amber-variant">
-                                <input type="radio" name="csv_screen_type" value="f14" onchange="syncPillGroup(this)">
-                                <span class="radio-pill-dot"></span> <span class="text-xs">Retenciones F14</span>
-                            </label>
-                            <label class="radio-pill-item amber-variant">
-                                <input type="radio" name="csv_screen_type" value="anulados" onchange="syncPillGroup(this)">
-                                <span class="radio-pill-dot"></span> <span class="text-xs">Documentos Anulados</span>
-                            </label>
+                        <!-- Vista previa -->
+                        <div id="csvScreenPreviewBox" class="mb-5 hidden">
+                            <p class="section-label">Vista previa del archivo</p>
+                            <div id="csvScreenPreviewContent" style="background:#0a0a0c;border:1px solid #18181b;border-radius:10px;padding:12px 16px;font-size:11px;color:#a1a1aa;max-height:100px;overflow-y:auto;font-family:monospace;"></div>
                         </div>
-                    </div>
-
-                    <!-- Vista previa -->
-                    <div id="csvScreenPreviewBox" class="mb-5 hidden">
-                        <p class="section-label">Vista previa del archivo</p>
-                        <div id="csvScreenPreviewContent" style="background:#0a0a0c;border:1px solid #18181b;border-radius:10px;padding:12px 16px;font-size:11px;color:#a1a1aa;max-height:100px;overflow-y:auto;font-family:monospace;"></div>
                     </div>
 
                     <div class="mt-6 flex justify-between items-center">
@@ -5669,6 +5674,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     let jsonQueue       = [];
     let currentMode     = '';
     let pendingReaders  = 0;
+    // AGREGADO NUEVO — Cambio 01: total de archivos de la carga actual (bulk o
+    // individual). Se usa únicamente para recalcular el contador visible ("N / Total")
+    // cuando el usuario elimina un archivo de la lista con removeQueueRow().
+    let queueTotalFiles = 0;
 
     let empresas = [];
     let activeEmpresaId = null;
@@ -9594,22 +9603,40 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         if (singleInput) singleInput.value = '';
 
         pendingReaders = files.length;
+        queueTotalFiles = files.length;
         var loaded = 0;
         var container = document.getElementById('fileContainer');
         container.innerHTML = '';
         document.getElementById('progressFill').style.width = '0%';
         document.getElementById('typeSummary').classList.add('hidden');
 
+        // AGREGADO NUEVO — Cambio 01: rótulo según el modo activo (Compras → Receptor,
+        // Ventas → Emisor). Es puramente visual: solo determina qué campo del JSON
+        // se muestra junto a cada archivo, no altera loadFilesIntoQueue en nada más.
+        var entidadLabel = currentMode === 'compras' ? 'Receptor' : 'Emisor';
+
         files.forEach(function(file, idx) {
             var row = document.createElement('div');
             row.id = 'qrow-' + idx;
-            row.className = 'flex items-center justify-between py-2 border-b border-zinc-900/60';
+            row.className = 'flex items-center justify-between gap-2 py-2 border-b border-zinc-900/60';
             row.innerHTML =
-                '<div class="flex items-center gap-3">' +
-                '<div class="w-2 h-2 rounded-full bg-zinc-700" id="qdot-' + idx + '"></div>' +
-                '<span class="text-xs text-zinc-400 font-light truncate max-w-[220px]">' + file.name + '</span>' +
+                '<div class="flex items-center gap-3 min-w-0">' +
+                '<div class="w-2 h-2 rounded-full bg-zinc-700 flex-shrink-0" id="qdot-' + idx + '"></div>' +
+                '<div class="min-w-0">' +
+                '<div class="text-xs text-zinc-400 font-light truncate max-w-[220px]">' + file.name + '</div>' +
+                // AGREGADO NUEVO — Cambio 01: nombre del Receptor/Emisor del documento.
+                // Se completa únicamente cuando el archivo termina de leerse y resulta
+                // válido; se deja vacío mientras tanto (ver ramas de reader.onload).
+                '<div class="text-[10px] text-indigo-400 font-mono truncate max-w-[220px]" id="qname-' + idx + '"></div>' +
                 '</div>' +
-                '<span class="text-[10px] font-mono text-zinc-600 uppercase tracking-tighter" id="qstat-' + idx + '">Leyendo…</span>';
+                '</div>' +
+                '<div class="flex items-center gap-2 flex-shrink-0">' +
+                '<span class="text-[10px] font-mono text-zinc-600 uppercase tracking-tighter" id="qstat-' + idx + '">Leyendo…</span>' +
+                // AGREGADO NUEVO — Cambio 01: botón para retirar este archivo de la cola
+                // de importación actual. Solo afecta jsonQueue/la lista en memoria; no
+                // borra el archivo físico del equipo. Oculto mientras se lee el archivo.
+                '<button type="button" onclick="removeQueueRow(' + idx + ')" id="qremove-' + idx + '" class="hidden text-zinc-600 hover:text-red-500 transition text-sm leading-none px-1" title="Quitar de la lista">✕</button>' +
+                '</div>';
             container.appendChild(row);
 
             var reader = new FileReader();
@@ -9620,6 +9647,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 if (!rawText || !rawText.trim()) {
                     document.getElementById('qdot-' + idx).className = 'w-2 h-2 rounded-full bg-zinc-600';
                     document.getElementById('qstat-' + idx).innerText = 'Vacío — ignorado';
+                    // AGREGADO NUEVO — Cambio 01: permitir retirar también archivos ignorados
+                    var qrm0 = document.getElementById('qremove-' + idx);
+                    if (qrm0) qrm0.classList.remove('hidden');
                     loaded++;
                     pendingReaders--;
                     document.getElementById('progressFill').style.width = ((loaded / files.length) * 100) + '%';
@@ -9633,6 +9663,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                     if (!parsed || (typeof parsed === 'object' && !Array.isArray(parsed) && Object.keys(parsed).length === 0)) {
                         document.getElementById('qdot-' + idx).className = 'w-2 h-2 rounded-full bg-zinc-600';
                         document.getElementById('qstat-' + idx).innerText = 'JSON vacío — ignorado';
+                        // AGREGADO NUEVO — Cambio 01: permitir retirar también archivos ignorados
+                        var qrm1 = document.getElementById('qremove-' + idx);
+                        if (qrm1) qrm1.classList.remove('hidden');
                         loaded++;
                         pendingReaders--;
                         document.getElementById('progressFill').style.width = ((loaded / files.length) * 100) + '%';
@@ -9656,6 +9689,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                     if (isDupCurrentMonth) {
                         document.getElementById('qdot-' + idx).className = 'w-2 h-2 rounded-full bg-yellow-500';
                         document.getElementById('qstat-' + idx).innerHTML = '⚠ Ya existe en este mes — ignorado';
+                        // AGREGADO NUEVO — Cambio 01: mostrar Receptor/Emisor también aquí
+                        // (solo visual, no participa en la detección de duplicados de arriba)
+                        var qnDup = document.getElementById('qname-' + idx);
+                        if (qnDup) {
+                            var nombreDup = extractEntidadNombre(parsed, currentMode);
+                            qnDup.innerText = nombreDup ? (entidadLabel + ': ' + nombreDup) : '';
+                        }
+                        var qrmDup = document.getElementById('qremove-' + idx);
+                        if (qrmDup) qrmDup.classList.remove('hidden');
                         loaded++;
                         pendingReaders--;
                         document.getElementById('progressFill').style.width = ((loaded / files.length) * 100) + '%';
@@ -9664,14 +9706,25 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                         return;
                     }
                     // 4. Archivo válido — agregar a la cola
-                    jsonQueue.push({ file: file, parsed: parsed });
+                    // AGREGADO NUEVO — Cambio 01: se guarda rowIdx (para poder ubicar y
+                    // quitar este ítem de jsonQueue desde removeQueueRow) y entidadNombre
+                    // (solo para mostrarlo junto al archivo; no se usa en ningún cálculo
+                    // ni validación de la importación).
+                    var nombreEntidad = extractEntidadNombre(parsed, currentMode);
+                    jsonQueue.push({ file: file, parsed: parsed, rowIdx: idx, entidadNombre: nombreEntidad });
                     var label = detectDocType(parsed);
                     document.getElementById('qdot-' + idx).className = 'w-2 h-2 rounded-full bg-blue-600';
                     document.getElementById('qstat-' + idx).innerText = label;
+                    var qnValido = document.getElementById('qname-' + idx);
+                    if (qnValido) qnValido.innerText = nombreEntidad ? (entidadLabel + ': ' + nombreEntidad) : '';
+                    var qrmValido = document.getElementById('qremove-' + idx);
+                    if (qrmValido) qrmValido.classList.remove('hidden');
                 } catch(err) {
                     // 4. JSON malformado — ignorar sin detener la carga
                     document.getElementById('qdot-' + idx).className = 'w-2 h-2 rounded-full bg-red-500';
                     document.getElementById('qstat-' + idx).innerText = 'Corrupto — ignorado';
+                    var qrmErr = document.getElementById('qremove-' + idx);
+                    if (qrmErr) qrmErr.classList.remove('hidden');
                 }
                 loaded++;
                 pendingReaders--;
@@ -9683,6 +9736,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 // ═══ AGREGADO NUEVO: error de lectura — ignorar silenciosamente ═══
                 document.getElementById('qdot-' + idx).className = 'w-2 h-2 rounded-full bg-red-500';
                 document.getElementById('qstat-' + idx).innerText = 'Error lectura — ignorado';
+                // AGREGADO NUEVO — Cambio 01: permitir retirar también archivos con error
+                var qrmOnErr = document.getElementById('qremove-' + idx);
+                if (qrmOnErr) qrmOnErr.classList.remove('hidden');
                 loaded++;
                 pendingReaders--;
                 document.getElementById('progressFill').style.width = ((loaded / files.length) * 100) + '%';
@@ -9691,6 +9747,55 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             };
             reader.readAsText(file);
         });
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // AGREGADO NUEVO — Cambio 01: Mostrar Receptor/Emisor durante la carga
+    // ══════════════════════════════════════════════════════════════════
+    // Extrae únicamente el nombre del Receptor (modo Compras) o del Emisor
+    // (modo Ventas) del JSON cargado, para mostrarlo junto al archivo antes
+    // de importar y así identificar rápidamente a qué empresa pertenece.
+    // Es un dato puramente informativo: no se usa en mapJsonToCompras,
+    // mapJsonToCf, mapJsonToDebito ni en ninguna otra función de mapeo,
+    // ni participa en validaciones, cálculos o el proceso de importación.
+    function extractEntidadNombre(parsed, mode) {
+        if (!parsed) return '';
+        var obj = (mode === 'compras' ? parsed.receptor : parsed.emisor) || {};
+        return gv(obj, 'nombre', 'nombreComercial', 'razonSocial') || '';
+    }
+
+    // AGREGADO NUEVO — Cambio 01: Retira un archivo de la cola de importación
+    // actual (jsonQueue) y de la lista visible. Solo afecta la sesión actual
+    // de importación; no borra el archivo físico del equipo ni modifica la
+    // lógica de importación, generación de Libros, Anexos o CSV.
+    function removeQueueRow(idx) {
+        var row = document.getElementById('qrow-' + idx);
+        if (row) row.remove();
+
+        // Si el archivo estaba en la cola de válidos, se retira de jsonQueue para
+        // que no se importe. Si era un archivo ignorado/duplicado, esto no cambia
+        // nada en jsonQueue (nunca estuvo ahí), solo se limpia de la lista visible.
+        jsonQueue = jsonQueue.filter(function(item) { return item.rowIdx !== idx; });
+
+        // AGREGADO NUEVO — Cambio 01: recalcular el contador "N / Total" para que
+        // refleje la cantidad de archivos que quedan en la lista tras eliminar uno,
+        // en vez de seguir mostrando la cantidad original de la carga.
+        var remaining = document.querySelectorAll('#fileContainer [id^="qrow-"]').length;
+        var counterEl = document.getElementById('counter');
+        if (counterEl) {
+            counterEl.innerText = remaining
+                ? (remaining + ' / ' + queueTotalFiles)
+                : '0 archivos';
+        }
+
+        var container = document.getElementById('fileContainer');
+        if (container && !container.children.length) {
+            container.innerHTML = '<p class="text-xs text-zinc-700 italic">Esperando archivos...</p>';
+            document.getElementById('typeSummary').classList.add('hidden');
+        } else {
+            // Recalcular contadores/pills (ignorados, duplicados, etc.) sin toast
+            renderQueueSummary(true);
+        }
     }
 
     function detectDocType(json) {
@@ -9721,7 +9826,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         return map[t] || (t ? 'Tipo ' + t : 'Sin tipo');
     }
 
-    function renderQueueSummary() {
+    function renderQueueSummary(silent) {
         var counts = {};
         jsonQueue.forEach(function(item) {
             var t = detectDocType(item.parsed);
@@ -9759,6 +9864,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
         summary.innerHTML = pills;
 
+        // AGREGADO NUEVO — Cambio 01: en modo silencioso (recálculo tras eliminar un
+        // archivo de la lista) se omiten los toasts para no interrumpir al usuario.
+        if (silent) return;
+
         if (jsonQueue.length === 0) {
             showToast('Ningún archivo válido para importar', 'error');
         } else if (dupsMesCount > 0 && ignoradosCount > 0) {
@@ -9775,6 +9884,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     function clearQueue() {
         jsonQueue = [];
         pendingReaders = 0;
+        queueTotalFiles = 0;
         document.getElementById('fileContainer').innerHTML = '<p class="text-xs text-zinc-700 italic">Esperando archivos...</p>';
         document.getElementById('counter').innerText = '0 archivos';
         document.getElementById('progressFill').style.width = '0%';
