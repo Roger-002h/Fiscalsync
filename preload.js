@@ -158,6 +158,13 @@ contextBridge.exposeInMainWorld('qrScan', {
     // Nota de Crédito o Nota de Débito asociada.
     onDocumentoEscaneadoRetencion: (cb) => ipcRenderer.on('qr-documento-escaneado-retencion', (event, data) => cb(data)),
 
+    // cb(combinado) — combinado: resultado de la consulta pública (Factura de
+    // Sujeto Excluido) + proveedor elegido/nuevo (usado para identificar al
+    // Sujeto Excluido, ya que la consulta pública no expone su NIT/DUI ni
+    // nombre), listo para guardar directo en el Libro de Compras a Sujetos
+    // Excluidos (Anexo 5).
+    onDocumentoEscaneadoExcluido: (cb) => ipcRenderer.on('qr-documento-escaneado-excluido', (event, data) => cb(data)),
+
     // cb(proveedor) — proveedor nuevo creado desde el teléfono, para registrar
     // con autoRegistrarProveedor() en el catálogo real del renderer
     onProveedorNuevo: (cb) => ipcRenderer.on('qr-proveedor-nuevo', (event, data) => cb(data)),
@@ -195,6 +202,7 @@ contextBridge.exposeInMainWorld('qrScan', {
         ipcRenderer.removeAllListeners('qr-documento-escaneado-cf');
         ipcRenderer.removeAllListeners('qr-documento-escaneado-ccf');
         ipcRenderer.removeAllListeners('qr-documento-escaneado-retencion');
+        ipcRenderer.removeAllListeners('qr-documento-escaneado-excluido');
         ipcRenderer.removeAllListeners('qr-proveedor-nuevo');
         ipcRenderer.removeAllListeners('qr-proveedor-editado');
         ipcRenderer.removeAllListeners('qr-cliente-editado');

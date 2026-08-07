@@ -203,13 +203,17 @@ function manejarConexionWs(ws) {
       }
       // 'compras' (default, requiere proveedor), 'cf' (Consumidor Final — no
       // requiere cliente, pero sí si la venta es exenta o no), 'ccf' (Ventas
-      // — Crédito Fiscal — requiere cliente Y si la venta es exenta o no) o
+      // — Crédito Fiscal — requiere cliente Y si la venta es exenta o no),
       // 'retencion' (Comprobantes de Retención — Anexo 7, no requiere
-      // proveedor/cliente ni exenta, solo el QR del documento).
+      // proveedor/cliente ni exenta, solo el QR del documento) o 'excluido'
+      // (Compras a Sujeto Excluido — Anexo 5, reutiliza el mismo catálogo de
+      // Proveedores que 'compras' para identificar al Sujeto Excluido, ya
+      // que la consulta pública de Hacienda no expone su NIT/DUI ni nombre).
       let libro = 'compras';
       if (msg.libro === 'cf') libro = 'cf';
       else if (msg.libro === 'ccf') libro = 'ccf';
       else if (msg.libro === 'retencion') libro = 'retencion';
+      else if (msg.libro === 'excluido') libro = 'excluido';
 
       eventos.emit('documento-escaneado', {
         qr: {

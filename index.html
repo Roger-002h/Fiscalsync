@@ -164,6 +164,7 @@
     "trash-2": `<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>`,
     "upload-cloud": `<polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>`,
     "user-x": `<path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="18" y1="8" x2="23" y2="13"/><line x1="23" y1="8" x2="18" y2="13"/>`,
+    "user-minus": `<path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="18" y1="10" x2="23" y2="10"/>`,
     "users": `<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`,
     "wallet": `<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>`,
     "x": `<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>`,
@@ -301,6 +302,48 @@
         .radio-pill-item.amber-variant.checked .radio-pill-dot { background: #f59e0b; }
         .radio-pill-item.blue-variant.checked { border-color: rgba(59,130,246,0.45); background: rgba(59,130,246,0.07); color: #93c5fd; }
         .radio-pill-item.blue-variant.checked .radio-pill-dot { background: #3b82f6; }
+
+        /* ═══ CUSTOM CHECKBOX — ANEXO CARD TOGGLE (Proveedores) ═══ */
+        .anexo-card-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .anexo-card-item {
+            position: relative; display: flex; flex-direction: column; gap: 9px;
+            padding: 13px 12px 12px; border-radius: 12px;
+            border: 1px solid #27272a; cursor: pointer;
+            background: #0a0a0c; transition: all .15s;
+            user-select: none;
+        }
+        .anexo-card-item:hover { border-color: #3f3f46; background: #111113; }
+        .anexo-card-item input[type="checkbox"] { display: none; }
+        .anexo-card-icon {
+            width: 30px; height: 30px; border-radius: 9px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,0.04); color: #52525b; transition: all .15s;
+        }
+        .anexo-card-icon svg { width: 15px; height: 15px; }
+        .anexo-card-title { font-size: 11px; font-weight: 700; color: #a1a1aa; transition: color .15s; line-height: 1.3; }
+        .anexo-card-sub { font-size: 9px; font-weight: 600; letter-spacing: .04em; color: #52525b; margin-top: 1px; }
+        .anexo-card-check {
+            position: absolute; top: 10px; right: 10px;
+            width: 16px; height: 16px; border-radius: 5px;
+            border: 1.5px solid #3f3f46; background: #0a0a0c;
+            display: flex; align-items: center; justify-content: center;
+            transition: all .15s;
+        }
+        .anexo-card-check svg { width: 10px; height: 10px; opacity: 0; transform: scale(0.5); transition: all .12s; stroke: white; }
+        .anexo-card-item.checked .anexo-card-check svg { opacity: 1; transform: scale(1); }
+        .anexo-card-item.checked { box-shadow: 0 2px 12px rgba(0,0,0,0.35); }
+        .anexo-card-item.checked.violet-variant  { border-color: rgba(139,92,246,0.5); background: rgba(139,92,246,0.08); }
+        .anexo-card-item.checked.violet-variant  .anexo-card-icon  { background: rgba(139,92,246,0.16); color: #a78bfa; }
+        .anexo-card-item.checked.violet-variant  .anexo-card-title { color: #c4b5fd; }
+        .anexo-card-item.checked.violet-variant  .anexo-card-check { border-color: #8b5cf6; background: #8b5cf6; }
+        .anexo-card-item.checked.blue-variant    { border-color: rgba(59,130,246,0.5); background: rgba(59,130,246,0.08); }
+        .anexo-card-item.checked.blue-variant    .anexo-card-icon  { background: rgba(59,130,246,0.16); color: #60a5fa; }
+        .anexo-card-item.checked.blue-variant    .anexo-card-title { color: #93c5fd; }
+        .anexo-card-item.checked.blue-variant    .anexo-card-check { border-color: #3b82f6; background: #3b82f6; }
+        .anexo-card-item.checked.emerald-variant { border-color: rgba(34,197,94,0.5); background: rgba(34,197,94,0.08); }
+        .anexo-card-item.checked.emerald-variant .anexo-card-icon  { background: rgba(34,197,94,0.16); color: #4ade80; }
+        .anexo-card-item.checked.emerald-variant .anexo-card-title { color: #86efac; }
+        .anexo-card-item.checked.emerald-variant .anexo-card-check { border-color: #22c55e; background: #22c55e; }
 
         /* ═══ MÓDULO CORREOS DTE ═══ */
         .correos-tabla-row { border-bottom: 1px solid #18181b; transition: background .12s; }
@@ -3665,6 +3708,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                             <tr class="border-b border-zinc-900 bg-zinc-950/50">
                                 <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">NIT / NRC</th>
                                 <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Nombre del Proveedor</th>
+                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Anexos</th>
                                 <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Clasificación</th>
                                 <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Tipo Costo/Gasto</th>
                                 <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider sticky right-0" style="background:#09090b;">Acciones</th>
@@ -4670,15 +4714,21 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             <!-- TAB AGENTE -->
             <div id="ret-tab-agente" class="m-panel active grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
                 <div class="md:col-span-2"><p class="section-label">Datos del Agente</p></div>
-                <div>
+                <div class="autocomplete-wrap">
                     <label class="f-label">NIT Agente</label>
-                    <input type="text" id="ret_nit" class="f-input" placeholder="0000-000000-000-0">
+                    <input type="text" id="ret_nit" class="f-input" placeholder="0000-000000-000-0" oninput="onRetenidoNitChange()" autocomplete="off" onkeydown="acKeyDown(event,'ret_ac_list')" onblur="setTimeout(function(){acClose('ret_ac_list')},180)">
                     <p id="ret_nit_error" class="validation-msg">Formato: NIT 0000-000000-000-0</p>
+                    <div id="ret_ac_list" class="autocomplete-list"></div>
                 </div>
                 <div>
                     <label class="f-label">DUI del Agente</label>
                     <input type="text" id="ret_dui" class="f-input" placeholder="00000000-0 (opcional)">
                     <p id="ret_dui_error" class="validation-msg">Formato requerido: 00000000-0</p>
+                </div>
+                <!-- AGREGADO — CAMBIO 02: campo únicamente informativo, no forma parte de la información fiscal generada -->
+                <div class="md:col-span-2">
+                    <label class="f-label">Nombre del Agente <span style="color:#52525b;font-weight:400;text-transform:none;letter-spacing:0;">(informativo — solo para identificar al proveedor, no se incluye en el anexo)</span></label>
+                    <input type="text" id="ret_nombre_agente" class="f-input" placeholder="Se completa automáticamente si el proveedor está en el catálogo">
                 </div>
             </div>
             <!-- TAB DOCUMENTO -->
@@ -4832,7 +4882,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                         <option value="3">3 — Otro Documento</option>
                     </select>
                 </div>
-                <div><label class="f-label">NIT / DUI / Otro</label><input type="text" id="ex_identificacion" class="f-input" placeholder="Número de identificación"></div>
+                <div class="autocomplete-wrap"><label class="f-label">NIT / DUI / Otro</label><input type="text" id="ex_identificacion" class="f-input" placeholder="Número de identificación" oninput="onExcluidoIdChange()" autocomplete="off" onkeydown="acKeyDown(event,'ex_ac_list')" onblur="setTimeout(function(){acClose('ex_ac_list')},180)"><div id="ex_ac_list" class="autocomplete-list"></div></div>
                 <div><label class="f-label">Fecha de Emisión</label><input type="date" id="ex_fecha" class="f-input"></div>
                 <div class="md:col-span-3"><label class="f-label">Nombre del Sujeto Excluido</label><input type="text" id="ex_nombre" class="f-input" placeholder="Nombre completo del sujeto excluido"></div>
                 <div class="md:col-span-3"><p class="section-label">Identificación del Documento</p></div>
@@ -7373,7 +7423,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             var provNuevos = 0;
             var tiposConProveedor = ['compras', 'percibido', 'retenido', 'anticipo', 'excluido'];
             if (tiposConProveedor.indexOf(tipoVal) !== -1) {
-                provNuevos = _autoRegistrarProveedoresBatch(targets[tipoVal]);
+                provNuevos = _autoRegistrarProveedoresBatch(targets[tipoVal], tipoVal);
             }
 
             currentYear  = prevYear;
@@ -7404,8 +7454,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     // presentes en `records` que aún no existan (misma lógica de coincidencia y
     // de completado de datos que autoRegistrarProveedor, pero con una sola
     // lectura y una sola escritura a localStorage, en vez de una por registro).
-    function _autoRegistrarProveedoresBatch(records) {
+    // AGREGADO — CAMBIO 02: `tipoVal` (compras/retenido/excluido) identifica el
+    // anexo desde el que se importa, para marcar automáticamente ese anexo en
+    // la clasificación `usos` del proveedor (sin afectar Compras, cuyo
+    // comportamiento previo — proveedor sin `usos` — se preserva igual).
+    function _autoRegistrarProveedoresBatch(records, tipoVal) {
         if (!activeEmpresaId) return 0;
+        var usoAnexoMap = { compras: 'compras', retenido: 'retenido', excluido: 'excluido' };
+        var usoAnexo = usoAnexoMap[tipoVal] || null;
         var list = loadProveedores();
         var byNit = {}, byNrc = {};
         list.forEach(function(p, i) {
@@ -7428,8 +7484,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 if (!pExist.nrc && nrcProv)   { pExist.nrc = nrcProv; cambiado = true; }
                 if (!pExist.dui && r.dui)     { pExist.dui = r.dui; cambiado = true; }
                 if (!pExist.nombre && r.nombre) { pExist.nombre = r.nombre; cambiado = true; }
+                if (usoAnexo) {
+                    var usosExist = proveedorUsosEfectivos(pExist);
+                    if (usosExist.indexOf(usoAnexo) === -1) { usosExist.push(usoAnexo); pExist.usos = usosExist; cambiado = true; }
+                }
             } else {
-                list.push({ nit: nitProv, nrc: nrcProv, dui: r.dui || '', nombre: r.nombre || '', clasif: '', sector: '', tipoCosto: '' });
+                var nuevoProv = { nit: nitProv, nrc: nrcProv, dui: r.dui || '', nombre: r.nombre || '', clasif: '', sector: '', tipoCosto: '' };
+                if (usoAnexo) nuevoProv.usos = [usoAnexo];
+                list.push(nuevoProv);
                 var newIdx = list.length - 1;
                 if (nitProv) byNit[nitProv] = newIdx;
                 if (nrcProv) byNrc[nrcProv] = newIdx;
@@ -12077,6 +12139,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         ['ret_nit','ret_dui','ret_fecha','ret_serie','ret_num'].forEach(function(id) { document.getElementById(id).value = ''; });
         ['ret_monto','ret_iva'].forEach(function(id) { document.getElementById(id).value = '0.00'; });
         document.getElementById('ret_tipo_doc').value = '03';
+        document.getElementById('ret_nombre_agente').value = '';
         clearFieldError('ret_nit', 'ret_nit_error');
         clearFieldError('ret_dui', 'ret_dui_error');
         swRET('ret-tab-agente','ret-btn-agente');
@@ -12090,6 +12153,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             document.getElementById('ret_serie').value = r.serie;
             document.getElementById('ret_num').value = r.numDoc;
             document.getElementById('ret_monto').value = r.monto;
+            // AGREGADO — CAMBIO 02: nombre del agente es únicamente informativo
+            document.getElementById('ret_nombre_agente').value = r._nombreAgente || '';
             calcRetenido();
         } else {
             document.getElementById('retenidoModalTitle').innerText = 'Nuevo Registro — Retenido';
@@ -12128,7 +12193,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         var r = {
             nit: s('ret_nit'), dui: s('ret_dui'), fecha: s('ret_fecha'),
             tipoDoc: s('ret_tipo_doc'), serie: s('ret_serie'), numDoc: s('ret_num'),
-            monto: n('ret_monto'), iva: n('ret_iva')
+            monto: n('ret_monto'), iva: n('ret_iva'),
+            // AGREGADO — CAMBIO 02: campo únicamente informativo para identificar
+            // al proveedor/agente en pantalla; no se incluye en el Anexo 7 ni en
+            // ningún CSV/JSON/impresión de libro legal generado por el sistema.
+            _nombreAgente: s('ret_nombre_agente')
         };
         // CAMBIO 02/03: validación de documentos duplicados (misma lógica docFingerprint
         // que ya usa el sistema para JSON), ahora también para el registro manual.
@@ -15223,6 +15292,20 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         var k = proveedoresKey();
         if (!k) return;
         try { fsStore.setItem(k, JSON.stringify(list)); } catch(e) { console.warn('localStorage full', e); }
+
+        // Cambio — Actualización en tiempo real del Catálogo de Proveedores
+        // dentro del módulo de Escaneo: este es el ÚNICO punto por el que
+        // pasa cualquier cambio al catálogo (alta/edición/eliminación manual
+        // desde la computadora, importación de JSON, auto-registro al
+        // guardar una Compra, o los flujos que ya vienen del teléfono), así
+        // que reenviar aquí el catálogo actualizado cubre todos los casos
+        // sin duplicar esta llamada en cada función que guarda proveedores.
+        // Si el módulo de Escaneo no está corriendo, el propio handler
+        // 'qr-actualizar-catalogo' (main.js) lo ignora sin hacer nada — es
+        // seguro llamarlo siempre. No cambia la lógica de creación/
+        // almacenamiento de proveedores, solo notifica al teléfono si ya
+        // está conectado.
+        if (window.qrScan && window.qrScan.actualizarCatalogo) window.qrScan.actualizarCatalogo(list);
     }
 
     // Registra un proveedor si no existe (por NIT). Devuelve true si fue agregado.
@@ -15232,17 +15315,26 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     // asignada en ese momento quede reflejada de inmediato en el catálogo,
     // sin necesidad de un paso adicional.
     function autoRegistrarProveedor(nit, nombre, dui, nrc, clasif, sector, tipoCosto) {
-        if (!nit || !activeEmpresaId) return false;
-        var list = loadProveedores();
-        // AGREGADO NUEVO: normalizar y comparar también por NRC, no solo por NIT
-        // exacto, para evitar registros duplicados del mismo proveedor cuando el
-        // NIT viene con formato distinto (espacios, mayúsc./minúsc.) entre JSON.
-        var nitNorm = String(nit).trim();
+        // CORRECCIÓN: antes exigía NIT sí o sí, así que un Sujeto Excluido
+        // identificado solo por DUI (sin NIT/NRC — el caso normal en el
+        // Libro de Sujetos Excluidos) nunca se registraba en el catálogo,
+        // y por lo tanto nunca se le podía "recordar" su clasificación en
+        // escaneos posteriores. Ahora basta con tener NIT, NRC o DUI.
+        var nitNorm = nit ? String(nit).trim() : '';
         var nrcNorm = nrc ? String(nrc).trim() : '';
+        var duiNorm = dui ? String(dui).trim() : '';
+        if ((!nitNorm && !nrcNorm && !duiNorm) || !activeEmpresaId) return false;
+        var list = loadProveedores();
+        // AGREGADO NUEVO: normalizar y comparar también por NRC y por DUI, no
+        // solo por NIT exacto, para evitar registros duplicados del mismo
+        // proveedor cuando el NIT viene con formato distinto (espacios,
+        // mayúsc./minúsc.) entre JSON, o cuando el proveedor solo tiene DUI
+        // (Sujeto Excluido persona natural, sin NIT/NRC).
         var idx = list.findIndex(function(p) {
             var pNit = p.nit ? String(p.nit).trim() : '';
             var pNrc = p.nrc ? String(p.nrc).trim() : '';
-            return (pNit && pNit === nitNorm) || (nrcNorm && pNrc && pNrc === nrcNorm);
+            var pDui = p.dui ? String(p.dui).trim() : '';
+            return (nitNorm && pNit && pNit === nitNorm) || (nrcNorm && pNrc && pNrc === nrcNorm) || (duiNorm && pDui && pDui === duiNorm);
         });
         if (idx !== -1) {
             // Proveedor ya existe: no crear duplicado, solo completar datos faltantes
@@ -15250,7 +15342,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             var cambiado = false;
             if (!pExist.nit && nitNorm)   { pExist.nit = nitNorm; cambiado = true; }
             if (!pExist.nrc && nrcNorm)   { pExist.nrc = nrcNorm; cambiado = true; }
-            if (!pExist.dui && dui)       { pExist.dui = dui; cambiado = true; }
+            if (!pExist.dui && duiNorm)   { pExist.dui = duiNorm; cambiado = true; }
             if (!pExist.nombre && nombre) { pExist.nombre = nombre; cambiado = true; }
             if (!pExist.clasif && clasif)       { pExist.clasif = clasif; cambiado = true; }
             if (!pExist.sector && sector)       { pExist.sector = sector; cambiado = true; }
@@ -15258,7 +15350,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             if (cambiado) saveProveedores(list);
             return false;
         }
-        list.push({ nit: nitNorm, nrc: nrcNorm, dui: dui || '', nombre: nombre || '', clasif: clasif || '', sector: sector || '', tipoCosto: tipoCosto || '' });
+        list.push({ nit: nitNorm, nrc: nrcNorm, dui: duiNorm, nombre: nombre || '', clasif: clasif || '', sector: sector || '', tipoCosto: tipoCosto || '' });
         saveProveedores(list);
         return true;
     }
@@ -15475,6 +15567,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
         window.qrScan.onDocumentoEscaneadoRetencion(function(combinado) {
             _autocompletarRetencionDesdeQR(combinado);
+        });
+
+        window.qrScan.onDocumentoEscaneadoExcluido(function(combinado) {
+            _autocompletarExcluidoDesdeQR(combinado);
         });
     }
 
@@ -15734,15 +15830,19 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         // asignada, se respeta (igual que en Compras) — Retenciones solo usa
         // NIT/DUI, pero se conserva para no perder la clasificación al
         // registrar el proveedor si hiciera falta crearlo.
+        // (mismo criterio que en Sujeto Excluido: también se busca por DUI,
+        // no solo NIT/NRC, para reconocer agentes sin NIT.)
         var nitBuscado = (prov.nit || '').trim();
         var nrcBuscado = (prov.nrc || '').trim();
+        var duiBuscado = (prov.dui || '').trim();
         var clasifFinal = '1', sectorFinal = empSector, tipoCostoFinal = '1';
-        if (nitBuscado || nrcBuscado) {
+        if (nitBuscado || nrcBuscado || duiBuscado) {
             var catalogo = loadProveedores();
             var pExistente = catalogo.find(function(p) {
                 var pNit = p.nit ? String(p.nit).trim() : '';
                 var pNrc = p.nrc ? String(p.nrc).trim() : '';
-                return (nitBuscado && pNit === nitBuscado) || (nrcBuscado && pNrc === nrcBuscado);
+                var pDui = p.dui ? String(p.dui).trim() : '';
+                return (nitBuscado && pNit === nitBuscado) || (nrcBuscado && pNrc === nrcBuscado) || (duiBuscado && pDui === duiBuscado);
             });
             if (pExistente) {
                 if (pExistente.clasif) clasifFinal = pExistente.clasif;
@@ -15754,7 +15854,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         var r = {
             nit: nitBuscado, dui: (prov.dui || '').trim(), fecha: combinado.fecha || '',
             tipoDoc: tipoDoc, serie: combinado.selloRecepcion || '', numDoc: combinado.codGen || '',
-            monto: monto, iva: monto * 0.01
+            monto: monto, iva: monto * 0.01,
+            // Nombre del Agente: igual que en el modal manual (ret_nombre_agente),
+            // es únicamente informativo (no se incluye en el anexo), pero ayuda a
+            // identificar el registro sin tener que buscar el NIT en el catálogo.
+            _nombreAgente: prov.nombre || ''
         };
 
         // Corrección Bug 01: mismo criterio que en Compras/CF — si el documento
@@ -15775,7 +15879,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         saveCurrentMonthData();
         renderRetenidoTable();
 
-        if (nitBuscado) {
+        if (nitBuscado || nrcBuscado || duiBuscado) {
             autoRegistrarProveedor(prov.nit || '', prov.nombre || '', prov.dui || '', prov.nrc || '', clasifFinal, sectorFinal, tipoCostoFinal);
             renderProveedoresTable();
         }
@@ -15786,6 +15890,114 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             showToast('Documento guardado — pero su estado en el Ministerio es: ' + combinado.estado + '. Revísalo.', 'error');
         } else {
             showToast('Retención escaneada guardada automáticamente en Anexo 7 ✓', 'success');
+        }
+
+        _minimizarModuloEscaneo();
+    }
+
+    // Combina el resultado de la consulta pública (Factura de Sujeto
+    // Excluido) + el proveedor elegido/creado en el teléfono, y GUARDA
+    // DIRECTO el registro en el Libro de Compras a Sujetos Excluidos —
+    // Anexo 5, sin abrir el modal "Nuevo Registro — Sujeto Excluido".
+    // Mapeo (ver detalle acordado):
+    //   Tipo de DTE (Factura de Sujeto Excluido)  -> Tipo de Documento (14, fijo)
+    //   Fecha y Hora de Generación                 -> Fecha de Emisión
+    //   Código de Generación                       -> Número de Documento
+    //   Sello de Recepción                         -> Serie del Documento
+    //   Monto Total de la Operación                -> Monto de la Operación
+    //   Retención renta                            -> Retención IVA (13%) — Manual
+    // NIT/DUI y Nombre del Sujeto Excluido NO vienen en la consulta pública
+    // (no los expone Hacienda) — se toman del MISMO catálogo de Proveedores
+    // que ya usa Compras, eligiéndolo/creándolo en el teléfono en la misma
+    // pantalla que usa el flujo de Compras. El "Tipo de Documento" del
+    // Sujeto Excluido (1-NIT / 2-DUI / 3-Otro, el select del modal) se
+    // deduce del dato disponible en el proveedor elegido: NIT si lo tiene,
+    // si no DUI, si no "Otro".
+    function _autocompletarExcluidoDesdeQR(combinado) {
+        if (!combinado) return;
+        var prov = combinado.proveedor || {};
+
+        var empSector = '1';
+        if (activeEmpresaId) {
+            var empActiva = empresas.find(function(e) { return e.id === activeEmpresaId; });
+            if (empActiva && empActiva.sector) empSector = empActiva.sector;
+        }
+
+        var nit = (prov.nit || '').trim();
+        var dui = (prov.dui || '').trim();
+        var identificacion = nit || dui || (prov.nrc || '').trim();
+        var tipoDocSujeto = nit ? '1' : (dui ? '2' : '3');
+        var monto = combinado.montoTotal || 0;
+        var retencion = combinado.retencionRenta || 0;
+
+        // Si el proveedor ya existe en el catálogo con una clasificación
+        // asignada, se respeta (igual que en Compras) y se aplica también al
+        // registro que se guarda en el Libro de Sujeto Excluido — misma
+        // información y mismos campos que usa _applyProveedorToExcluidoModal
+        // para el modal manual, para no duplicar lógica.
+        // CORRECCIÓN: el Sujeto Excluido casi siempre se identifica solo por
+        // DUI (persona natural sin NIT/NRC) — antes la búsqueda en el
+        // catálogo solo comparaba por NIT/NRC, así que un Sujeto Excluido con
+        // solo DUI nunca encontraba su registro ni su clasificación guardada.
+        var nitBuscado = nit;
+        var nrcBuscado = (prov.nrc || '').trim();
+        var duiBuscado = dui;
+        var clasifFinal = '1', sectorFinal = empSector, tipoCostoFinal = '1';
+        var tipoDocFinal = tipoDocSujeto, tipoOpFinal = '1';
+        if (nitBuscado || nrcBuscado || duiBuscado) {
+            var catalogo = loadProveedores();
+            var pExistente = catalogo.find(function(p) {
+                var pNit = p.nit ? String(p.nit).trim() : '';
+                var pNrc = p.nrc ? String(p.nrc).trim() : '';
+                var pDui = p.dui ? String(p.dui).trim() : '';
+                return (nitBuscado && pNit === nitBuscado) || (nrcBuscado && pNrc === nrcBuscado) || (duiBuscado && pDui === duiBuscado);
+            });
+            if (pExistente) {
+                if (pExistente.clasif) clasifFinal = pExistente.clasif;
+                if (pExistente.sector) sectorFinal = pExistente.sector;
+                if (pExistente.tipoCosto) tipoCostoFinal = pExistente.tipoCosto;
+                if (pExistente.tipoDocEx) tipoDocFinal = pExistente.tipoDocEx;
+                if (pExistente.tipoOpEx) tipoOpFinal = pExistente.tipoOpEx;
+            }
+        }
+
+        var r = {
+            tipoDoc: tipoDocFinal, identificacion: identificacion, nombre: prov.nombre || '',
+            fecha: combinado.fecha || '', serie: combinado.selloRecepcion || '', numDoc: combinado.codGen || '',
+            monto: monto, retencion: retencion,
+            tipoOp: tipoOpFinal, clasif: clasifFinal, sector: sectorFinal, tipoCosto: tipoCostoFinal
+        };
+
+        // Corrección Bug 01: mismo criterio que en Compras/CF/Retenciones —
+        // si el documento ya existe en el Libro de Sujeto Excluido (por
+        // cualquier vía), no se procesa de nuevo y se corrige el mensaje en
+        // el teléfono. Se verifica por el Código de Generación del DTE, no
+        // por los montos.
+        var _dupPeriodoEx = _codigoGenYaExisteEnLibro('excluido', normalizeUUID(combinado.codGen || ''), excluidoRecords);
+        if (_dupPeriodoEx) {
+            showToast('Documento ya procesado.', 'error');
+            if (window.qrScan && window.qrScan.reportarResultado) {
+                window.qrScan.reportarResultado({ ok: false, mensaje: 'Documento ya procesado.' });
+            }
+            _minimizarModuloEscaneo();
+            return;
+        }
+
+        excluidoRecords.push(r);
+        saveCurrentMonthData();
+        renderExcluidoTable();
+
+        if (nitBuscado || nrcBuscado || duiBuscado) {
+            autoRegistrarProveedor(prov.nit || '', prov.nombre || '', prov.dui || '', prov.nrc || '', clasifFinal, sectorFinal, tipoCostoFinal);
+            renderProveedoresTable();
+        }
+
+        if (!combinado.tipoDocMapeado) {
+            showToast('Tipo de documento no soportado aún — se guardó como Factura de Sujeto Excluido (14), verifica el registro manualmente.', 'error');
+        } else if (combinado.estado && combinado.estado !== 'TRANSMITIDO') {
+            showToast('Documento guardado — pero su estado en el Ministerio es: ' + combinado.estado + '. Revísalo.', 'error');
+        } else {
+            showToast('Compra a Sujeto Excluido guardada automáticamente en Anexo 5 ✓', 'success');
         }
 
         _minimizarModuloEscaneo();
@@ -16000,6 +16212,29 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         '9': '9 — Excepciones', '0': '0 — Anterior feb 2024'
     };
 
+    // AGREGADO — CAMBIO 02: clasificación de proveedores por anexo de uso
+    var USO_ANEXO_LABELS = { compras: 'Compras', retenido: 'IVA Retenido', excluido: 'Sujeto Excluido' };
+    var USO_ANEXO_BADGE_CLASS = {
+        compras:  'background:rgba(139,92,246,0.12);color:#a78bfa;border:1px solid rgba(139,92,246,0.3);',
+        retenido: 'background:rgba(59,130,246,0.12);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);',
+        excluido: 'background:rgba(34,197,94,0.12);color:#4ade80;border:1px solid rgba(34,197,94,0.3);'
+    };
+    // Lista efectiva de anexos de un proveedor. Los proveedores existentes antes de
+    // este cambio no tienen `usos` guardado — se tratan como "Compras" para no
+    // alterar el funcionamiento actual de ese anexo (compatibilidad retroactiva).
+    function proveedorUsosEfectivos(p) {
+        if (!p) return [];
+        return (p.usos && p.usos.length) ? p.usos : ['compras'];
+    }
+    function proveedorTieneUso(p, uso) {
+        return proveedorUsosEfectivos(p).indexOf(uso) !== -1;
+    }
+    function _renderUsoBadges(p) {
+        return proveedorUsosEfectivos(p).map(function(u) {
+            return '<span style="display:inline-block;font-size:9px;font-weight:600;padding:2px 7px;border-radius:5px;margin:1px 3px 1px 0;' + (USO_ANEXO_BADGE_CLASS[u] || '') + '">' + (USO_ANEXO_LABELS[u] || u) + '</span>';
+        }).join('');
+    }
+
     function renderProveedoresTable() {
         var tbody = document.getElementById('proveedoresTableBody');
         if (!tbody) return;
@@ -16012,13 +16247,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             return (p.nit||'').toLowerCase().indexOf(searchVal) !== -1 ||
                    (p.nrc||'').toLowerCase().indexOf(searchVal) !== -1 ||
                    (p.nombre||'').toLowerCase().indexOf(searchVal) !== -1 ||
-                   (CLASIF_LABELS[p.clasif]||'').toLowerCase().indexOf(searchVal) !== -1;
+                   (CLASIF_LABELS[p.clasif]||'').toLowerCase().indexOf(searchVal) !== -1 ||
+                   proveedorUsosEfectivos(p).some(function(u) { return (USO_ANEXO_LABELS[u]||'').toLowerCase().indexOf(searchVal) !== -1; });
         });
         if (countEl) countEl.innerText = list.length + ' proveedor' + (list.length !== 1 ? 'es' : '');
 
         if (!filtered.length) {
             var emptyRow = document.createElement('tr');
-            emptyRow.innerHTML = '<td colspan="5" class="px-4 py-8 text-center text-xs text-zinc-600 italic">' +
+            emptyRow.innerHTML = '<td colspan="6" class="px-4 py-8 text-center text-xs text-zinc-600 italic">' +
                 (list.length ? 'Sin resultados para la búsqueda.' : 'No hay proveedores registrados. Importa compras JSON o agrega manualmente.') + '</td>';
             tbody.appendChild(emptyRow);
             lucide.createIcons();
@@ -16034,6 +16270,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             row.innerHTML =
                 '<td class="px-4 py-3 text-xs font-mono text-white">' + (p.nit || '—') + (p.nrc ? '<br><span class="text-zinc-500">NRC: ' + p.nrc + '</span>' : '') + (p.dui ? '<br><span class="text-zinc-600">DUI: ' + p.dui + '</span>' : '') + '</td>' +
                 '<td class="px-4 py-3 text-xs text-white font-medium">' + (p.nombre || '<span class="text-zinc-600 italic">Sin nombre</span>') + '</td>' +
+                '<td class="px-4 py-3 text-xs">' + _renderUsoBadges(p) + '</td>' +
                 '<td class="px-4 py-3 text-xs ' + clasifColor + '">' + (CLASIF_LABELS[p.clasif] || '<span class="text-zinc-600 italic">—</span>') + '</td>' +
                 '<td class="px-4 py-3 text-xs ' + clasifColor + '">' + (COSTO_LABELS[p.tipoCosto] || '<span class="text-zinc-600 italic">—</span>') + '</td>' +
                 '<td class="px-4 py-3 text-xs sticky right-0 bg-zinc-950">' +
@@ -16056,6 +16293,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         document.getElementById('prov_nombre').value = '';
         document.getElementById('prov_clasif').value = '';
         document.getElementById('prov_tipo_costo').value = '';
+        // AGREGADO — CAMBIO 02: reset de clasificación por anexo de uso
+        document.getElementById('prov_uso_compras').checked = false;
+        document.getElementById('prov_uso_retenido').checked = false;
+        document.getElementById('prov_uso_excluido').checked = false;
+        document.getElementById('prov_tipo_doc_ex').value = '1';
+        document.getElementById('prov_tipo_op_ex').value = '';
         var navEl = document.getElementById('prov-footer-nav');
         var posEl = document.getElementById('prov-nav-pos');
         if (index !== -1) {
@@ -16069,17 +16312,65 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             document.getElementById('prov_nombre').value = p.nombre || '';
             document.getElementById('prov_clasif').value = p.clasif || '';
             document.getElementById('prov_tipo_costo').value = p.tipoCosto || '';
+            // AGREGADO — CAMBIO 02/05: cargar el anexo de uso del proveedor.
+            // Un proveedor solo pertenece a un único anexo; si un registro
+            // antiguo (previo al CAMBIO 05) tuviera más de uno guardado, se
+            // conserva únicamente el primero para respetar la restricción.
+            var usosP = proveedorUsosEfectivos(p);
+            document.getElementById('prov_uso_compras').checked  = usosP[0] === 'compras';
+            document.getElementById('prov_uso_retenido').checked = usosP[0] === 'retenido';
+            document.getElementById('prov_uso_excluido').checked = usosP[0] === 'excluido';
+            document.getElementById('prov_tipo_doc_ex').value = p.tipoDocEx || '1';
+            document.getElementById('prov_tipo_op_ex').value  = p.tipoOpEx || '';
             // Mostrar navegación y posición
             if (navEl) navEl.style.display = 'flex';
             if (posEl) posEl.innerText = (index + 1) + ' / ' + list.length;
         } else {
             document.getElementById('proveedorModalTitle').innerText = 'Nuevo Proveedor';
+            // Por defecto, un proveedor nuevo se marca para Compras (comportamiento histórico)
+            document.getElementById('prov_uso_compras').checked = true;
             if (navEl) navEl.style.display = 'none';
             if (posEl) posEl.innerText = '';
         }
+        toggleProveedorUsoFields();
         document.getElementById('proveedorModalForm').style.display = 'flex';
         document.getElementById('proveedorModalForm').classList.add('modal-open');
         lucide.createIcons();
+    }
+
+    // AGREGADO — CAMBIO 05: fuerza que un proveedor solo pueda pertenecer a
+    // un único anexo. Al marcar una tarjeta, desmarca las otras dos —
+    // comportamiento tipo "radio" reutilizando el estilo visual de las
+    // tarjetas (anexo-card-item), que hasta el CAMBIO 02 permitían selección
+    // múltiple. No se puede dejar el formulario sin ningún anexo marcado.
+    function selectProveedorUso(uso) {
+        document.getElementById('prov_uso_compras').checked  = (uso === 'compras');
+        document.getElementById('prov_uso_retenido').checked = (uso === 'retenido');
+        document.getElementById('prov_uso_excluido').checked = (uso === 'excluido');
+        toggleProveedorUsoFields();
+    }
+
+    // AGREGADO — CAMBIO 02: muestra/oculta las secciones de clasificación
+    // según el anexo marcado en "Usar en (Anexos)", y sincroniza el estado
+    // visual (clase .checked) de las tarjetas de selección.
+    function toggleProveedorUsoFields() {
+        var usaCompras  = document.getElementById('prov_uso_compras').checked;
+        var usaExcluido = document.getElementById('prov_uso_excluido').checked;
+        var clasifSection   = document.getElementById('prov_clasif_section');
+        var excluidoFields  = document.getElementById('prov_excluido_fields');
+        if (clasifSection)  clasifSection.style.display  = (usaCompras || usaExcluido) ? '' : 'none';
+        if (excluidoFields) excluidoFields.style.display = usaExcluido ? '' : 'none';
+        ['prov_uso_compras','prov_uso_retenido','prov_uso_excluido'].forEach(syncAnexoCard);
+    }
+
+    // Refleja el estado (marcado/no marcado) del checkbox oculto en la
+    // tarjeta visual correspondiente (misma técnica que syncPillGroup)
+    function syncAnexoCard(checkboxId) {
+        var input = document.getElementById(checkboxId);
+        var card  = document.getElementById(checkboxId + '_card');
+        if (!input || !card) return;
+        if (input.checked) card.classList.add('checked');
+        else card.classList.remove('checked');
     }
 
     function closeProveedorModal() {
@@ -16096,6 +16387,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         var clasif    = document.getElementById('prov_clasif').value;
         var sector    = (function(){ var list = loadProveedores(); if(!isNaN(parseInt(document.getElementById("prov_editIndex").value)) && parseInt(document.getElementById("prov_editIndex").value) !== -1) { var p = list[parseInt(document.getElementById("prov_editIndex").value)]; return p ? (p.sector||"") : ""; } var emp = empresas.find(function(e){ return e.id === activeEmpresaId; }); return emp ? (emp.sector||"") : ""; })();
         var tipoCosto = document.getElementById('prov_tipo_costo').value;
+        // AGREGADO — CAMBIO 02: clasificación de proveedores por anexo de uso
+        var usos = [];
+        if (document.getElementById('prov_uso_compras').checked)  usos.push('compras');
+        if (document.getElementById('prov_uso_retenido').checked) usos.push('retenido');
+        if (document.getElementById('prov_uso_excluido').checked) usos.push('excluido');
+        var tipoDocEx = document.getElementById('prov_tipo_doc_ex').value;
+        var tipoOpEx  = document.getElementById('prov_tipo_op_ex').value;
 
         if (!nit && !nombre) { showToast('Ingresa al menos el NIT/NRC o el nombre', 'error'); return false; }
 
@@ -16107,7 +16405,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 showToast('Ya existe un proveedor con ese NIT/NRC', 'error');
                 return false;
             }
-            list.push({ nit: nit, nrc: nrc, dui: dui, nombre: nombre, clasif: clasif, sector: sector, tipoCosto: tipoCosto });
+            list.push({ nit: nit, nrc: nrc, dui: dui, nombre: nombre, clasif: clasif, sector: sector, tipoCosto: tipoCosto, usos: usos, tipoDocEx: tipoDocEx, tipoOpEx: tipoOpEx });
         } else {
             if (!list[index]) return false;
             list[index].nit = nit;
@@ -16117,6 +16415,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             list[index].clasif = clasif;
             list[index].sector = sector;
             list[index].tipoCosto = tipoCosto;
+            list[index].usos = usos;
+            list[index].tipoDocEx = tipoDocEx;
+            list[index].tipoOpEx = tipoOpEx;
         }
 
         saveProveedores(list);
@@ -17512,6 +17813,102 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         listEl.classList.add('open');
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // AGREGADO — CAMBIO 02: AUTO-COMPLETAR DESDE PROVEEDORES (predictivo)
+    // para los anexos IVA Retenido y Compras a Sujeto Excluido.
+    // Reutiliza exactamente los mismos helpers de autocompletado genérico
+    // (acKeyDown, acClose) ya usados en Compras y Clientes. Solo se
+    // muestran/aplican proveedores del catálogo cuyo campo `usos` incluya
+    // el anexo correspondiente (ver proveedorTieneUso).
+    // ══════════════════════════════════════════════════════════════════
+
+    // ── Aplicar datos de proveedor al modal de IVA Retenido ──
+    function _applyProveedorToRetenidoModal(prov) {
+        if (!prov) return;
+        if (prov.nit) document.getElementById('ret_nit').value = prov.nit;
+        if (prov.dui) document.getElementById('ret_dui').value = prov.dui;
+        // Nombre del Agente: únicamente informativo, no forma parte del anexo
+        document.getElementById('ret_nombre_agente').value = prov.nombre || '';
+    }
+
+    function onRetenidoNitChange() {
+        var nitVal = document.getElementById('ret_nit').value.trim();
+        var listEl = document.getElementById('ret_ac_list');
+        if (!nitVal) { acClose('ret_ac_list'); document.getElementById('ret_nombre_agente').value = ''; return; }
+        var provs = loadProveedores().filter(function(p) { return proveedorTieneUso(p, 'retenido'); });
+        var matches = provs.filter(function(p) {
+            return (p.nit && p.nit.indexOf(nitVal) !== -1) ||
+                   (p.dui && p.dui.indexOf(nitVal) !== -1) ||
+                   (p.nombre && p.nombre.toLowerCase().indexOf(nitVal.toLowerCase()) !== -1);
+        });
+        var exact = provs.find(function(p) {
+            return (p.nit && p.nit === nitVal) || (p.dui && p.dui === nitVal);
+        });
+        if (exact) {
+            _applyProveedorToRetenidoModal(exact);
+        } else if (!_isCompleteId(nitVal)) {
+            document.getElementById('ret_nombre_agente').value = '';
+        }
+        if (matches.length === 0 || (matches.length === 1 && exact)) { acClose('ret_ac_list'); return; }
+        listEl.innerHTML = '';
+        matches.slice(0, 8).forEach(function(p) {
+            var item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'autocomplete-item';
+            item.innerHTML = '<span class="ac-id">' + (p.nit || p.dui || '') + '</span><span class="ac-name">' + (p.nombre || '<em style="color:#52525b">Sin nombre</em>') + '</span>';
+            item.onclick = function() {
+                document.getElementById('ret_nit').value = p.nit || '';
+                _applyProveedorToRetenidoModal(p);
+                acClose('ret_ac_list');
+            };
+            listEl.appendChild(item);
+        });
+        listEl.classList.add('open');
+    }
+
+    // ── Aplicar datos de proveedor al modal de Compras a Sujeto Excluido ──
+    function _applyProveedorToExcluidoModal(prov) {
+        if (!prov) return;
+        if (prov.nombre) document.getElementById('ex_nombre').value = prov.nombre;
+        document.getElementById('ex_tipo_doc').value = prov.tipoDocEx || document.getElementById('ex_tipo_doc').value;
+        if (prov.tipoOpEx) document.getElementById('ex_tipo_op').value = prov.tipoOpEx;
+        if (prov.clasif)   document.getElementById('ex_clasif').value = prov.clasif;
+        if (prov.sector)   document.getElementById('ex_sector').value = prov.sector;
+        if (prov.tipoCosto) document.getElementById('ex_tipo_costo').value = prov.tipoCosto;
+    }
+
+    function onExcluidoIdChange() {
+        var idVal = document.getElementById('ex_identificacion').value.trim();
+        var listEl = document.getElementById('ex_ac_list');
+        if (!idVal) { acClose('ex_ac_list'); return; }
+        var provs = loadProveedores().filter(function(p) { return proveedorTieneUso(p, 'excluido'); });
+        var matches = provs.filter(function(p) {
+            return (p.nit && p.nit.indexOf(idVal) !== -1) ||
+                   (p.dui && p.dui.indexOf(idVal) !== -1) ||
+                   (p.nrc && p.nrc.indexOf(idVal) !== -1) ||
+                   (p.nombre && p.nombre.toLowerCase().indexOf(idVal.toLowerCase()) !== -1);
+        });
+        var exact = provs.find(function(p) {
+            return (p.nit && p.nit === idVal) || (p.dui && p.dui === idVal) || (p.nrc && p.nrc === idVal);
+        });
+        if (exact) { _applyProveedorToExcluidoModal(exact); }
+        if (matches.length === 0 || (matches.length === 1 && exact)) { acClose('ex_ac_list'); return; }
+        listEl.innerHTML = '';
+        matches.slice(0, 8).forEach(function(p) {
+            var item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'autocomplete-item';
+            item.innerHTML = '<span class="ac-id">' + (p.nit || p.dui || p.nrc || '') + '</span><span class="ac-name">' + (p.nombre || '<em style="color:#52525b">Sin nombre</em>') + '</span>';
+            item.onclick = function() {
+                document.getElementById('ex_identificacion').value = p.nit || p.dui || p.nrc || '';
+                _applyProveedorToExcluidoModal(p);
+                acClose('ex_ac_list');
+            };
+            listEl.appendChild(item);
+        });
+        listEl.classList.add('open');
+    }
+
     (function init() {
         // AGREGADO NUEVO (Cambio 04): precargar configuración de impresión de Libros Legales
         reloadPrintConfigCache();
@@ -18199,29 +18596,100 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         <div class="overflow-y-auto flex-1 px-8 py-7">
             <input type="hidden" id="prov_editIndex">
             <div class="space-y-5">
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="f-label">NIT Proveedor</label>
-                        <input type="text" id="prov_nit" class="f-input" placeholder="0000-000000-000-0">
-                    </div>
-                    <div>
-                        <label class="f-label">NRC Proveedor</label>
-                        <input type="text" id="prov_nrc" class="f-input" placeholder="000000-0">
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="f-label">DUI (opcional)</label>
-                        <input type="text" id="prov_dui" class="f-input" placeholder="00000000-0">
-                    </div>
-                    <div></div>
-                </div>
+                <!-- CAMBIO 05: "Usar en (Anexos)" ahora es el primer bloque del formulario.
+                     El usuario define primero a qué anexo pertenece el proveedor, y en
+                     base a esa selección se muestran únicamente los campos correspondientes.
+                     Selección única (un proveedor solo puede pertenecer a un anexo). -->
                 <div>
-                    <label class="f-label">Nombre / Razón Social</label>
-                    <input type="text" id="prov_nombre" class="f-input" placeholder="Nombre completo del proveedor">
+                    <p style="font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#a78bfa;margin-bottom:4px;">Usar en (Anexos)</p>
+                    <p class="text-[10px] text-zinc-600 mb-3">Selecciona el anexo al que pertenecerá este proveedor. Un proveedor solo puede pertenecer a un único anexo; el formulario mostrará solo los campos que correspondan.</p>
+                    <div class="anexo-card-group">
+                        <label class="anexo-card-item violet-variant" id="prov_uso_compras_card">
+                            <input type="checkbox" id="prov_uso_compras" onchange="selectProveedorUso('compras')">
+                            <div class="anexo-card-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
+                            <div class="anexo-card-icon"><i data-lucide="shopping-cart"></i></div>
+                            <div>
+                                <p class="anexo-card-title">Compras</p>
+                                <p class="anexo-card-sub">ANEXO 3</p>
+                            </div>
+                        </label>
+                        <label class="anexo-card-item blue-variant" id="prov_uso_retenido_card">
+                            <input type="checkbox" id="prov_uso_retenido" onchange="selectProveedorUso('retenido')">
+                            <div class="anexo-card-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
+                            <div class="anexo-card-icon"><i data-lucide="receipt"></i></div>
+                            <div>
+                                <p class="anexo-card-title">IVA Retenido</p>
+                                <p class="anexo-card-sub">ANEXO 7</p>
+                            </div>
+                        </label>
+                        <label class="anexo-card-item emerald-variant" id="prov_uso_excluido_card">
+                            <input type="checkbox" id="prov_uso_excluido" onchange="selectProveedorUso('excluido')">
+                            <div class="anexo-card-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
+                            <div class="anexo-card-icon"><i data-lucide="user-minus"></i></div>
+                            <div>
+                                <p class="anexo-card-title">Sujeto Excluido</p>
+                                <p class="anexo-card-sub">ANEXO 5</p>
+                            </div>
+                        </label>
+                    </div>
                 </div>
+                <!-- CAMBIO 05: Datos del proveedor ahora va después de la selección de anexo -->
                 <div style="border-top:1px solid #18181b;padding-top:16px;">
-                    <p style="font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#a78bfa;margin-bottom:12px;">Clasificación por Defecto para Compras</p>
+                    <p style="font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#a78bfa;margin-bottom:12px;">Datos del Proveedor</p>
+                    <div style="display:flex;flex-direction:column;gap:16px;">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="f-label">NIT Proveedor</label>
+                                <input type="text" id="prov_nit" class="f-input" placeholder="0000-000000-000-0">
+                            </div>
+                            <div>
+                                <label class="f-label">NRC Proveedor</label>
+                                <input type="text" id="prov_nrc" class="f-input" placeholder="000000-0">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="f-label">DUI (opcional)</label>
+                                <input type="text" id="prov_dui" class="f-input" placeholder="00000000-0">
+                            </div>
+                            <div></div>
+                        </div>
+                        <div>
+                            <label class="f-label">Nombre / Razón Social</label>
+                            <input type="text" id="prov_nombre" class="f-input" placeholder="Nombre completo del proveedor">
+                        </div>
+                        <!-- CAMBIO 06: Tipo de Documento / Tipo de Operación ahora viven dentro
+                             de "Datos del Proveedor" y solo se muestran cuando el anexo
+                             seleccionado es Sujeto Excluido. Antes vivían en la sección
+                             separada "Datos por Defecto — Compras a Sujeto Excluido", que
+                             fue eliminada. -->
+                        <div id="prov_excluido_fields" class="grid grid-cols-2 gap-4" style="display:none;">
+                            <div>
+                                <label class="f-label">Tipo de Documento</label>
+                                <select id="prov_tipo_doc_ex" class="f-input">
+                                    <option value="1">1 — NIT</option>
+                                    <option value="2">2 — DUI</option>
+                                    <option value="3">3 — Otro Documento</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="f-label">Tipo de Operación</label>
+                                <select id="prov_tipo_op_ex" class="f-input">
+                                    <option value="">— Sin clasificar —</option>
+                                    <option value="1">1 — Gravada</option>
+                                    <option value="2">2 — No gravada o exenta</option>
+                                    <option value="3">3 — Excluido o no constituye Renta</option>
+                                    <option value="4">4 — Mixta (Regímenes Especiales)</option>
+                                    <option value="8">8 — Operaciones informadas en más de 1 anexo</option>
+                                    <option value="9">9 — Excepciones</option>
+                                    <option value="0">0 — Periodos anteriores a febrero de 2024</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="prov_clasif_section" style="border-top:1px solid #18181b;padding-top:16px;">
+                    <p style="font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#a78bfa;margin-bottom:12px;">Clasificación por Defecto para Compras / Sujeto Excluido</p>
                     <div class="grid grid-cols-1 gap-4">
                         <div>
                             <label class="f-label">Clasificación</label>

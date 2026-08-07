@@ -26,6 +26,7 @@
     btnEscanearCF: document.getElementById('btnEscanearCF'),
     btnEscanearCCF: document.getElementById('btnEscanearCCF'),
     btnEscanearRetencion: document.getElementById('btnEscanearRetencion'),
+    btnEscanearExcluido: document.getElementById('btnEscanearExcluido'),
     docDetectadoTitulo: document.getElementById('docDetectadoTitulo'),
     btnCancelarCamara: document.getElementById('btnCancelarCamara'),
     video: document.getElementById('video'),
@@ -133,8 +134,26 @@
     '10': '10 — Otras Rentas Gravables',
     '12': '12 — Ingresos sujetos de retención en F910'
   };
-  var modoActual = 'compras';  // 'compras' | 'cf' | 'ccf' — libro destino del escaneo actual
+  var modoActual = 'compras';  // 'compras' | 'cf' | 'ccf' | 'retencion' | 'excluido' — libro destino del escaneo actual
   var qrActual = null;        // { ambiente, codGen, fechaEmi }
+
+  // ── Cambio 04: Catálogo de Proveedores — clasificación por anexo de uso ──
+  // Mismo campo `usos` (array: 'compras' | 'retenido' | 'excluido') que usa el
+  // catálogo de Proveedores en FiscalSync (escritorio). El teléfono reutiliza
+  // los mismos proveedores que llegan en 'catalogo-proveedores' (ver
+  // manejarMensaje) y los filtra según el libro que se está escaneando, para
+  // que cada pantalla muestre únicamente los proveedores que correspondan.
+  // Un proveedor sin `usos` guardado (creado antes de este cambio) se trata
+  // como "Compras" — misma regla de compatibilidad retroactiva que usa el
+  // escritorio (ver proveedorUsosEfectivos en index.html).
+  var MODO_A_USO = { compras: 'compras', retencion: 'retenido', excluido: 'excluido' };
+  function proveedorUsosEfectivos(p) {
+    if (!p) return [];
+    return (p.usos && p.usos.length) ? p.usos : ['compras'];
+  }
+  function proveedorTieneUso(p, uso) {
+    return !uso || proveedorUsosEfectivos(p).indexOf(uso) !== -1;
+  }
   var proveedorElegido = null; // { esNuevo, nit, nrc, dui, nombre }
   var clienteSeleccionado = null; // { esNuevo, nit, nrc, nombre } — solo para modo 'ccf'
   var streamCamara = null;
@@ -400,13 +419,18 @@
       return;
     }
 
-    // 'retencion' reutiliza la MISMA pantalla y catálogo de proveedores que
-    // 'compras' — el NIT/DUI del Agente de Retención se toma de ahí (la
-    // consulta pública de Hacienda no lo expone). El único dato adicional es
-    // el título, para dejar claro qué documento se está registrando.
-    els.docDetectadoTitulo.textContent = (modoActual === 'retencion')
-      ? 'Comprobante de Retención detectado'
-      : 'Documento detectado';
+    // 'retencion' y 'excluido' reutilizan la MISMA pantalla y catálogo de
+    // proveedores que 'compras' — el NIT/DUI (del Agente de Retención o del
+    // Sujeto Excluido, según el caso) se toma de ahí, ya que la consulta
+    // pública de Hacienda no lo expone. El único dato adicional es el
+    // título, para dejar claro qué documento se está registrando.
+    if (modoActual === 'retencion') {
+      els.docDetectadoTitulo.textContent = 'Comprobante de Retención detectado';
+    } else if (modoActual === 'excluido') {
+      els.docDetectadoTitulo.textContent = 'Compra a Sujeto Excluido detectada';
+    } else {
+      els.docDetectadoTitulo.textContent = 'Documento detectado';
+    }
 
     proveedorElegido = null;
     els.docCodGen.textContent = datos.codGen;
@@ -516,8 +540,13 @@
     els.provResults.innerHTML = '';
     if (!texto) return;
     var t = normalizarBusqueda(texto);
+    // Cambio 04: solo se muestran los proveedores clasificados para el anexo
+    // que corresponde al libro que se está escaneando (compras/retención/
+    // excluido) — mismo criterio (`usos`) que usa el Catálogo de Proveedores
+    // en el escritorio, así el teléfono no ofrece proveedores de otro anexo.
+    var usoRequerido = MODO_A_USO[modoActual];
     var matches = proveedores.filter(function (p) {
-      return p.nombre && normalizarBusqueda(p.nombre).indexOf(t) !== -1;
+      return p.nombre && normalizarBusqueda(p.nombre).indexOf(t) !== -1 && proveedorTieneUso(p, usoRequerido);
     }).slice(0, 15);
 
     matches.forEach(function (p) {
@@ -574,9 +603,12 @@
 
   els.btnConfirmarDocumento.addEventListener('click', function () {
     if (!qrActual || !proveedorElegido) return;
+    var libroDestino = 'compras';
+    if (modoActual === 'retencion') libroDestino = 'retencion';
+    else if (modoActual === 'excluido') libroDestino = 'excluido';
     ws.send(JSON.stringify({
       tipo: 'documento-escaneado',
-      libro: (modoActual === 'retencion') ? 'retencion' : 'compras',
+      libro: libroDestino,
       qr: qrActual,
       proveedor: proveedorElegido
     }));
@@ -843,6 +875,7 @@
   els.btnEscanearCF.addEventListener('click', function () { modoActual = 'cf'; abrirCamara(); });
   els.btnEscanearCCF.addEventListener('click', function () { modoActual = 'ccf'; abrirCamara(); });
   els.btnEscanearRetencion.addEventListener('click', function () { modoActual = 'retencion'; abrirCamara(); });
+  els.btnEscanearExcluido.addEventListener('click', function () { modoActual = 'excluido'; abrirCamara(); });
   els.btnCancelarCamara.addEventListener('click', function () { cerrarCamara(); mostrarPantalla('screenReady'); });
   els.btnOtroDocumento.addEventListener('click', function () { mostrarPantalla('screenReady'); });
 
