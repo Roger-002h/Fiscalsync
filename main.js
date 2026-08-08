@@ -1867,6 +1867,30 @@ ipcMain.handle('qr-actualizar-clientes', async (event, clientes) => {
   }
 });
 
+// CAMBIO — Actualización dinámica de empresa: el renderer llama esto cada
+// vez que el usuario entra a una empresa (o cambia de una a otra) mientras
+// el módulo de escaneo QR sigue abierto/minimizado en segundo plano, para
+// que el teléfono se actualice en tiempo real (nombre de empresa, catálogo
+// de proveedores/clientes y etiquetas de clasificación) sin tener que
+// cerrar y volver a abrir el módulo. Mismo payload que 'iniciar-qr-scan'.
+ipcMain.handle('qr-actualizar-empresa-activa', async (event, { proveedores, clientes, empresaNombre, clasifLabels, sectorLabels, costoLabels } = {}) => {
+  try {
+    if (_qrServerModule && _qrServerModule.estaCorriendo()) {
+      return _qrServerModule.actualizarEmpresaActiva({
+        proveedores: proveedores || [],
+        clientes: clientes || [],
+        empresaNombre: empresaNombre || '',
+        clasifLabels: clasifLabels || {},
+        sectorLabels: sectorLabels || {},
+        costoLabels: costoLabels || {}
+      });
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
 // Corrección Bug 01: el renderer es quien sabe, después de recibir el
 // documento combinado (qr-documento-escaneado / -cf / -ccf), si el
 // documento ya existía en el libro correspondiente (registrado antes de

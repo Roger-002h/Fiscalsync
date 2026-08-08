@@ -21,7 +21,8 @@
     screenDocumentoCCF: document.getElementById('screenDocumentoCCF'),
     screenProcesando: document.getElementById('screenProcesando'),
     screenResultado: document.getElementById('screenResultado'),
-    empresaLabel: document.getElementById('empresaLabel'),
+    empresaBar: document.getElementById('empresaBar'),
+    empresaBarNombre: document.getElementById('empresaBarNombre'),
     btnEscanearCompra: document.getElementById('btnEscanearCompra'),
     btnEscanearCF: document.getElementById('btnEscanearCF'),
     btnEscanearCCF: document.getElementById('btnEscanearCCF'),
@@ -40,9 +41,13 @@
     pnNit: document.getElementById('pnNit'),
     pnNrc: document.getElementById('pnNrc'),
     pnDui: document.getElementById('pnDui'),
+    pnClasifSection: document.getElementById('pnClasifSection'),
     pnClasif: document.getElementById('pnClasif'),
     pnSector: document.getElementById('pnSector'),
     pnTipoCosto: document.getElementById('pnTipoCosto'),
+    pnExcluidoFields: document.getElementById('pnExcluidoFields'),
+    pnTipoDocEx: document.getElementById('pnTipoDocEx'),
+    pnTipoOpEx: document.getElementById('pnTipoOpEx'),
     btnPnConfirmar: document.getElementById('btnPnConfirmar'),
     provElegido: document.getElementById('provElegido'),
     provElegidoTxt: document.getElementById('provElegidoTxt'),
@@ -137,6 +142,19 @@
   var modoActual = 'compras';  // 'compras' | 'cf' | 'ccf' | 'retencion' | 'excluido' — libro destino del escaneo actual
   var qrActual = null;        // { ambiente, codGen, fechaEmi }
 
+  // Corrección Bug 02: el catálogo de proveedores puede reenviarse desde
+  // FiscalSync en cualquier momento (por ejemplo, al agregar/editar un
+  // proveedor durante el guardado de un documento), no solo al conectar.
+  // Antes, CADA mensaje 'catalogo-proveedores' forzaba mostrarPantalla('screenReady'),
+  // así que un reenvío de catálogo que llegaba mientras el teléfono mostraba
+  // "Consultando…" o "Documento cargado" hacía que esas pantallas se saltaran
+  // o desaparecieran de inmediato. Con esta bandera solo se navega a
+  // "screenReady" la PRIMERA vez que llega el catálogo (justo después de
+  // conectar) — los reenvíos posteriores solo actualizan los datos en memoria,
+  // sin tocar qué pantalla está visible. No cambia la lógica de consulta ni
+  // de procesamiento del documento, solo la transición de pantallas.
+  var catalogoInicialRecibido = false;
+
   // ── Cambio 04: Catálogo de Proveedores — clasificación por anexo de uso ──
   // Mismo campo `usos` (array: 'compras' | 'retenido' | 'excluido') que usa el
   // catálogo de Proveedores en FiscalSync (escritorio). El teléfono reutiliza
@@ -160,6 +178,21 @@
   var loopId = null;
   var reconectando = false;
 
+  // Punto 3: refleja la empresa activa en la barra persistente del header,
+  // visible en TODAS las pantallas (conectando, listo, cámara, documento,
+  // consultando, resultado) para evitar subir documentos a la empresa
+  // incorrecta. Se actualiza sola cada vez que llega un catálogo nuevo,
+  // que es como FiscalSync avisa al teléfono de un cambio de empresa.
+  function actualizarEmpresaActiva() {
+    if (!els.empresaBar || !els.empresaBarNombre) return;
+    if (empresaNombre) {
+      els.empresaBarNombre.textContent = empresaNombre;
+      els.empresaBar.classList.remove('hidden');
+    } else {
+      els.empresaBar.classList.add('hidden');
+    }
+  }
+
   function showToast(msg, tipo) {
     els.toast.textContent = msg;
     els.toast.className = 'toast show' + (tipo ? ' ' + tipo : '');
@@ -171,6 +204,19 @@
       .forEach(function (key) {
         els[key].classList.toggle('hidden', key !== id);
       });
+  }
+
+  // CAMBIO — Validación de Empresa Activa en Escaneo QR: pantalla "Sin
+  // Empresa Activa" ya existente (reutiliza screenConnecting + los textos
+  // de connTitle/connHint). Antes este patrón solo se disparaba cuando el
+  // escritorio CAMBIABA de empresa con el módulo ya abierto (ver
+  // esCambioDeEmpresa en manejarMensaje); se centraliza aquí para poder
+  // reutilizarlo TAMBIÉN en la conexión inicial, sin duplicar lógica ni
+  // crear una pantalla nueva.
+  function _mostrarSinEmpresaActiva() {
+    mostrarPantalla('screenConnecting');
+    els.connTitle.textContent = 'Sin empresa activa';
+    els.connHint.textContent = 'Selecciona una empresa en FiscalSync para poder escanear documentos.';
   }
 
   // ── Conexión WebSocket ──────────────────────────────────────────────
@@ -186,6 +232,11 @@
       els.connHint.textContent = 'Vuelve a escanear el código QR de vinculación desde FiscalSync.';
       return;
     }
+
+    // Cada conexión nueva empieza sin catálogo recibido todavía, para que
+    // la primera 'catalogo-proveedores' de ESTA conexión vuelva a llevar a
+    // "screenReady" (p. ej. tras una reconexión) — ver Corrección Bug 02.
+    catalogoInicialRecibido = false;
 
     ws = new WebSocket('wss://' + location.host + '/ws');
 
@@ -226,8 +277,19 @@
       return;
     }
     if (msg.tipo === 'catalogo-proveedores') {
+      // CAMBIO — Actualización dinámica de empresa: distingue un CAMBIO DE
+      // EMPRESA real (el escritorio entró a otra empresa, o volvió a la
+      // pantalla de selección sin ninguna activa) de un simple refresco del
+      // catálogo de la MISMA empresa (p. ej. se agregó un proveedor nuevo
+      // mientras se procesaba un documento). Solo en el primer caso se debe
+      // interrumpir cualquier flujo en curso, para no dejar mezclar datos
+      // (proveedor/cliente elegido, cámara abierta) de la empresa anterior
+      // con un documento que termine guardándose en la empresa nueva.
+      var empresaNueva = msg.empresa || '';
+      var esCambioDeEmpresa = catalogoInicialRecibido && empresaNueva !== empresaNombre;
+
       proveedores = Array.isArray(msg.proveedores) ? msg.proveedores : [];
-      empresaNombre = msg.empresa || '';
+      empresaNombre = empresaNueva;
       clasifLabels = (msg.clasifLabels && typeof msg.clasifLabels === 'object') ? msg.clasifLabels : {};
       sectorLabels = (msg.sectorLabels && typeof msg.sectorLabels === 'object') ? msg.sectorLabels : {};
       costoLabels = (msg.costoLabels && typeof msg.costoLabels === 'object') ? msg.costoLabels : {};
@@ -237,8 +299,51 @@
       poblarSelectGenerico(els.peClasif, clasifLabels);
       poblarSelectGenerico(els.peSector, sectorLabels);
       poblarSelectGenerico(els.peTipoCosto, costoLabels);
-      els.empresaLabel.textContent = empresaNombre ? ('Empresa activa: ' + empresaNombre) : '';
-      mostrarPantalla('screenReady');
+      actualizarEmpresaActiva();
+
+      if (esCambioDeEmpresa) {
+        // Corta cualquier flujo en curso que dependiera de la empresa
+        // anterior (cámara abierta, proveedor/cliente ya elegido, formulario
+        // de "nuevo proveedor/cliente" a medio llenar) y regresa a la
+        // pantalla principal con los datos de la empresa nueva.
+        cerrarCamara();
+        proveedorElegido = null;
+        clienteSeleccionado = null;
+        if (empresaNombre) {
+          mostrarPantalla('screenReady');
+          showToast('Empresa activa cambiada a: ' + empresaNombre, 'ok');
+        } else {
+          _mostrarSinEmpresaActiva();
+        }
+        return;
+      }
+
+      // Corrección Bug 02: solo se navega la primera vez que llega el
+      // catálogo tras conectar. Los reenvíos posteriores del mismo catálogo
+      // de la MISMA empresa (p. ej. al agregar/editar un proveedor mientras
+      // se guarda un documento) solo deben refrescar los datos, sin
+      // interrumpir la pantalla de "Consultando…" o "Documento cargado" que
+      // el usuario esté viendo.
+      //
+      // CAMBIO — Validación de Empresa Activa en Escaneo QR: en esta primera
+      // llegada de catálogo (justo al conectar desde Pantalla Principal) se
+      // valida si hay empresa activa. Antes se navegaba siempre a
+      // "screenReady" sin importar si empresaNombre venía vacío, permitiendo
+      // escanear sin ninguna empresa seleccionada. Ahora, si no hay empresa
+      // activa, se muestra la MISMA pantalla "Sin Empresa Activa" ya usada
+      // arriba para el cambio de empresa (misma función, mismo
+      // comportamiento). Si el usuario luego entra a una empresa en el
+      // escritorio, _sincronizarEmpresaActivaQR() reenvía el catálogo y el
+      // bloque esCambioDeEmpresa de arriba se encarga de pasar a
+      // "screenReady" con normalidad.
+      if (!catalogoInicialRecibido) {
+        catalogoInicialRecibido = true;
+        if (empresaNombre) {
+          mostrarPantalla('screenReady');
+        } else {
+          _mostrarSinEmpresaActiva();
+        }
+      }
       return;
     }
     if (msg.tipo === 'catalogo-clientes') {
@@ -327,7 +432,15 @@
         canvas.height = els.video.videoHeight;
         ctx.drawImage(els.video, 0, 0, canvas.width, canvas.height);
         var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        var code = window.jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+        // Corrección Cambio 02 punto 3: 'dontInvert' solo intenta una lectura
+        // (oscuro-sobre-claro) y deja sin reconocer QR que llegan con
+        // contraste invertido a la cámara (brillo del flash, reflejo del
+        // papel térmico, impresoras que invierten el sello, etc.).
+        // 'attemptBoth' prueba también la variante invertida en cada frame
+        // sin cambiar en nada el resultado para los QR que ya funcionaban
+        // (si la primera pasada los reconoce, ahí termina) ni el resto del
+        // flujo posterior a la detección (onQrDecodificado sigue igual).
+        var code = window.jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
         if (code && code.data) {
           onQrDecodificado(code.data);
           return;
@@ -346,16 +459,33 @@
     if (url.hostname.toLowerCase() !== HOST_VALIDO) return null;
 
     var params = url.searchParams;
+    // CAMBIO — Compatibilidad con QR de consulta pública que traen
+    // ambiente=null (texto literal "null", no ausencia del parámetro) u
+    // otras variantes equivalentes ("undefined", vacío, solo espacios).
+    // Antes cualquier valor no vacío de 'ambiente' (incluido el texto
+    // "null") se tomaba tal cual, así que este caso nunca caía en el
+    // valor por defecto '01' y terminaba rechazado más adelante como
+    // "no es un DTE". Ahora esas variantes se tratan igual que si el
+    // parámetro no viniera, sin afectar el resto de QR que ya funcionan
+    // (los que traen ambiente=00 o ambiente=01 siguen igual).
+    function esValorVacioOEquivalente(v) {
+      if (!v) return true;
+      var norm = String(v).trim().toLowerCase();
+      return norm === '' || norm === 'null' || norm === 'undefined';
+    }
     function buscarParam(nombres) {
       for (var i = 0; i < nombres.length; i++) {
         var v = params.get(nombres[i]);
-        if (v) return v;
+        if (v && !esValorVacioOEquivalente(v)) return v;
       }
       return '';
     }
     var ambiente = buscarParam(['ambiente', 'Ambiente']);
     var codGen = buscarParam(['codGen', 'codgen', 'CodGen']);
     var fechaEmi = buscarParam(['fechaEmi', 'fechaemi', 'FechaEmi']);
+    // La identificación del DTE depende de codGen y fechaEmi (más el host
+    // ya validado arriba) — 'ambiente' es informativo y nunca debe, por sí
+    // solo, invalidar un QR de consulta pública legítimo.
     if (!codGen || !fechaEmi) return null;
     return { ambiente: ambiente || '01', codGen: codGen, fechaEmi: fechaEmi };
   }
@@ -437,6 +567,7 @@
     els.docFecha.textContent = datos.fechaEmi;
     els.provSearch.value = '';
     els.provResults.innerHTML = '';
+    limpiarFormularioProveedorNuevo();
     els.provNuevoForm.classList.add('hidden');
     els.provElegido.classList.add('hidden');
     mostrarPantalla('screenDocumento');
@@ -577,7 +708,45 @@
 
   els.provSearch.addEventListener('input', function () { renderResultadosProveedor(els.provSearch.value.trim()); });
 
+  // Cambio 01: muestra/oculta los campos del formulario "Proveedor nuevo"
+  // según el anexo que se está escaneando, con el mismo criterio que usa el
+  // Catálogo de Proveedores del escritorio (toggleProveedorUsoFields):
+  //   - Clasificación / Sector / Tipo de Costo-Gasto → Compras y Sujeto Excluido
+  //   - Tipo de Documento / Tipo de Operación         → solo Sujeto Excluido
+  //   - Escanear Retención no usa ninguno de esos campos
+  function actualizarCamposProveedorNuevo() {
+    var usaClasif = (modoActual === 'compras' || modoActual === 'excluido');
+    var usaExcluido = (modoActual === 'excluido');
+    if (els.pnClasifSection) els.pnClasifSection.classList.toggle('hidden', !usaClasif);
+    if (els.pnExcluidoFields) els.pnExcluidoFields.classList.toggle('hidden', !usaExcluido);
+    if (usaExcluido) {
+      if (els.pnTipoDocEx) els.pnTipoDocEx.value = '1';
+      if (els.pnTipoOpEx) els.pnTipoOpEx.value = '';
+    }
+  }
+
+  // Corrección Bug 01: antes, el formulario "Proveedor nuevo" nunca se
+  // limpiaba entre usos, así que si el usuario registraba un proveedor y
+  // luego escaneaba OTRO documento y abría "Agregar Proveedor Nuevo" de
+  // nuevo, los campos (nombre, NIT, NRC, DUI, clasificación, sector, tipo
+  // de costo/gasto y los campos de Sujeto Excluido) todavía traían los
+  // valores del proveedor anterior. Esta función deja el formulario
+  // completamente en blanco.
+  function limpiarFormularioProveedorNuevo() {
+    els.pnNombre.value = '';
+    els.pnNit.value = '';
+    els.pnNrc.value = '';
+    els.pnDui.value = '';
+    if (els.pnClasif) els.pnClasif.value = '';
+    if (els.pnSector) els.pnSector.value = '';
+    if (els.pnTipoCosto) els.pnTipoCosto.value = '';
+    if (els.pnTipoDocEx) els.pnTipoDocEx.value = '1';
+    if (els.pnTipoOpEx) els.pnTipoOpEx.value = '';
+  }
+
   els.btnProvNuevo.addEventListener('click', function () {
+    limpiarFormularioProveedorNuevo();
+    actualizarCamposProveedorNuevo();
     els.provNuevoForm.classList.remove('hidden');
     els.provElegido.classList.add('hidden');
   });
@@ -585,20 +754,47 @@
   els.btnPnConfirmar.addEventListener('click', function () {
     var nombre = els.pnNombre.value.trim();
     var nit = els.pnNit.value.trim();
-    if (!nombre || !nit) {
-      showToast('Nombre y NIT son obligatorios para un proveedor nuevo.', 'err');
+    var nrcNuevo = els.pnNrc.value.trim();
+    var duiNuevo = els.pnDui.value.trim();
+    // CAMBIO — Proveedores Sujeto Excluido en el escáner QR: un Sujeto
+    // Excluido puede identificarse con NIT, DUI o NRC (ej. persona natural
+    // sin NIT/NRC), así que para ese anexo basta con que UNO de los tres
+    // tenga dato. Para el resto de los tipos de proveedor se mantiene la
+    // exigencia original de NIT obligatorio (no se toca esa validación).
+    var esExcluidoNuevo = (modoActual === 'excluido');
+    var identificacionOk = esExcluidoNuevo ? (nit || duiNuevo || nrcNuevo) : nit;
+    if (!nombre || !identificacionOk) {
+      var msgFaltaProvNuevo = esExcluidoNuevo
+        ? 'Nombre y al menos un documento de identificación (NIT, DUI o NRC) son obligatorios para un proveedor nuevo.'
+        : 'Nombre y NIT son obligatorios para un proveedor nuevo.';
+      showToast(msgFaltaProvNuevo, 'err');
       return;
     }
+    // Cambio 01: el proveedor nuevo se guarda con el anexo correspondiente al
+    // tipo de escaneo desde el que se creó (Compras / IVA Retenido / Sujeto
+    // Excluido), y solo lleva los campos que aplican a ese anexo — igual que
+    // en el Catálogo de Proveedores del escritorio.
+    var usoNuevo = MODO_A_USO[modoActual] || 'compras';
+    var usaClasif = (modoActual === 'compras' || modoActual === 'excluido');
+    var usaExcluido = (modoActual === 'excluido');
     elegirProveedor({
       esNuevo: true,
       nombre: nombre,
       nit: nit,
       nrc: els.pnNrc.value.trim(),
       dui: els.pnDui.value.trim(),
-      clasif: els.pnClasif ? els.pnClasif.value : '',
-      sector: els.pnSector ? els.pnSector.value : '',
-      tipoCosto: els.pnTipoCosto ? els.pnTipoCosto.value : ''
+      usos: [usoNuevo],
+      clasif: (usaClasif && els.pnClasif) ? els.pnClasif.value : '',
+      sector: (usaClasif && els.pnSector) ? els.pnSector.value : '',
+      tipoCosto: (usaClasif && els.pnTipoCosto) ? els.pnTipoCosto.value : '',
+      tipoDocEx: (usaExcluido && els.pnTipoDocEx) ? els.pnTipoDocEx.value : '',
+      tipoOpEx: (usaExcluido && els.pnTipoOpEx) ? els.pnTipoOpEx.value : ''
     });
+    // Corrección Bug 01: deja el formulario limpio de inmediato después de
+    // usarlo, para que no queden datos de este proveedor si se vuelve a
+    // abrir "Agregar Proveedor Nuevo" más adelante (elegirProveedor() ya lo
+    // oculta arriba, pero no borraba los valores de los campos).
+    limpiarFormularioProveedorNuevo();
   });
 
   els.btnConfirmarDocumento.addEventListener('click', function () {

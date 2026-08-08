@@ -2213,6 +2213,23 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                     Actualizaciones
                     <span id="updateDotBadge" style="display:none;position:absolute;top:1px;right:1px;width:6px;height:6px;border-radius:50%;background:#3b82f6;"></span>
                 </button>
+                <!-- MOVIDO: Escaneo QR de documentos físicos — antes vivía en el
+                     selector de mes de la barra de trabajo (solo visible una vez
+                     dentro de una empresa); se trae aquí, junto a Admin y
+                     Actualizaciones, para que esté disponible desde la pantalla
+                     principal. abrirEscaneoDocumentosFisicos ya valida que haya
+                     una empresa activa seleccionada antes de iniciar el módulo
+                     (muestra un aviso si no la hay), así que el comportamiento
+                     queda intacto. -->
+                <span style="color:#27272a;font-size:10px;">|</span>
+                <button onclick="abrirEscaneoDocumentosFisicos('compras')" title="Escanear documentos físicos por QR" style="display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#3f3f46;font-family:'Inter',sans-serif;padding:4px 8px;border-radius:6px;transition:all 0.2s;" onmouseover="this.style.color='#a1a1aa';this.style.background='#18181b';" onmouseout="this.style.color='#3f3f46';this.style.background='none';">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/>
+                        <path d="M14 14h3v3h-3zM14 20h7M20 14v3M17 20v.01M20 20v.01"/>
+                    </svg>
+                    Escaneo QR
+                </button>
             </div>
         </div>
     </div>
@@ -2527,17 +2544,6 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 <button onclick="changeMonth(-1)"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
                 <span id="monthLabel" class="month-label">Enero 2026</span>
                 <button onclick="changeMonth(1)"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
-                <button onclick="abrirEscaneoDocumentosFisicos('compras')"
-                        title="Escanear documentos físicos por QR"
-                        style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;border:1px solid rgba(45,212,191,0.35);background:rgba(45,212,191,0.08);color:#2dd4bf;cursor:pointer;flex-shrink:0;transition:all .15s;margin-left:4px;"
-                        onmouseover="this.style.background='rgba(45,212,191,0.18)'"
-                        onmouseout="this.style.background='rgba(45,212,191,0.08)'">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-                        <rect x="3" y="14" width="7" height="7"/>
-                        <path d="M14 14h3v3h-3zM14 20h7M20 14v3M17 20v.01M20 20v.01"/>
-                    </svg>
-                </button>
             </div>
         </div>
 
@@ -6127,6 +6133,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
         switchScreen('homeScreen');
         lucide.createIcons();
+
+        // CAMBIO — Actualización dinámica de empresa: si el módulo de
+        // escaneo QR sigue abierto/minimizado de una empresa anterior, se
+        // le envía de inmediato el nombre y los catálogos de ESTA empresa,
+        // sin cerrar ni reabrir el módulo.
+        _sincronizarEmpresaActivaQR();
     }
 
     // ══════════════════════════════════════════════
@@ -6143,6 +6155,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
         renderEmpresaList();
         lucide.createIcons();
+
+        // CAMBIO — Actualización dinámica de empresa: si el módulo de
+        // escaneo QR sigue abierto/minimizado, se limpia de inmediato en el
+        // teléfono el nombre de empresa y los catálogos (activeEmpresaId ya
+        // es null aquí), para que no quede mostrando ni usando datos de la
+        // empresa que se acaba de dejar mientras no hay una empresa activa.
+        _sincronizarEmpresaActivaQR();
     }
 
     // ══════════════════════════════════════════════
@@ -15314,7 +15333,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     // el mismo proceso de guardado de un registro de Compras, la clasificación
     // asignada en ese momento quede reflejada de inmediato en el catálogo,
     // sin necesidad de un paso adicional.
-    function autoRegistrarProveedor(nit, nombre, dui, nrc, clasif, sector, tipoCosto) {
+    // Cambio 01 (ampliación): se agregan tres parámetros opcionales al final
+    // — usos, tipoDocEx, tipoOpEx — para que un proveedor creado desde el
+    // teléfono en Escanear Retención o Escanear Compras a Sujeto Excluido
+    // quede guardado en la clasificación (anexo) correcta del Catálogo de
+    // Proveedores, en vez de registrarse siempre como si fuera de Compras.
+    // Los llamados existentes que no envían estos parámetros no cambian de
+    // comportamiento (quedan como antes, undefined).
+    function autoRegistrarProveedor(nit, nombre, dui, nrc, clasif, sector, tipoCosto, usos, tipoDocEx, tipoOpEx) {
         // CORRECCIÓN: antes exigía NIT sí o sí, así que un Sujeto Excluido
         // identificado solo por DUI (sin NIT/NRC — el caso normal en el
         // Libro de Sujetos Excluidos) nunca se registraba en el catálogo,
@@ -15347,10 +15373,21 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             if (!pExist.clasif && clasif)       { pExist.clasif = clasif; cambiado = true; }
             if (!pExist.sector && sector)       { pExist.sector = sector; cambiado = true; }
             if (!pExist.tipoCosto && tipoCosto) { pExist.tipoCosto = tipoCosto; cambiado = true; }
+            // Cambio 01: si el proveedor ya existe pero todavía no tiene anexo
+            // (usos) asignado, o le falta Tipo de Documento / Tipo de Operación
+            // de Sujeto Excluido, se completan igual que los demás campos —
+            // sin pisar valores que el usuario ya haya configurado.
+            if (usos && usos.length && !(pExist.usos && pExist.usos.length)) { pExist.usos = usos.slice(); cambiado = true; }
+            if (!pExist.tipoDocEx && tipoDocEx) { pExist.tipoDocEx = tipoDocEx; cambiado = true; }
+            if (!pExist.tipoOpEx && tipoOpEx)   { pExist.tipoOpEx = tipoOpEx; cambiado = true; }
             if (cambiado) saveProveedores(list);
             return false;
         }
-        list.push({ nit: nitNorm, nrc: nrcNorm, dui: duiNorm, nombre: nombre || '', clasif: clasif || '', sector: sector || '', tipoCosto: tipoCosto || '' });
+        var nuevoRegistro = { nit: nitNorm, nrc: nrcNorm, dui: duiNorm, nombre: nombre || '', clasif: clasif || '', sector: sector || '', tipoCosto: tipoCosto || '' };
+        if (usos && usos.length) nuevoRegistro.usos = usos.slice();
+        if (tipoDocEx) nuevoRegistro.tipoDocEx = tipoDocEx;
+        if (tipoOpEx)  nuevoRegistro.tipoOpEx  = tipoOpEx;
+        list.push(nuevoRegistro);
         saveProveedores(list);
         return true;
     }
@@ -15390,12 +15427,48 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         el.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
+    // CAMBIO — Actualización dinámica de empresa en el módulo de escaneos.
+    // Se llama cada vez que la empresa activa cambia (al entrar a una
+    // empresa o al volver a la pantalla de selección) para que, SI el
+    // módulo de escaneo QR sigue abierto/minimizado en segundo plano, el
+    // teléfono se actualice de inmediato — nombre de empresa, catálogo de
+    // proveedores/clientes y etiquetas de clasificación — sin necesidad de
+    // cerrar y volver a abrir el módulo. Si el módulo no está activo, no
+    // hace nada (no lo abre ni lo modifica).
+    // empresaIdParaCatalogos: id de la empresa cuyo catálogo debe leerse
+    // (loadProveedores()/loadClientes() ya leen según activeEmpresaId, que
+    // para este punto ya debe estar actualizado al nuevo valor).
+    function _sincronizarEmpresaActivaQR() {
+        if (!window.qrScan || !_qrScanEstado.activo || !window.qrScan.actualizarEmpresaActiva) return;
+        var emp = activeEmpresaId ? empresas.find(function(e) { return e.id === activeEmpresaId; }) : null;
+        var empresaNombre = emp ? (emp.razon || '') : '';
+        window.qrScan.actualizarEmpresaActiva({
+            proveedores: activeEmpresaId ? loadProveedores() : [],
+            clientes: activeEmpresaId ? loadClientes() : [],
+            empresaNombre: empresaNombre,
+            clasifLabels: CLASIF_LABELS,
+            sectorLabels: SECTOR_LABELS,
+            costoLabels: COSTO_LABELS
+        });
+    }
+
     function abrirEscaneoDocumentosFisicos(libro) {
         if (libro !== 'compras') {
             showToast('El escaneo por QR aún solo está disponible para el Libro de Compras.', 'error');
             return;
         }
-        if (!activeEmpresaId) { showToast('Selecciona una empresa activa primero', 'error'); return; }
+        // CAMBIO — Ya no se exige empresa activa para ABRIR el módulo: ahora
+        // vive en la pantalla principal (antes de entrar a una empresa), así
+        // que el usuario debe poder generar el QR y vincular el teléfono de
+        // una vez, sin tener que entrar primero a una empresa. Si en este
+        // momento no hay ninguna activa, se inicia igual pero con catálogos
+        // vacíos y sin nombre de empresa — en cuanto el usuario entre a una
+        // empresa, _sincronizarEmpresaActivaQR() (llamada desde
+        // ingresarEmpresa) actualiza el teléfono en caliente sin reabrir el
+        // módulo. El guardado de cualquier documento escaneado sigue
+        // protegido aparte por _rechazarEscaneoSinEmpresaActiva(), que
+        // vuelve a comprobar activeEmpresaId en el momento real del guardado
+        // — así que no hay riesgo de guardar un documento sin empresa.
         if (!window.qrScan) { showToast('El módulo de escaneo QR no está disponible en este entorno', 'error'); return; }
 
         _registrarListenersQrScan();
@@ -15415,11 +15488,29 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         _renderQrScanBody('cargando');
 
         var emp = empresas.find(function(e) { return e.id === activeEmpresaId; });
-        var empresaNombre = emp ? (emp.nombre || emp.razonSocial || '') : '';
+        // Corrección: el campo real del nombre de la empresa en el objeto
+        // 'empresas' es 'razon' (ver topbarEmpresaName, encabezados de
+        // impresión, etc. — todos usan emp.razon). 'nombre'/'razonSocial'
+        // no existen en este objeto, así que empresaNombre llegaba SIEMPRE
+        // vacío al teléfono sin importar el empaquetado de argumentos.
+        var empresaNombre = emp ? (emp.razon || '') : '';
         var proveedoresList = loadProveedores();
         var clientesList = loadClientes();
 
-        window.qrScan.iniciar(proveedoresList, clientesList, empresaNombre, CLASIF_LABELS, SECTOR_LABELS, COSTO_LABELS).then(function(res) {
+        // Corrección: 'iniciar-qr-scan' (main.js) espera UN SOLO objeto
+        // { proveedores, clientes, empresaNombre, clasifLabels, sectorLabels,
+        // costoLabels } — se llamaba con argumentos posicionales sueltos, así
+        // que el handler nunca recibía 'empresaNombre' (por eso no aparecía
+        // la empresa activa en el teléfono). Se arma el objeto explícitamente
+        // para que coincida con lo que main.js realmente lee.
+        window.qrScan.iniciar({
+            proveedores: proveedoresList,
+            clientes: clientesList,
+            empresaNombre: empresaNombre,
+            clasifLabels: CLASIF_LABELS,
+            sectorLabels: SECTOR_LABELS,
+            costoLabels: COSTO_LABELS
+        }).then(function(res) {
             if (!res || !res.ok) {
                 _renderQrScanBody('error', (res && res.error) || 'No se pudo iniciar el módulo de escaneo.');
                 return;
@@ -15511,16 +15602,32 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         // función que ya usa el resto del programa (autoRegistrarProveedor),
         // sin duplicar su lógica de deduplicación por NIT/NRC.
         window.qrScan.onProveedorNuevo(function(proveedor) {
-            if (!proveedor || !proveedor.nit || !activeEmpresaId) return;
+            // CORRECCIÓN: antes se exigía proveedor.nit sí o sí, así que un
+            // Sujeto Excluido creado en el teléfono con solo DUI o solo NRC
+            // (permitido desde el cambio de validación de Sujeto Excluido)
+            // nunca se registraba en el catálogo de la PC, aunque el
+            // teléfono sí lo hubiera aceptado y el mensaje sí hubiera
+            // llegado. autoRegistrarProveedor ya sabe manejar NIT, DUI o
+            // NRC — basta con que llegue alguno de los tres.
+            if (!proveedor || (!proveedor.nit && !proveedor.dui && !proveedor.nrc) || !activeEmpresaId) return;
             var empSector = '1';
             var empActiva = empresas.find(function(e) { return e.id === activeEmpresaId; });
             if (empActiva && empActiva.sector) empSector = empActiva.sector;
-            // Cambio 01 (ampliación): usar el Sector y Tipo de Costo/Gasto que el
-            // usuario eligió en el teléfono al crear el proveedor; si no vinieron
-            // (versión anterior del teléfono), se mantiene el comportamiento previo.
-            var sectorFinal = proveedor.sector || empSector;
-            var tipoCostoFinal = proveedor.tipoCosto || '1';
-            autoRegistrarProveedor(proveedor.nit, proveedor.nombre, proveedor.dui, proveedor.nrc, (proveedor.clasif || '1'), sectorFinal, tipoCostoFinal);
+            // Cambio 01: el teléfono ahora envía el anexo (usos) desde el que
+            // se creó el proveedor — Compras, IVA Retenido o Sujeto Excluido.
+            // Si no viene (versión anterior del teléfono, sin este campo), se
+            // mantiene el comportamiento previo: se asume Compras.
+            var usosNuevo = (proveedor.usos && proveedor.usos.length) ? proveedor.usos : ['compras'];
+            // Clasificación / Sector / Tipo de Costo-Gasto solo existen en el
+            // Catálogo de Proveedores para Compras y Sujeto Excluido — igual
+            // que en el formulario del escritorio (toggleProveedorUsoFields).
+            // Para IVA Retenido no aplican, así que no se les asigna un valor
+            // por defecto.
+            var usaClasif = usosNuevo.indexOf('compras') !== -1 || usosNuevo.indexOf('excluido') !== -1;
+            var clasifFinal = proveedor.clasif || (usaClasif ? '1' : '');
+            var sectorFinal = proveedor.sector || (usaClasif ? empSector : '');
+            var tipoCostoFinal = proveedor.tipoCosto || (usaClasif ? '1' : '');
+            autoRegistrarProveedor(proveedor.nit, proveedor.nombre, proveedor.dui, proveedor.nrc, clasifFinal, sectorFinal, tipoCostoFinal, usosNuevo, proveedor.tipoDocEx || '', proveedor.tipoOpEx || '');
             // Refresca el catálogo que tiene el teléfono, por si escanea otro
             // documento del mismo proveedor recién creado en este mismo lote.
             if (window.qrScan.actualizarCatalogo) window.qrScan.actualizarCatalogo(loadProveedores());
@@ -15642,8 +15749,26 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     // MISMA lógica que saveComprasRecord() (validación, duplicados, catálogo
     // de proveedores, sincronización con IVA Percibido) para no duplicar
     // comportamiento ni reglas de negocio, pero sin tocar la UI del modal.
+    // CAMBIO 05 — Validación de empresa activa antes de escanear: nunca se
+    // debe procesar/guardar un documento escaneado sin una empresa
+    // actualmente seleccionada en el escritorio (por ejemplo, si el usuario
+    // volvió a la pantalla de selección de empresas con el módulo QR aún
+    // abierto/minimizado en segundo plano). Se lee activeEmpresaId en el
+    // momento del escaneo, nunca un valor guardado de antes. Devuelve true
+    // (y ya avisó al usuario/teléfono) si el escaneo debe rechazarse.
+    function _rechazarEscaneoSinEmpresaActiva() {
+        if (activeEmpresaId) return false;
+        showToast('No hay ninguna empresa activa — el documento escaneado no se guardó.', 'error');
+        if (window.qrScan && window.qrScan.reportarResultado) {
+            window.qrScan.reportarResultado({ ok: false, mensaje: 'No hay ninguna empresa activa en este momento.' });
+        }
+        _minimizarModuloEscaneo();
+        return true;
+    }
+
     function _autocompletarComprasDesdeQR(combinado) {
         if (!combinado) return;
+        if (_rechazarEscaneoSinEmpresaActiva()) return;
         var prov = combinado.proveedor || {};
 
         var empSector = '1';
@@ -15744,6 +15869,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     //                                              en el teléfono antes de enviar)
     function _autocompletarVentaCFDesdeQR(combinado) {
         if (!combinado) return;
+        if (_rechazarEscaneoSinEmpresaActiva()) return;
 
         var empTipoIng = '1';
         if (activeEmpresaId) {
@@ -15815,6 +15941,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     // catálogo para que quede disponible en futuros escaneos).
     function _autocompletarRetencionDesdeQR(combinado) {
         if (!combinado) return;
+        if (_rechazarEscaneoSinEmpresaActiva()) return;
         var prov = combinado.proveedor || {};
 
         var empSector = '1';
@@ -15915,6 +16042,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     // si no DUI, si no "Otro".
     function _autocompletarExcluidoDesdeQR(combinado) {
         if (!combinado) return;
+        if (_rechazarEscaneoSinEmpresaActiva()) return;
         var prov = combinado.proveedor || {};
 
         var empSector = '1';
@@ -16083,6 +16211,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
     function _autocompletarVentaCCFDesdeQR(combinado) {
         if (!combinado) return;
+        if (_rechazarEscaneoSinEmpresaActiva()) return;
         var cli = combinado.cliente || {};
 
         var empTipoIng = '1';
@@ -16265,14 +16394,21 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         filtered.forEach(function(p) {
             var realIdx = list.indexOf(p);
             var clasifColor = p.clasif ? 'text-white' : 'text-zinc-600';
+            // CAMBIO 06: un proveedor que pertenece EXCLUSIVAMENTE al anexo
+            // "IVA Retenido" no usa Clasificación ni Tipo Costo/Gasto (esos
+            // datos son de Compras / Compras a Sujeto Excluido) — esas
+            // columnas deben quedar completamente vacías, sin ningún texto
+            // de relleno ("— Sin clasificar —", "—", etc.).
+            var _usosP = proveedorUsosEfectivos(p);
+            var esSoloRetenido = (_usosP.length === 1 && _usosP[0] === 'retenido');
             var row = document.createElement('tr');
             row.className = 'border-b border-zinc-900/50 hover:bg-white/5 transition-colors';
             row.innerHTML =
                 '<td class="px-4 py-3 text-xs font-mono text-white">' + (p.nit || '—') + (p.nrc ? '<br><span class="text-zinc-500">NRC: ' + p.nrc + '</span>' : '') + (p.dui ? '<br><span class="text-zinc-600">DUI: ' + p.dui + '</span>' : '') + '</td>' +
                 '<td class="px-4 py-3 text-xs text-white font-medium">' + (p.nombre || '<span class="text-zinc-600 italic">Sin nombre</span>') + '</td>' +
                 '<td class="px-4 py-3 text-xs">' + _renderUsoBadges(p) + '</td>' +
-                '<td class="px-4 py-3 text-xs ' + clasifColor + '">' + (CLASIF_LABELS[p.clasif] || '<span class="text-zinc-600 italic">—</span>') + '</td>' +
-                '<td class="px-4 py-3 text-xs ' + clasifColor + '">' + (COSTO_LABELS[p.tipoCosto] || '<span class="text-zinc-600 italic">—</span>') + '</td>' +
+                '<td class="px-4 py-3 text-xs ' + clasifColor + '">' + (esSoloRetenido ? '' : (CLASIF_LABELS[p.clasif] || '<span class="text-zinc-600 italic">—</span>')) + '</td>' +
+                '<td class="px-4 py-3 text-xs ' + clasifColor + '">' + (esSoloRetenido ? '' : (COSTO_LABELS[p.tipoCosto] || '<span class="text-zinc-600 italic">—</span>')) + '</td>' +
                 '<td class="px-4 py-3 text-xs sticky right-0 bg-zinc-950">' +
                 '<div class="flex gap-2">' +
                 '<button onclick="openProveedorModal(' + realIdx + ')" class="p-1.5 hover:text-blue-500 transition" title="Editar"><i data-lucide="edit-3" class="w-4"></i></button>' +
@@ -16394,6 +16530,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         if (document.getElementById('prov_uso_excluido').checked) usos.push('excluido');
         var tipoDocEx = document.getElementById('prov_tipo_doc_ex').value;
         var tipoOpEx  = document.getElementById('prov_tipo_op_ex').value;
+
+        // CAMBIO 06: los proveedores que pertenecen EXCLUSIVAMENTE al anexo
+        // "IVA Retenido" no usan Clasificación ni Tipo Costo/Gasto (esos
+        // campos aplican a Compras / Compras a Sujeto Excluido) — se fuerzan
+        // vacíos al guardar, tanto al crear como al editar, aunque el select
+        // oculto conserve algún valor previo sin que el usuario lo haya visto.
+        var esSoloRetenido = (usos.length === 1 && usos[0] === 'retenido');
+        if (esSoloRetenido) {
+            clasif = '';
+            tipoCosto = '';
+        }
 
         if (!nit && !nombre) { showToast('Ingresa al menos el NIT/NRC o el nombre', 'error'); return false; }
 

@@ -123,8 +123,14 @@ contextBridge.exposeInMainWorld('qrScan', {
     // la clasificación COMPLETA del proveedor con el mismo texto que usa el programa. Opcionales — si se
     // omiten, el teléfono simplemente no podrá mostrar esas dos etiquetas (no rompe nada existente).
     // Devuelve { ok, qrDataUrl, ip, port, error }
-    iniciar: (proveedores, clientes, empresaNombre, clasifLabels, sectorLabels, costoLabels) =>
-        ipcRenderer.invoke('iniciar-qr-scan', { proveedores, clientes, empresaNombre, clasifLabels, sectorLabels, costoLabels }),
+    // Corrección: recibe UN SOLO objeto { proveedores, clientes, empresaNombre,
+    // clasifLabels, sectorLabels, costoLabels }, tal como lo llama index.html y
+    // tal como lo espera el handler 'iniciar-qr-scan' en main.js. Antes esta
+    // función esperaba argumentos posicionales sueltos, así que al llamarla con
+    // un objeto único, todo el objeto caía en 'proveedores' y el resto
+    // (incluido empresaNombre) llegaba como undefined — por eso nunca aparecía
+    // el nombre de la empresa en el teléfono.
+    iniciar: (params) => ipcRenderer.invoke('iniciar-qr-scan', params),
 
     // Detiene el servidor y cierra cualquier sesión activa con el teléfono
     detener: () => ipcRenderer.invoke('detener-qr-scan'),
@@ -134,6 +140,14 @@ contextBridge.exposeInMainWorld('qrScan', {
 
     // Reenvía un catálogo de clientes actualizado al teléfono (si cambió mientras el módulo está abierto)
     actualizarClientes: (clientes) => ipcRenderer.invoke('qr-actualizar-clientes', clientes),
+
+    // CAMBIO — Actualización dinámica de empresa: se llama cada vez que el
+    // usuario entra a una empresa (o cambia de una a otra) mientras el
+    // módulo de escaneo sigue abierto/minimizado, para refrescar en el
+    // teléfono el nombre de la empresa activa + sus catálogos/etiquetas,
+    // sin cerrar ni volver a abrir el módulo. Mismo payload que iniciar().
+    // params: { proveedores, clientes, empresaNombre, clasifLabels, sectorLabels, costoLabels }
+    actualizarEmpresaActiva: (params) => ipcRenderer.invoke('qr-actualizar-empresa-activa', params),
 
     // cb(data) — data: { conectado: true|false } — se dispara cuando el teléfono se conecta o se desconecta
     onEstadoConexion: (cb) => ipcRenderer.on('qr-estado-conexion', (event, data) => cb(data)),
