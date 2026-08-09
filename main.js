@@ -936,6 +936,13 @@ ipcMain.handle('verificar-dte-mh', async (event, fechaGeneracion, codigoGeneraci
     // correr el lote a mano. No se reintenta si el lote fue cancelado.
     if (resultado.estado === 'ERROR' && !_dgiiCancelado) {
       console.warn('[DGII][slot ' + (slot || 0) + '] Primer intento falló (' + resultado.error + '), reintentando una vez...');
+      // AGREGADO — Indicador visual de reintento (Cambio 01): solo notifica al
+      // renderer que se está reintentando ESTE documento, para que muestre
+      // "Reintentando documento..." en el modal de progreso. No cambia en
+      // absoluto la lógica de reintentos de arriba (sigue siendo un único
+      // reintento automático, misma condición, mismo flujo) — es únicamente
+      // un aviso informativo adicional.
+      try { event.sender.send('dgii-reintento', { slot: slot || 0 }); } catch (e) {}
       resultado = await _dgiiConsultarConTimeout(fechaGeneracion, codigoGeneracion, slot);
     }
     return resultado;

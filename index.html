@@ -133,6 +133,8 @@
   var iconPaths = {
     "arrow-left": `<polyline points="15 18 9 12 15 6"/><line x1="19" y1="12" x2="9" y2="12"/>`,
     "ban": `<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>`,
+    "check": `<polyline points="20 6 9 17 4 12"/>`,
+    "alert-triangle": `<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>`,
     "book-open": `<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>`,
     "building-2": `<path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/>`,
     "chevron-down": `<polyline points="6 9 12 15 18 9"/>`,
@@ -1458,52 +1460,254 @@
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.6);
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
             z-index: 9999;
             align-items: center;
             justify-content: center;
         }
         #dgiiProgressModal.dgii-open { display: flex; }
         .dgii-progress-card {
-            background: #0f0f11;
-            border: 1px solid #27272a;
-            border-radius: 14px;
-            padding: 28px 30px;
-            width: 420px;
+            background: #0a0a0c;
+            border: 1px solid #1c1c1f;
+            border-radius: 16px;
+            padding: 22px 26px;
+            width: 440px;
             max-width: 90vw;
+            text-align: left;
+            box-shadow: 0 40px 90px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.02) inset;
         }
-        .dgii-progress-bar-track {
-            width: 100%;
-            height: 8px;
+
+        /* Encabezado: icono cuadrado + título/subtítulo, alineados a la izquierda */
+        .dgii-v2-header { display: flex; align-items: flex-start; gap: 14px; }
+        .dgii-header-icon {
+            width: 44px; height: 44px; flex-shrink: 0;
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            box-shadow: 0 6px 16px rgba(37,99,235,0.35);
+        }
+        .dgii-header-icon svg { width: 22px; height: 22px; color: #fff; stroke-width: 2.25; }
+        .dgii-header-icon.dgii-icon-success { background: linear-gradient(135deg, #22c55e, #16a34a); box-shadow: 0 6px 16px rgba(22,163,74,0.35); }
+        .dgii-header-icon.dgii-icon-cancel  { background: linear-gradient(135deg, #71717a, #52525b); box-shadow: 0 6px 16px rgba(0,0,0,0.35); }
+
+        .dgii-v2-header-text { flex: 1; min-width: 0; padding-top: 3px; }
+        .dgii-v2-header-text h3, #dgiiSumTitle {
+            font-size: 16px;
+            font-weight: 700;
+            color: #f4f4f5;
+            margin: 0 0 4px;
+            letter-spacing: -0.01em;
+        }
+        .dgii-v2-header-sub {
+            font-size: 12px;
+            color: #71717a;
+            margin: 0;
+        }
+
+        /* Pill de estado — solo se usa en la pantalla final (Finalizado/Cancelado) */
+        .dgii-v2-status {
+            display: none;
+            align-items: center;
+            gap: 5px;
+            font-size: 10.5px;
+            font-weight: 700;
+            color: #4ade80;
+            background: rgba(34,197,94,0.12);
+            border: 1px solid rgba(34,197,94,0.3);
+            padding: 4px 10px;
             border-radius: 999px;
-            background: #27272a;
-            overflow: hidden;
-            margin: 16px 0 10px;
+            margin-top: 3px;
         }
-        .dgii-progress-bar-fill {
-            height: 100%;
-            background: linear-gradient(90deg,#3b82f6,#22c55e);
-            width: 0%;
-            transition: width 0.25s ease;
+        .dgii-v2-status svg { width: 11px; height: 11px; stroke-width: 3; }
+        .dgii-v2-status-cancel {
+            color: #a1a1aa;
+            background: rgba(161,161,170,0.1);
+            border-color: rgba(161,161,170,0.25);
         }
+
+        /* "Well" — caja interior oscura, usada tanto para el progreso como
+           para el bloque "Total Consultados" del resumen final */
+        .dgii-well {
+            margin-top: 16px;
+            background: #131316;
+            border: 1px solid #1f1f23;
+            border-radius: 12px;
+            padding: 14px 16px;
+        }
+        .dgii-v2-progress-wrap { margin-top: 0; }
+        .dgii-well-progress { display: flex; align-items: center; gap: 18px; }
+
+        /* Anillo circular de progreso */
+        .dgii-ring-wrap {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            flex-shrink: 0;
+        }
+        .dgii-ring-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+        .dgii-ring-track { fill: none; stroke: #1c1c1f; stroke-width: 8; }
+        .dgii-ring-fill {
+            fill: none;
+            stroke: url(#dgiiRingGrad);
+            stroke-width: 8;
+            stroke-linecap: round;
+            stroke-dasharray: 314.159;
+            stroke-dashoffset: 314.159;
+            transition: stroke-dashoffset 0.35s ease;
+        }
+        .dgii-ring-center {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dgii-ring-pct {
+            font-size: 18px;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -0.02em;
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+        }
+        /* Se conservan en el DOM por compatibilidad con el JS existente,
+           pero el nuevo diseño solo muestra el porcentaje dentro del anillo. */
+        .dgii-v2-count-num { display: none; }
+        .dgii-v2-count-label { display: none; }
+
+        .dgii-well-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+        .dgii-v2-progress-text {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: #f4f4f5;
+            margin: 0;
+        }
+        .dgii-well-live {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #38bdf8;
+        }
+        .dgii-well-live .dgii-spin {
+            width: 12px; height: 12px; flex-shrink: 0;
+            border-radius: 50%;
+            border: 2px solid rgba(56,189,248,0.25);
+            border-top-color: #38bdf8;
+            animation: dgiiSpin 0.8s linear infinite;
+        }
+        .dgii-well-live.dgii-well-live-retry { color: #fbbf24; }
+        .dgii-well-live.dgii-well-live-retry .dgii-spin {
+            border-color: rgba(251,191,36,0.25);
+            border-top-color: #fbbf24;
+        }
+        @keyframes dgiiSpin { to { transform: rotate(360deg); } }
+        .dgii-well-sub {
+            font-size: 11.5px;
+            color: #71717a;
+            margin: 0;
+        }
+
+        /* Barra lineal y badge de reintento anteriores: se conservan ocultos
+           en el DOM por compatibilidad con el JS existente. El nuevo diseño
+           muestra el reintento dentro del "well" (dgii-well-live). */
+        .dgii-progress-bar-track { display: none; }
+        .dgii-progress-bar-fill { width: 0%; }
+        .dgii-retry-badge { display: none !important; }
+
+        .dgii-v2-error {
+            font-size: 10.5px;
+            color: #f97316;
+            min-height: 0;
+            margin: 12px 0 0;
+        }
+        .dgii-v2-hint {
+            font-size: 11px;
+            color: #52525b;
+            line-height: 1.5;
+            margin: 12px 0 0;
+        }
+
+        .dgii-v2-actions { margin-top: 16px; }
+        .dgii-btn-cancel {
+            display: block;
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: #71717a;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 6px 4px;
+            transition: color .15s;
+        }
+        .dgii-btn-cancel:hover { color: #e4e4e7; }
+        .dgii-btn-cancel:disabled { opacity: 0.5; cursor: default; }
+        .dgii-btn-close {
+            display: block;
+            width: 100%;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            border: none;
+            color: #fff;
+            font-size: 12.5px;
+            font-weight: 700;
+            padding: 11px;
+            border-radius: 11px;
+            cursor: pointer;
+            transition: filter .15s;
+        }
+        .dgii-btn-close:hover { filter: brightness(1.1); }
+
+        /* Resumen final */
+        .dgii-total-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .dgii-total-label { font-size: 12.5px; font-weight: 700; color: #f4f4f5; margin: 0 0 2px; }
+        .dgii-total-sub { font-size: 10.5px; color: #71717a; margin: 0; }
+        .dgii-total-num {
+            font-size: 21px;
+            font-weight: 800;
+            color: #fff;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.02em;
+            flex-shrink: 0;
+        }
+
         .dgii-summary-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 10px;
         }
         .dgii-summary-item {
-            background: #18181b;
-            border-radius: 8px;
-            padding: 10px 12px;
-            font-size: 11px;
-            color: #a1a1aa;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            background: #131316;
+            border: 1px solid #1f1f23;
+            border-radius: 11px;
+            padding: 8px 12px;
         }
+        .dgii-summary-item-left { display: flex; align-items: center; gap: 9px; min-width: 0; }
+        .dgii-summary-icon {
+            width: 28px; height: 28px; flex-shrink: 0;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .dgii-summary-icon svg { width: 14px; height: 14px; }
+        .dgii-icon-transmitido   { background: rgba(34,197,94,0.12);  color: #22c55e; }
+        .dgii-icon-invalidado    { background: rgba(239,68,68,0.12);  color: #ef4444; }
+        .dgii-icon-evento        { background: rgba(234,179,8,0.12);  color: #eab308; }
+        .dgii-icon-no_encontrado { background: rgba(161,161,170,0.12);color: #a1a1aa; }
+        .dgii-icon-fisico        { background: rgba(129,140,248,0.12);color: #818cf8; }
+        .dgii-icon-error         { background: rgba(249,115,22,0.12); color: #f97316; }
+        .dgii-summary-item-label { font-size: 12px; font-weight: 600; color: #e4e4e7; }
         .dgii-summary-item b {
-            display: block;
-            font-size: 16px;
-            color: #fff;
-            margin-top: 2px;
+            font-size: 13px;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            flex-shrink: 0;
         }
 
         /* ═══ Modal: Recorrer y Actualizar Documentos (independiente del de DGII) ═══ */
@@ -18152,14 +18356,47 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         return '<span class="dgii-badge"' + title + '><span class="dgii-dot ' + dot + '"></span>' + label + '</span>';
     }
 
+    // Rediseño (Cambio 01): además del texto largo de siempre (dgiiProgressText,
+    // que se conserva tal cual para no romper nada que dependa de él) ahora
+    // también actualiza el porcentaje grande y el contador "X / Y" del nuevo
+    // diseño, y oculta el aviso de "Reintentando documento…" — si este
+    // documento se acaba de completar, ya no está en reintento.
+    var _dgiiActual = 0;
+    var _dgiiTotalActual = 0;
+
     function dgiiActualizarProgreso(actual, total) {
+        _dgiiActual = actual;
+        _dgiiTotalActual = total;
         var texto = document.getElementById('dgiiProgressText');
-        if (texto) texto.innerText = 'Verificando documentos… ' + actual + ' de ' + total + ' documentos revisados.';
+        if (texto) texto.innerText = actual + ' de ' + total + ' documentos revisados';
+        var pct = total > 0 ? Math.round((actual / total) * 100) : 0;
         var fill = document.getElementById('dgiiProgressFill');
-        if (fill) fill.style.width = (total > 0 ? Math.round((actual / total) * 100) : 0) + '%';
+        if (fill) fill.style.width = pct + '%';
+        var pctText = document.getElementById('dgiiPercentText');
+        if (pctText) pctText.innerText = pct + '%';
+        var countText = document.getElementById('dgiiCountNum');
+        if (countText) countText.innerText = actual + ' / ' + total;
+        // Anillo circular (r=50 → circunferencia = 2π·50 ≈ 314.159)
+        var ring = document.getElementById('dgiiRingFill');
+        if (ring) {
+            var circunferencia = 314.159;
+            ring.style.strokeDashoffset = circunferencia * (1 - pct / 100);
+        }
+        dgiiOcultarReintento();
+        var restantes = Math.max(total - actual, 0);
+        var sub = document.getElementById('dgiiSubStatusText');
+        if (sub) sub.innerText = restantes > 0 ? ('Restantes: ' + restantes + ' pendientes') : 'Finalizando…';
     }
 
-    function dgiiAbrirModal() {
+    // Corrección (Cambio 01): antes el modal se abría sin reiniciar el
+    // porcentaje/contador, así que durante los primeros segundos (mientras
+    // se resuelve la consulta del primer documento) se seguían viendo el
+    // porcentaje y la cantidad de la verificación ANTERIOR. Ahora
+    // dgiiAbrirModal recibe el total de la nueva consulta y reinicia de
+    // inmediato y de forma síncrona todo el estado visual a 0/total, antes
+    // de que arranque cualquier consulta. No cambia el proceso de
+    // verificación en sí, solo cuándo se refresca la pantalla.
+    function dgiiAbrirModal(total) {
         var m = document.getElementById('dgiiProgressModal');
         if (m) m.classList.add('dgii-open');
         var box = document.getElementById('dgiiSummaryBox');
@@ -18167,9 +18404,26 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         var wrap = document.getElementById('dgiiProgressWrap');
         if (wrap) wrap.style.display = '';
         var btnCancelar = document.getElementById('dgiiBtnCancelar');
-        if (btnCancelar) btnCancelar.style.display = '';
+        if (btnCancelar) { btnCancelar.style.display = ''; btnCancelar.disabled = false; }
         var btnCerrar = document.getElementById('dgiiBtnCerrar');
         if (btnCerrar) btnCerrar.style.display = 'none';
+
+        // Encabezado: título/subtítulo por defecto, pill final oculta,
+        // icono de vuelta al escudo azul.
+        var titulo = document.getElementById('dgiiSumTitle');
+        if (titulo) titulo.innerText = 'Verificación de Estado DGII';
+        var sub = document.getElementById('dgiiHeaderSub');
+        if (sub) sub.style.display = '';
+        var estadoFinal = document.getElementById('dgiiStatusLabel');
+        if (estadoFinal) estadoFinal.style.display = 'none';
+        var icon = document.getElementById('dgiiHeaderIcon');
+        if (icon) { icon.className = 'dgii-header-icon'; icon.innerHTML = '<i data-lucide="shield"></i>'; }
+
+        var errEl = document.getElementById('dgiiUltimoError');
+        if (errEl) errEl.innerText = '';
+        dgiiOcultarReintento();
+        dgiiActualizarProgreso(0, total || 0);
+        if (window.lucide) lucide.createIcons();
     }
 
     function dgiiCerrarModal() {
@@ -18179,9 +18433,46 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
     function dgiiCancelarVerificacion() {
         _dgiiCancelar = true;
+        var btnCancelar = document.getElementById('dgiiBtnCancelar');
+        if (btnCancelar) { btnCancelar.disabled = true; }
+        var live = document.getElementById('dgiiLiveStatus');
+        if (live) { live.className = 'dgii-well-live'; live.innerHTML = '<span class="dgii-spin"></span> Cancelando…'; }
         if (window.fiscalAPI && window.fiscalAPI.cancelarVerificacionDTE) {
             window.fiscalAPI.cancelarVerificacionDTE();
         }
+    }
+
+    // AGREGADO — Indicador visual de reintento (Cambio 01): solo cambia lo
+    // que se MUESTRA en pantalla. La lógica real de reintentos (cuándo se
+    // reintenta, cuántas veces, con qué condición) vive intacta en main.js
+    // (ver 'verificar-dte-mh') y no se toca en absoluto aquí.
+    function dgiiMostrarReintento() {
+        var live = document.getElementById('dgiiLiveStatus');
+        if (live) { live.className = 'dgii-well-live dgii-well-live-retry'; live.innerHTML = '<span class="dgii-spin"></span> Reintentando documento…'; }
+        var sub = document.getElementById('dgiiSubStatusText');
+        if (sub) sub.innerText = 'Obteniendo respuesta del servidor DGII';
+    }
+
+    function dgiiOcultarReintento() {
+        var badge = document.getElementById('dgiiRetryBadge');
+        if (badge) badge.style.display = 'none';
+        var live = document.getElementById('dgiiLiveStatus');
+        if (live && live.classList.contains('dgii-well-live-retry')) {
+            live.className = 'dgii-well-live';
+            live.innerHTML = '<span class="dgii-spin"></span> Verificando documentos…';
+            var restantes = Math.max(_dgiiTotalActual - _dgiiActual, 0);
+            var sub = document.getElementById('dgiiSubStatusText');
+            if (sub) sub.innerText = restantes > 0 ? ('Restantes: ' + restantes + ' pendientes') : 'Finalizando…';
+        }
+    }
+
+    // Escucha el aviso de reintento que manda main.js (ver preload.js /
+    // onReintentoDTE) — se registra una sola vez, igual que el resto de
+    // listeners de window.fiscalAPI en este archivo.
+    if (window.fiscalAPI && window.fiscalAPI.onReintentoDTE) {
+        window.fiscalAPI.onReintentoDTE(function () {
+            dgiiMostrarReintento();
+        });
     }
 
     function dgiiActualizarCeldaEnVivo(libro, index, estadoObj) {
@@ -18196,6 +18487,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     }
 
     function dgiiMostrarResumen(resumen, total, cancelado) {
+        dgiiOcultarReintento();
         var wrap = document.getElementById('dgiiProgressWrap');
         if (wrap) wrap.style.display = 'none';
         var btnCancelar = document.getElementById('dgiiBtnCancelar');
@@ -18206,14 +18498,34 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         var box = document.getElementById('dgiiSummaryBox');
         if (!box) return;
         box.style.display = '';
-        document.getElementById('dgiiSumTitle').innerText          = cancelado ? 'Verificación cancelada' : 'Verificación completa';
+
+        document.getElementById('dgiiSumTitle').innerText = cancelado ? 'Verificación Cancelada' : 'Verificación Completa';
+
+        // Encabezado: se oculta el subtítulo de "proceso en segundo plano" y
+        // se muestra la pill final (verde si terminó bien, gris si se canceló).
+        var sub = document.getElementById('dgiiHeaderSub');
+        if (sub) sub.style.display = 'none';
+        var icon = document.getElementById('dgiiHeaderIcon');
+        if (icon) {
+            icon.className = 'dgii-header-icon ' + (cancelado ? 'dgii-icon-cancel' : 'dgii-icon-success');
+            icon.innerHTML = cancelado ? '<i data-lucide="x"></i>' : '<i data-lucide="check"></i>';
+        }
+        var estadoFinal = document.getElementById('dgiiStatusLabel');
+        if (estadoFinal) {
+            estadoFinal.style.display = 'inline-flex';
+            estadoFinal.className = 'dgii-v2-status' + (cancelado ? ' dgii-v2-status-cancel' : '');
+            estadoFinal.innerHTML = cancelado
+                ? '<i data-lucide="x"></i> Proceso Cancelado'
+                : '<i data-lucide="check"></i> Proceso Finalizado';
+        }
+
         document.getElementById('dgiiSumTotal').innerText          = total;
         document.getElementById('dgiiSumTransmitidos').innerText   = resumen.transmitidos;
         document.getElementById('dgiiSumInvalidados').innerText    = resumen.invalidados;
-        document.getElementById('dgiiSumConEvento').innerText      = resumen.conEvento;
-        document.getElementById('dgiiSumNoEncontrados').innerText  = resumen.noEncontrados;
         document.getElementById('dgiiSumFisicos').innerText        = resumen.fisicos;
         document.getElementById('dgiiSumErrores').innerText        = resumen.errores;
+
+        if (window.lucide) lucide.createIcons();
     }
 
     // Normaliza cualquier formato de fecha soportado por la app (YYYY-MM-DD,
@@ -18273,11 +18585,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         _dgiiEnCurso  = true;
         _dgiiCancelar = false;
         if (window.fiscalAPI.resetCancelacionDTE) window.fiscalAPI.resetCancelacionDTE();
-        dgiiAbrirModal();
 
+        // CAMBIO 01 — Corrección de actualización: 'total' se calcula ANTES
+        // de abrir el modal para poder reiniciar el porcentaje y el contador
+        // a 0/total de inmediato (ver dgiiAbrirModal), en vez de dejar
+        // visibles por unos segundos el porcentaje y la cantidad de la
+        // verificación anterior mientras se resuelve la primera consulta.
         var total       = records.length;
         var resumen     = { transmitidos: 0, invalidados: 0, conEvento: 0, noEncontrados: 0, fisicos: 0, errores: 0 };
         var completados = 0;
+        dgiiAbrirModal(total);
         // AGREGADO NUEVO: contadores para la notificación de Sellos de Recepción
         // completados automáticamente (Compras + IVA Percibido — Anexo 8) durante
         // este lote de Consultar DTE.
@@ -19222,36 +19539,98 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 <input type="file" id="correosJsonVentasInput" class="hidden" multiple accept=".json" onchange="correosOnJsonVentasSelected(this.files)">
 <input type="file" id="correosPdfMasivoInput" class="hidden" multiple accept=".pdf" onchange="correosOnPdfsMasivosSelected(this.files)">
 
-<!-- MODAL: VERIFICACIÓN DE ESTADO DGII (CAMBIO 9)                        -->
+<!-- MODAL: VERIFICACIÓN DE ESTADO DGII (rediseño visual v3) -->
 <div id="dgiiProgressModal">
     <div class="dgii-progress-card">
-        <div style="display:flex;align-items:center;gap:10px;">
-            <i data-lucide="shield-check" class="w-5 h-5" style="color:#60a5fa;"></i>
-            <h3 id="dgiiSumTitle" style="font-size:15px;font-weight:600;color:#fff;margin:0;">Verificación de Estado DGII</h3>
-        </div>
-
-        <div id="dgiiProgressWrap">
-            <p id="dgiiProgressText" style="font-size:12px;color:#a1a1aa;margin-top:14px;">Iniciando verificación…</p>
-            <div class="dgii-progress-bar-track"><div id="dgiiProgressFill" class="dgii-progress-bar-fill"></div></div>
-            <p id="dgiiUltimoError" style="font-size:10.5px;color:#f97316;min-height:14px;"></p>
-            <p style="font-size:10.5px;color:#52525b;">Esto puede tardar varios minutos según la cantidad de documentos. Puedes cancelar en cualquier momento — lo ya verificado queda guardado.</p>
-        </div>
-
-        <div id="dgiiSummaryBox" style="display:none;">
-            <div class="dgii-summary-grid">
-                <div class="dgii-summary-item">Total consultados<b id="dgiiSumTotal">0</b></div>
-                <div class="dgii-summary-item">Transmitidos<b id="dgiiSumTransmitidos" style="color:#22c55e;">0</b></div>
-                <div class="dgii-summary-item">Invalidados/Rechazados<b id="dgiiSumInvalidados" style="color:#ef4444;">0</b></div>
-                <div class="dgii-summary-item">Con Evento<b id="dgiiSumConEvento" style="color:#eab308;">0</b></div>
-                <div class="dgii-summary-item">No encontrados<b id="dgiiSumNoEncontrados" style="color:#a1a1aa;">0</b></div>
-                <div class="dgii-summary-item">Documentos Físicos<b id="dgiiSumFisicos" style="color:#818cf8;">0</b></div>
-                <div class="dgii-summary-item">Errores de consulta<b id="dgiiSumErrores" style="color:#f97316;">0</b></div>
+        <div class="dgii-v2-header">
+            <div id="dgiiHeaderIcon" class="dgii-header-icon"><i data-lucide="shield"></i></div>
+            <div class="dgii-v2-header-text">
+                <h3 id="dgiiSumTitle">Verificación de Estado DGII</h3>
+                <p id="dgiiHeaderSub" class="dgii-v2-header-sub">Proceso automático en segundo plano</p>
+                <span id="dgiiStatusLabel" class="dgii-v2-status"><i data-lucide="check"></i> Proceso Finalizado</span>
             </div>
         </div>
 
-        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:22px;">
-            <button id="dgiiBtnCancelar" onclick="dgiiCancelarVerificacion()" class="px-5 py-2 text-xs font-medium text-zinc-400 hover:text-white transition">Cancelar</button>
-            <button id="dgiiBtnCerrar" onclick="dgiiCerrarModal()" style="display:none;" class="px-6 py-2 bg-white text-black text-xs font-bold rounded-lg hover:bg-zinc-200 transition">Cerrar</button>
+        <div id="dgiiProgressWrap" class="dgii-v2-progress-wrap">
+            <div class="dgii-well dgii-well-progress">
+                <div class="dgii-ring-wrap">
+                    <svg class="dgii-ring-svg" viewBox="0 0 120 120">
+                        <defs>
+                            <linearGradient id="dgiiRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#22d3ee"/>
+                                <stop offset="100%" stop-color="#6366f1"/>
+                            </linearGradient>
+                        </defs>
+                        <circle cx="60" cy="60" r="50" class="dgii-ring-track"/>
+                        <circle cx="60" cy="60" r="50" class="dgii-ring-fill" id="dgiiRingFill"/>
+                    </svg>
+                    <div class="dgii-ring-center">
+                        <span class="dgii-ring-pct" id="dgiiPercentText">0%</span>
+                        <span class="dgii-v2-count-num" id="dgiiCountNum">0 / 0</span>
+                    </div>
+                </div>
+                <div class="dgii-well-text">
+                    <p id="dgiiProgressText" class="dgii-v2-progress-text">Iniciando verificación…</p>
+                    <span id="dgiiLiveStatus" class="dgii-well-live"><span class="dgii-spin"></span> Verificando documentos…</span>
+                    <p id="dgiiSubStatusText" class="dgii-well-sub">Restantes: 0 pendientes</p>
+                </div>
+            </div>
+
+            <!-- Se conservan en el DOM por compatibilidad con el JS existente,
+                 pero quedan ocultos visualmente en este diseño. -->
+            <div class="dgii-progress-bar-track"><div id="dgiiProgressFill" class="dgii-progress-bar-fill"></div></div>
+            <span class="dgii-v2-count-label"></span>
+            <div id="dgiiRetryBadge" class="dgii-retry-badge"><span class="dgii-retry-dot"></span> Reintentando documento…</div>
+
+            <p id="dgiiUltimoError" class="dgii-v2-error"></p>
+            <p class="dgii-v2-hint">Esto puede tardar varios minutos según la cantidad de documentos. Puedes cancelar en cualquier momento — lo ya verificado queda guardado.</p>
+        </div>
+
+        <div id="dgiiSummaryBox" style="display:none;">
+            <div class="dgii-well">
+                <div class="dgii-total-row">
+                    <div>
+                        <p class="dgii-total-label">Total Consultados</p>
+                        <p class="dgii-total-sub">Documentos procesados en DGII</p>
+                    </div>
+                    <span class="dgii-total-num" id="dgiiSumTotal">0</span>
+                </div>
+            </div>
+            <div class="dgii-summary-grid">
+                <div class="dgii-summary-item">
+                    <span class="dgii-summary-item-left">
+                        <span class="dgii-summary-icon dgii-icon-transmitido"><i data-lucide="send"></i></span>
+                        <span class="dgii-summary-item-label">Transmitidos</span>
+                    </span>
+                    <b id="dgiiSumTransmitidos" style="color:#22c55e;">0</b>
+                </div>
+                <div class="dgii-summary-item">
+                    <span class="dgii-summary-item-left">
+                        <span class="dgii-summary-icon dgii-icon-invalidado"><i data-lucide="ban"></i></span>
+                        <span class="dgii-summary-item-label">Invalidados / Rechazados</span>
+                    </span>
+                    <b id="dgiiSumInvalidados" style="color:#ef4444;">0</b>
+                </div>
+                <div class="dgii-summary-item">
+                    <span class="dgii-summary-item-left">
+                        <span class="dgii-summary-icon dgii-icon-fisico"><i data-lucide="file-text"></i></span>
+                        <span class="dgii-summary-item-label">Documentos Físicos</span>
+                    </span>
+                    <b id="dgiiSumFisicos" style="color:#818cf8;">0</b>
+                </div>
+                <div class="dgii-summary-item">
+                    <span class="dgii-summary-item-left">
+                        <span class="dgii-summary-icon dgii-icon-error"><i data-lucide="alert-triangle"></i></span>
+                        <span class="dgii-summary-item-label">Errores de consulta</span>
+                    </span>
+                    <b id="dgiiSumErrores" style="color:#f97316;">0</b>
+                </div>
+            </div>
+        </div>
+
+        <div class="dgii-v2-actions">
+            <button id="dgiiBtnCancelar" onclick="dgiiCancelarVerificacion()" class="dgii-btn-cancel">Cancelar</button>
+            <button id="dgiiBtnCerrar" onclick="dgiiCerrarModal()" style="display:none;" class="dgii-btn-close">Cerrar</button>
         </div>
     </div>
 </div>

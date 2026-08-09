@@ -71,6 +71,14 @@ contextBridge.exposeInMainWorld('fiscalAPI', {
     // la próxima vez que se inicie una verificación.
     cerrarVentanasDTE: () => ipcRenderer.invoke('cerrar-ventanas-dte'),
 
+    // AGREGADO — Indicador visual de reintento (Cambio 01): cb({slot}) se
+    // dispara cada vez que main.js reintenta automáticamente la consulta de
+    // UN documento (misma lógica de reintentos ya existente, sin cambios;
+    // esto solo la hace visible en la interfaz). No requiere confirmación
+    // de "reintento terminado" — el modal simplemente oculta el aviso en
+    // cuanto avanza el progreso del siguiente documento completado.
+    onReintentoDTE: (callback) => ipcRenderer.on('dgii-reintento', (event, data) => callback(data)),
+
     // Reinicia el flag de cancelación antes de iniciar un nuevo lote
     resetCancelacionDTE: () => ipcRenderer.invoke('reset-cancelacion-dte'),
 
