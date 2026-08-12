@@ -936,6 +936,13 @@ ipcMain.handle('verificar-dte-mh', async (event, fechaGeneracion, codigoGeneraci
     // correr el lote a mano. No se reintenta si el lote fue cancelado.
     if (resultado.estado === 'ERROR' && !_dgiiCancelado) {
       console.warn('[DGII][slot ' + (slot || 0) + '] Primer intento falló (' + resultado.error + '), reintentando una vez...');
+      // AGREGADO — Indicador visual de reintento (Cambio 01): solo notifica al
+      // renderer que se está reintentando ESTE documento, para que muestre
+      // "Reintentando documento..." en el modal de progreso. No cambia en
+      // absoluto la lógica de reintentos de arriba (sigue siendo un único
+      // reintento automático, misma condición, mismo flujo) — es únicamente
+      // un aviso informativo adicional.
+      try { event.sender.send('dgii-reintento', { slot: slot || 0 }); } catch (e) {}
       resultado = await _dgiiConsultarConTimeout(fechaGeneracion, codigoGeneracion, slot);
     }
     return resultado;
@@ -992,15 +999,16 @@ async function extraerCamposCompras(win) {
           sello:        valorDespuesDeLabel(labels, 'sello de recepcion'),
           montoTotal:   valorDespuesDeLabel(labels, 'monto total de la operacion'),
           ivaPercibido: valorDespuesDeLabel(labels, 'iva percibido'),
-          numeroControl: valorDespuesDeLabel(labels, 'numero de control')
+          numeroControl: valorDespuesDeLabel(labels, 'numero de control'),
+          retencionRenta: valorDespuesDeLabel(labels, 'retencion renta')
         };
       } catch (e) {
-        return { tipoDte: '', fechaHora: '', sello: '', montoTotal: '', ivaPercibido: '', numeroControl: '' };
+        return { tipoDte: '', fechaHora: '', sello: '', montoTotal: '', ivaPercibido: '', numeroControl: '', retencionRenta: '' };
       }
     })();
   `;
   return await win.webContents.executeJavaScript(script, true).catch(() => ({
-    tipoDte: '', fechaHora: '', sello: '', montoTotal: '', ivaPercibido: '', numeroControl: ''
+    tipoDte: '', fechaHora: '', sello: '', montoTotal: '', ivaPercibido: '', numeroControl: '', retencionRenta: ''
   }));
 }
 
@@ -1026,6 +1034,27 @@ function _mapearTipoDteQrCF(textoTipoDte) {
   const n = String(textoTipoDte || '').toUpperCase();
   if (n.indexOf('NOTA DE CRÉDITO') !== -1 || n.indexOf('NOTA DE CREDITO') !== -1) return '05';
   if (n.indexOf('FACTURA') !== -1) return '01';
+  return null;
+}
+
+// Igual que _mapearTipoDteQr pero para el Libro de Retenciones de IVA
+// (Anexo 7): Comprobante de Retención -> 07, Nota de Crédito -> 05, Nota de
+// Débito -> 06. Cualquier otro valor -> null (no soportado aún).
+function _mapearTipoDteQrRetencion(textoTipoDte) {
+  const n = String(textoTipoDte || '').toUpperCase();
+  if (n.indexOf('COMPROBANTE DE RETENCIÓN') !== -1 || n.indexOf('COMPROBANTE DE RETENCION') !== -1) return '07';
+  if (n.indexOf('NOTA DE CRÉDITO') !== -1 || n.indexOf('NOTA DE CREDITO') !== -1) return '05';
+  if (n.indexOf('NOTA DE DÉBITO') !== -1 || n.indexOf('NOTA DE DEBITO') !== -1) return '06';
+  return null;
+}
+
+// Igual que _mapearTipoDteQr pero para el Libro de Compras a Sujetos
+// Excluidos (Anexo 5): Factura de Sujeto Excluido -> 14. Cualquier otro
+// valor -> null (no soportado aún — ej. si por error se escanea otro tipo
+// de documento en este modo).
+function _mapearTipoDteQrSujetoExcluido(textoTipoDte) {
+  const n = String(textoTipoDte || '').toUpperCase();
+  if (n.indexOf('FACTURA DE SUJETO EXCLUIDO') !== -1) return '14';
   return null;
 }
 
@@ -1229,6 +1258,109 @@ async function _dgiiConsultarParaCF(fechaGeneracion, codigoGeneracion) {
   };
 }
 
+// ── Consulta DGII para Retenciones de IVA (Anexo 7) vía escaneo QR ──
+// Mismo patrón que _dgiiConsultarParaCF (misma URL, mismo formulario, mismo
+// botón "Realizar Búsqueda"), pero usando su propio carril de ventana oculta
+// (QR_SLOT_RETENCION) para no pisar una consulta de Compras/CF/CCF que esté
+// corriendo al mismo tiempo, y mapeando el Tipo de DTE con
+// _mapearTipoDteQrRetencion (07 Comprobante de Retención / 05 Nota de
+// Crédito / 06 Nota de Débito) en vez de los mapeos que usan los otros
+// libros. No requiere Número de Control (el registro de Retenciones no lo
+// usa) — sí usa el Sello de Recepción (-> Serie de Documento) y el Monto
+// Total de la Operación (-> Monto Sujeto), igual que ya extrae
+// extraerCamposCompras para los demás libros.
+const QR_SLOT_RETENCION = 'qr-retencion';
+
+async function _dgiiConsultarParaRetencion(fechaGeneracion, codigoGeneracion) {
+  const win = _dgiiGetWindow(QR_SLOT_RETENCION);
+  const logPrefix = '[QR-Retencion]';
+
+  console.log(logPrefix + ' Cargando página...');
+  try {
+    await win.loadURL(DGII_CONSULTA_URL);
+  } catch (e) {
+    return { estado: 'ERROR', error: 'No se pudo cargar la página del Ministerio: ' + e.message };
+  }
+
+  const listo = await _dgiiWaitFor(
+    win,
+    "!!(document.querySelector('input[formcontrolname=\"fechaGeneracion\"]') && document.querySelector('input[formcontrolname=\"codGen\"]'))",
+    35000, 300
+  );
+  if (!listo) {
+    return { estado: 'ERROR', error: 'La página del Ministerio no cargó a tiempo (timeout esperando el formulario)' };
+  }
+
+  const fillScript = `
+    (function() {
+      function setVal(el, val) {
+        var proto = Object.getPrototypeOf(el);
+        var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+        setter.call(el, val);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        el.dispatchEvent(new Event('blur', { bubbles: true }));
+      }
+      var fechaEl = document.querySelector('input[formcontrolname="fechaGeneracion"]');
+      var codEl   = document.querySelector('input[formcontrolname="codGen"]');
+      if (!fechaEl || !codEl) return false;
+      setVal(fechaEl, ${JSON.stringify(fechaGeneracion)});
+      setVal(codEl, ${JSON.stringify(codigoGeneracion)});
+      return true;
+    })();
+  `;
+  const llenado = await win.webContents.executeJavaScript(fillScript, true).catch(() => false);
+  if (!llenado) return { estado: 'ERROR', error: 'No se pudieron llenar los campos del formulario' };
+
+  const clickScript = `
+    (function() {
+      var btns = Array.from(document.querySelectorAll('button'));
+      var buscar = btns.find(function(b) { return (b.textContent || '').trim().indexOf('Realizar Búsqueda') !== -1; });
+      if (!buscar) return false;
+      buscar.click();
+      return true;
+    })();
+  `;
+  const clickeado = await win.webContents.executeJavaScript(clickScript, true).catch(() => false);
+  if (!clickeado) return { estado: 'ERROR', error: 'No se encontró el botón "Realizar Búsqueda" en la página' };
+
+  const bodyText = await _dgiiEsperarResultado(win, 18000, 300);
+  const lower = bodyText.toLowerCase();
+  if (!DGII_ESTADOS.some((item) => item.match.some((frase) => lower.indexOf(frase) !== -1))) {
+    console.warn(logPrefix + ' No se reconoció ningún estado tras 18s de espera.');
+  }
+
+  let estadoCode = 'ERROR';
+  let estadoTexto = '';
+  for (const item of DGII_ESTADOS) {
+    for (const frase of item.match) {
+      if (lower.indexOf(frase) !== -1) { estadoCode = item.code; estadoTexto = frase; break; }
+    }
+    if (estadoTexto) break;
+  }
+
+  const campos = await extraerCamposCompras(win);
+  const tipoDocMapeado = _mapearTipoDteQrRetencion(campos.tipoDte);
+
+  let fechaSolo = fechaGeneracion; // respaldo: la que ya venía del QR
+  const m = String(campos.fechaHora || '').match(/(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+  if (m) fechaSolo = m[3] + '-' + m[2] + '-' + m[1];
+  else {
+    const m2 = String(campos.fechaHora || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (m2) fechaSolo = m2[0];
+  }
+
+  return {
+    estado: estadoCode,
+    estadoTexto: estadoTexto,
+    tipoDocMapeado: tipoDocMapeado,       // '07' | '05' | '06' | null (no soportado aún)
+    tipoDteTexto: campos.tipoDte || '',
+    fecha: fechaSolo,
+    selloRecepcion: campos.sello || '',
+    montoTotal: _parseMontoQr(campos.montoTotal)
+  };
+}
+
 // ── Consulta DGII para Ventas — Crédito Fiscal (Anexo 1) vía escaneo QR ──
 // Mismo patrón que _dgiiConsultarParaCF (misma URL, mismo formulario, mismo
 // botón "Realizar Búsqueda"), pero usando su propio carril de ventana oculta
@@ -1327,6 +1459,116 @@ async function _dgiiConsultarParaCCF(fechaGeneracion, codigoGeneracion) {
     selloRecepcion: campos.sello || '',
     numeroControl: campos.numeroControl || '',
     montoTotal: _parseMontoQr(campos.montoTotal)
+  };
+}
+
+// ── Consulta DGII para Compras a Sujeto Excluido (Anexo 5) vía escaneo QR ──
+// Mismo patrón que _dgiiConsultarParaCompras (misma URL, mismo formulario,
+// mismo botón "Realizar Búsqueda"), pero usando su propio carril de ventana
+// oculta (QR_SLOT_EXCLUIDO) para no pisar una consulta de Compras/CF/CCF/
+// Retenciones que esté corriendo al mismo tiempo, y mapeando el Tipo de DTE
+// con _mapearTipoDteQrSujetoExcluido (14 Factura de Sujeto Excluido) en vez
+// de los mapeos que usan los demás libros. No requiere Número de Control
+// (el registro de Sujeto Excluido no lo usa) — sí usa el Sello de Recepción
+// (-> Serie de Documento), el Monto Total de la Operación (-> Monto de la
+// Operación) y la Retención Renta (-> Retención IVA (13%) — Manual, ya que
+// en el caso de Sujeto Excluido el Ministerio informa ese monto como
+// "Retención renta" en vez de como IVA retenido), igual que ya extrae
+// extraerCamposCompras para los demás libros. El NIT/DUI y Nombre del
+// Sujeto Excluido NO vienen en la consulta pública (no los expone
+// Hacienda) — se toman del MISMO catálogo de Proveedores que ya usa
+// Compras, eligiéndolo/creándolo en el teléfono en la misma pantalla que
+// usa el flujo de Compras.
+const QR_SLOT_EXCLUIDO = 'qr-excluido';
+
+async function _dgiiConsultarParaExcluido(fechaGeneracion, codigoGeneracion) {
+  const win = _dgiiGetWindow(QR_SLOT_EXCLUIDO);
+  const logPrefix = '[QR-SujetoExcluido]';
+
+  console.log(logPrefix + ' Cargando página...');
+  try {
+    await win.loadURL(DGII_CONSULTA_URL);
+  } catch (e) {
+    return { estado: 'ERROR', error: 'No se pudo cargar la página del Ministerio: ' + e.message };
+  }
+
+  const listo = await _dgiiWaitFor(
+    win,
+    "!!(document.querySelector('input[formcontrolname=\"fechaGeneracion\"]') && document.querySelector('input[formcontrolname=\"codGen\"]'))",
+    35000, 300
+  );
+  if (!listo) {
+    return { estado: 'ERROR', error: 'La página del Ministerio no cargó a tiempo (timeout esperando el formulario)' };
+  }
+
+  const fillScript = `
+    (function() {
+      function setVal(el, val) {
+        var proto = Object.getPrototypeOf(el);
+        var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+        setter.call(el, val);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        el.dispatchEvent(new Event('blur', { bubbles: true }));
+      }
+      var fechaEl = document.querySelector('input[formcontrolname="fechaGeneracion"]');
+      var codEl   = document.querySelector('input[formcontrolname="codGen"]');
+      if (!fechaEl || !codEl) return false;
+      setVal(fechaEl, ${JSON.stringify(fechaGeneracion)});
+      setVal(codEl, ${JSON.stringify(codigoGeneracion)});
+      return true;
+    })();
+  `;
+  const llenado = await win.webContents.executeJavaScript(fillScript, true).catch(() => false);
+  if (!llenado) return { estado: 'ERROR', error: 'No se pudieron llenar los campos del formulario' };
+
+  const clickScript = `
+    (function() {
+      var btns = Array.from(document.querySelectorAll('button'));
+      var buscar = btns.find(function(b) { return (b.textContent || '').trim().indexOf('Realizar Búsqueda') !== -1; });
+      if (!buscar) return false;
+      buscar.click();
+      return true;
+    })();
+  `;
+  const clickeado = await win.webContents.executeJavaScript(clickScript, true).catch(() => false);
+  if (!clickeado) return { estado: 'ERROR', error: 'No se encontró el botón "Realizar Búsqueda" en la página' };
+
+  const bodyText = await _dgiiEsperarResultado(win, 18000, 300);
+  const lower = bodyText.toLowerCase();
+  if (!DGII_ESTADOS.some((item) => item.match.some((frase) => lower.indexOf(frase) !== -1))) {
+    console.warn(logPrefix + ' No se reconoció ningún estado tras 18s de espera.');
+  }
+
+  let estadoCode = 'ERROR';
+  let estadoTexto = '';
+  for (const item of DGII_ESTADOS) {
+    for (const frase of item.match) {
+      if (lower.indexOf(frase) !== -1) { estadoCode = item.code; estadoTexto = frase; break; }
+    }
+    if (estadoTexto) break;
+  }
+
+  const campos = await extraerCamposCompras(win);
+  const tipoDocMapeado = _mapearTipoDteQrSujetoExcluido(campos.tipoDte);
+
+  let fechaSolo = fechaGeneracion; // respaldo: la que ya venía del QR
+  const m = String(campos.fechaHora || '').match(/(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+  if (m) fechaSolo = m[3] + '-' + m[2] + '-' + m[1];
+  else {
+    const m2 = String(campos.fechaHora || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (m2) fechaSolo = m2[0];
+  }
+
+  return {
+    estado: estadoCode,
+    estadoTexto: estadoTexto,
+    tipoDocMapeado: tipoDocMapeado,       // '14' | null (no soportado aún)
+    tipoDteTexto: campos.tipoDte || '',
+    fecha: fechaSolo,
+    selloRecepcion: campos.sello || '',
+    montoTotal: _parseMontoQr(campos.montoTotal),
+    retencionRenta: _parseMontoQr(campos.retencionRenta)
   };
 }
 
@@ -1460,6 +1702,77 @@ function _obtenerQrServerModule() {
           return;
         }
 
+        if (libro === 'retencion') {
+          const resultado = await _dgiiConsultarParaRetencion(payload.qr.fechaEmi, payload.qr.codGen);
+
+          // Tipo de DTE no soportado aún (tipoDocMapeado null) -> no se agrega
+          // al Libro de Retenciones, se avisa al teléfono y se corta aquí.
+          if (resultado.estado !== 'ERROR' && !resultado.tipoDocMapeado) {
+            _qrServerModule.enviarResultadoDocumento({
+              ok: false,
+              estado: resultado.estado,
+              mensaje: 'Tipo de documento no soportado para Retenciones' +
+                (resultado.tipoDteTexto ? (' (' + resultado.tipoDteTexto + ')') : '') +
+                '. No se agregó.'
+            });
+            return;
+          }
+
+          const combinado = Object.assign({}, resultado, {
+            codGen: payload.qr.codGen,
+            ambiente: payload.qr.ambiente,
+            proveedor: payload.proveedor
+          });
+          if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+            mainWindowRef.webContents.send('qr-documento-escaneado-retencion', combinado);
+          }
+          const ok = resultado.estado !== 'ERROR';
+          _qrServerModule.enviarResultadoDocumento({
+            ok: ok,
+            estado: resultado.estado,
+            mensaje: ok
+              ? 'Documento cargado en FiscalSync — revisa y guarda en la computadora.'
+              : ('No se pudo consultar el documento: ' + (resultado.error || 'error desconocido'))
+          });
+          return;
+        }
+
+        if (libro === 'excluido') {
+          const resultado = await _dgiiConsultarParaExcluido(payload.qr.fechaEmi, payload.qr.codGen);
+
+          // Tipo de DTE no soportado aún (tipoDocMapeado null) -> no se agrega
+          // al Libro de Compras a Sujetos Excluidos, se avisa al teléfono y
+          // se corta aquí.
+          if (resultado.estado !== 'ERROR' && !resultado.tipoDocMapeado) {
+            _qrServerModule.enviarResultadoDocumento({
+              ok: false,
+              estado: resultado.estado,
+              mensaje: 'Tipo de documento no soportado para Compras a Sujeto Excluido' +
+                (resultado.tipoDteTexto ? (' (' + resultado.tipoDteTexto + ')') : '') +
+                '. No se agregó.'
+            });
+            return;
+          }
+
+          const combinado = Object.assign({}, resultado, {
+            codGen: payload.qr.codGen,
+            ambiente: payload.qr.ambiente,
+            proveedor: payload.proveedor
+          });
+          if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+            mainWindowRef.webContents.send('qr-documento-escaneado-excluido', combinado);
+          }
+          const ok = resultado.estado !== 'ERROR';
+          _qrServerModule.enviarResultadoDocumento({
+            ok: ok,
+            estado: resultado.estado,
+            mensaje: ok
+              ? 'Documento cargado en FiscalSync — revisa y guarda en la computadora.'
+              : ('No se pudo consultar el documento: ' + (resultado.error || 'error desconocido'))
+          });
+          return;
+        }
+
         const resultado = await _dgiiConsultarParaCompras(payload.qr.fechaEmi, payload.qr.codGen);
 
         // Tipo de DTE no soportado aún (tipoDocMapeado null) -> no se agrega
@@ -1561,6 +1874,30 @@ ipcMain.handle('qr-actualizar-clientes', async (event, clientes) => {
   }
 });
 
+// CAMBIO — Actualización dinámica de empresa: el renderer llama esto cada
+// vez que el usuario entra a una empresa (o cambia de una a otra) mientras
+// el módulo de escaneo QR sigue abierto/minimizado en segundo plano, para
+// que el teléfono se actualice en tiempo real (nombre de empresa, catálogo
+// de proveedores/clientes y etiquetas de clasificación) sin tener que
+// cerrar y volver a abrir el módulo. Mismo payload que 'iniciar-qr-scan'.
+ipcMain.handle('qr-actualizar-empresa-activa', async (event, { proveedores, clientes, empresaNombre, clasifLabels, sectorLabels, costoLabels } = {}) => {
+  try {
+    if (_qrServerModule && _qrServerModule.estaCorriendo()) {
+      return _qrServerModule.actualizarEmpresaActiva({
+        proveedores: proveedores || [],
+        clientes: clientes || [],
+        empresaNombre: empresaNombre || '',
+        clasifLabels: clasifLabels || {},
+        sectorLabels: sectorLabels || {},
+        costoLabels: costoLabels || {}
+      });
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
 // Corrección Bug 01: el renderer es quien sabe, después de recibir el
 // documento combinado (qr-documento-escaneado / -cf / -ccf), si el
 // documento ya existía en el libro correspondiente (registrado antes de
@@ -1603,14 +1940,14 @@ function _dgiiCerrarTodasLasVentanas() {
 
 // Cambio 01 — Igual que _dgiiCerrarTodasLasVentanas, pero cierra ÚNICAMENTE
 // los carriles ocultos que usa el escaneo QR (QR_SLOT / QR_SLOT_CF /
-// QR_SLOT_CCF), sin tocar los carriles numéricos (0,1,2…) que usa la
-// Consulta DTE en lote — así un lote que esté corriendo en paralelo no se
-// ve afectado. Se llama cuando el teléfono se desconecta y cuando el
-// usuario cierra el módulo de escaneo. La próxima vez que se escanee un
-// documento, _dgiiGetWindow las vuelve a crear solas (mismo patrón de
-// siempre, no se toca esa lógica).
+// QR_SLOT_CCF / QR_SLOT_RETENCION / QR_SLOT_EXCLUIDO), sin tocar los
+// carriles numéricos (0,1,2…) que usa la Consulta DTE en lote — así un lote
+// que esté corriendo en paralelo no se ve afectado. Se llama cuando el
+// teléfono se desconecta y cuando el usuario cierra el módulo de escaneo.
+// La próxima vez que se escanee un documento, _dgiiGetWindow las vuelve a
+// crear solas (mismo patrón de siempre, no se toca esa lógica).
 function _dgiiCerrarVentanasQR() {
-  [QR_SLOT, QR_SLOT_CF, QR_SLOT_CCF].forEach((slot) => {
+  [QR_SLOT, QR_SLOT_CF, QR_SLOT_CCF, QR_SLOT_RETENCION, QR_SLOT_EXCLUIDO].forEach((slot) => {
     const w = _dgiiWins[slot];
     if (w && !w.isDestroyed()) { try { w.destroy(); } catch (e) { /* ya cerrada */ } }
     _dgiiWins[slot] = null;

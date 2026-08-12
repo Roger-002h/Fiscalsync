@@ -85,12 +85,22 @@ function normalizarTexto(s) {
 
 // Validación defensiva del lado del servidor (además de la validación de
 // dominio que ya hace el teléfono en el cliente): formato de codGen (UUID),
-// fechaEmi (YYYY-MM-DD) y ambiente (00 o 01).
+// fechaEmi (YYYY-MM-DD) y ambiente (00, 01, o vacío/"null"/"undefined" —
+// ver nota abajo).
 function qrEsValido(qr) {
   if (!qr) return false;
   const codGenOk = /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$/.test(String(qr.codGen || ''));
   const fechaOk = /^\d{4}-\d{2}-\d{2}$/.test(String(qr.fechaEmi || ''));
-  const ambienteOk = ['00', '01'].indexOf(String(qr.ambiente || '')) !== -1;
+  // CAMBIO — Compatibilidad con QR de consulta pública que traen
+  // ambiente=null (u otra variante equivalente: vacío, "undefined"). La
+  // identificación del DTE depende de codGen + fechaEmi (ya validados
+  // arriba); 'ambiente' es informativo y no debe por sí solo invalidar un
+  // QR legítimo. Se sigue exigiendo que, SI viene con un valor real, sea
+  // uno de los dos válidos ('00' o '01') — esto no afloja la validación
+  // para datos corruptos, solo para las variantes de "sin valor".
+  const ambienteStr = String(qr.ambiente || '').trim().toLowerCase();
+  const ambienteVacio = (ambienteStr === '' || ambienteStr === 'null' || ambienteStr === 'undefined');
+  const ambienteOk = ambienteVacio || ['00', '01'].indexOf(ambienteStr) !== -1;
   return codGenOk && fechaOk && ambienteOk;
 }
 
@@ -193,20 +203,34 @@ function manejarConexionWs(ws) {
       // Si el proveedor/cliente viene marcado como nuevo, se emite también un
       // evento aparte para que main.js lo reenvíe al renderer y lo registre en
       // el catálogo real (autoRegistrarProveedor / autoRegistrarCliente) — el
-      // identificador es el NIT, no un id sintético, así que no hace falta
-      // ningún viaje de vuelta.
-      if (proveedor && proveedor.esNuevo && proveedor.nit) {
+      // identificador es el NIT, NRC o DUI (no un id sintético), así que no
+      // hace falta ningún viaje de vuelta.
+      // CORRECCIÓN: antes se exigía proveedor.nit sí o sí, así que un
+      // Sujeto Excluido creado en el teléfono con solo DUI o solo NRC
+      // (permitido desde el cambio de validación de Sujeto Excluido) nunca
+      // emitía este evento — el proveedor quedaba elegido para el documento
+      // escaneado, pero jamás se registraba en el catálogo de la PC. Ahora
+      // basta con que tenga NIT, DUI o NRC, igual que la validación del
+      // formulario "Proveedor nuevo" del teléfono.
+      if (proveedor && proveedor.esNuevo && (proveedor.nit || proveedor.dui || proveedor.nrc)) {
         eventos.emit('proveedor-nuevo', proveedor);
       }
       if (cliente && cliente.esNuevo && cliente.nit) {
         eventos.emit('cliente-nuevo', cliente);
       }
       // 'compras' (default, requiere proveedor), 'cf' (Consumidor Final — no
-      // requiere cliente, pero sí si la venta es exenta o no) o 'ccf' (Ventas
-      // — Crédito Fiscal — requiere cliente Y si la venta es exenta o no).
+      // requiere cliente, pero sí si la venta es exenta o no), 'ccf' (Ventas
+      // — Crédito Fiscal — requiere cliente Y si la venta es exenta o no),
+      // 'retencion' (Comprobantes de Retención — Anexo 7, no requiere
+      // proveedor/cliente ni exenta, solo el QR del documento) o 'excluido'
+      // (Compras a Sujeto Excluido — Anexo 5, reutiliza el mismo catálogo de
+      // Proveedores que 'compras' para identificar al Sujeto Excluido, ya
+      // que la consulta pública de Hacienda no expone su NIT/DUI ni nombre).
       let libro = 'compras';
       if (msg.libro === 'cf') libro = 'cf';
       else if (msg.libro === 'ccf') libro = 'ccf';
+      else if (msg.libro === 'retencion') libro = 'retencion';
+      else if (msg.libro === 'excluido') libro = 'excluido';
 
       eventos.emit('documento-escaneado', {
         qr: {
@@ -370,6 +394,34 @@ function actualizarClientes(clientes) {
   enviarAlTelefono({ tipo: 'catalogo-clientes', clientes: _clientesCache });
 }
 
+// CAMBIO — Actualización dinámica de empresa: se llama cuando el usuario
+// cambia de empresa activa en el escritorio (o entra/vuelve a una) mientras
+// el módulo de escaneo sigue abierto/minimizado, para que el teléfono se
+// entere SIN necesidad de cerrar y volver a abrir el módulo.
+// params: { empresaNombre, proveedores, clientes, clasifLabels, sectorLabels, costoLabels }
+// Reemplaza TODA la caché en memoria de este módulo (igual que iniciar()),
+// así que a partir de este llamado ninguna referencia — nombre, catálogo,
+// clasificaciones — sigue perteneciendo a la empresa anterior.
+function actualizarEmpresaActiva(params) {
+  params = params || {};
+  _empresaNombre = (params.empresaNombre || '').toString();
+  _proveedoresCache = Array.isArray(params.proveedores) ? params.proveedores : [];
+  _clientesCache = Array.isArray(params.clientes) ? params.clientes : [];
+  _clasifLabelsCache = (params.clasifLabels && typeof params.clasifLabels === 'object') ? params.clasifLabels : {};
+  _sectorLabelsCache = (params.sectorLabels && typeof params.sectorLabels === 'object') ? params.sectorLabels : {};
+  _costoLabelsCache = (params.costoLabels && typeof params.costoLabels === 'object') ? params.costoLabels : {};
+  enviarAlTelefono({
+    tipo: 'catalogo-proveedores',
+    empresa: _empresaNombre,
+    proveedores: _proveedoresCache,
+    clasifLabels: _clasifLabelsCache,
+    sectorLabels: _sectorLabelsCache,
+    costoLabels: _costoLabelsCache
+  });
+  enviarAlTelefono({ tipo: 'catalogo-clientes', clientes: _clientesCache });
+  return { ok: true };
+}
+
 async function detener() {
   return await new Promise(function (resolve) {
     if (_phoneSocket) {
@@ -400,5 +452,6 @@ module.exports = {
   estaCorriendo: estaCorriendo,
   enviarResultadoDocumento: enviarResultadoDocumento,
   actualizarCatalogo: actualizarCatalogo,
-  actualizarClientes: actualizarClientes
+  actualizarClientes: actualizarClientes,
+  actualizarEmpresaActiva: actualizarEmpresaActiva
 };

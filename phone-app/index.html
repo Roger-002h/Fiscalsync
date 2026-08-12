@@ -5,200 +5,346 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>FiscalSync — Escaneo de Documentos</title>
 <style>
-  :root{
+  :root {
     /* ---- Paleta: graphite + sello celeste (identidad "documento fiscal verificado") ---- */
-    --bg:#0a0b0d;
-    --bg-ruled: rgba(255,255,255,.018);
-    --surface:#15171b;
-    --surface-2:#1b1e23;
-    --border:#262a31;
-    --border-soft:#1e2126;
-    --ink:#f3f1ea;
-    --dim:#8b8f98;
-    --faint:#565a63;
-    --celeste:#4fc3e8;
-    --celeste-ink:#062634;
-    --celeste-dim:rgba(79,195,232,.14);
-    --verify:#4fb286;
-    --verify-dim:rgba(79,178,134,.14);
-    --danger:#e2596b;
-    --danger-dim:rgba(226,89,107,.12);
-    --info:#7c9cd6;
-    --info-dim:rgba(124,156,214,.14);
-    --radius-lg:16px;
-    --radius-md:12px;
-    --radius-sm:8px;
-    --font-ui:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
-    --font-mono:ui-monospace,'SF Mono','IBM Plex Mono',Menlo,Consolas,monospace;
+    --bg: #08090b;
+    --bg-ruled: rgba(255, 255, 255, .015);
+    --surface: #131519;
+    --surface-2: #1a1d23;
+    --surface-3: #0e1013;
+    --border: #242830;
+    --border-soft: #1a1d22;
+    --border-focus: #4fc3e8;
+    --ink: #f3f1ea;
+    --dim: #8b8f98;
+    --faint: #565a63;
+    --celeste: #4fc3e8;
+    --celeste-2: #7fd8f5;
+    --celeste-ink: #062634;
+    --celeste-dim: rgba(79, 195, 232, .12);
+    --celeste-glow: rgba(79, 195, 232, .3);
+    --verify: #4fb286;
+    --verify-dim: rgba(79, 178, 134, .14);
+    --danger: #e2596b;
+    --danger-dim: rgba(226, 89, 107, .12);
+    --info: #7c9cd6;
+    --info-dim: rgba(124, 156, 214, .14);
+    --amber: #e0a857;
+    --amber-dim: rgba(224, 168, 87, .14);
+    --radius-xl: 24px;
+    --radius-lg: 18px;
+    --radius-md: 12px;
+    --radius-sm: 8px;
+    --shadow-card: 0 1px 0 rgba(255, 255, 255, .05) inset, 0 12px 32px -8px rgba(0, 0, 0, .6);
+    --shadow-pop: 0 20px 48px -12px rgba(0, 0, 0, .75);
+    --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, 'SF Mono', 'IBM Plex Mono', Menlo, Consolas, monospace;
   }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--font-ui);}
-  body{
-    min-height:100vh; display:flex; flex-direction:column;
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
     background-image:
-      repeating-linear-gradient(180deg, var(--bg-ruled) 0px, var(--bg-ruled) 1px, transparent 1px, transparent 34px),
-      radial-gradient(120% 60% at 50% -10%, rgba(79,195,232,.05), transparent 60%);
-    background-attachment:fixed;
+      radial-gradient(80% 50% at 20% -10%, rgba(79, 195, 232, .12), transparent 60%),
+      radial-gradient(60% 40% at 100% 0%, rgba(124, 156, 214, .08), transparent 50%),
+      repeating-linear-gradient(180deg, var(--bg-ruled) 0px, var(--bg-ruled) 1px, transparent 1px, transparent 32px);
+    background-attachment: fixed, fixed, fixed;
   }
 
-  /* ---------- Header ---------- */
-  header{
-    padding:14px 18px; border-bottom:1px solid var(--border-soft);
-    display:flex; align-items:center; gap:11px;
-    background:linear-gradient(180deg, rgba(255,255,255,.02), transparent);
-    position:sticky; top:0; z-index:40; backdrop-filter:blur(10px);
+  :focus-visible { outline: 2px solid var(--celeste); outline-offset: 2px; border-radius: 6px; }
+
+  /* Header */
+  header {
+    padding: calc(env(safe-area-inset-top, 0px) + 16px) 20px 14px;
+    border-bottom: 1px solid var(--border-soft);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(8, 9, 11, .8);
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    backdrop-filter: blur(20px) saturate(160%);
   }
-  .brandmark{
-    flex-shrink:0;
-    display:flex; align-items:center; justify-content:center;
+
+  .brandmark { flex-shrink: 0; display: flex; align-items: center; }
+  .brandmark svg { height: 26px; width: auto; display: block; }
+  
+  header h1 { font-size: 14px; font-weight: 700; margin: 0; letter-spacing: -0.01em; line-height: 1.2; }
+  header h1 span { display: block; font-size: 9.5px; font-weight: 600; color: var(--dim); letter-spacing: .08em; text-transform: uppercase; margin-top: 2px; }
+
+  .conn-pill {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    background: var(--surface-2);
   }
-  .brandmark img{height:38px; width:auto; display:block;}
-  header h1{font-size:14px; font-weight:700; margin:0; letter-spacing:.01em;}
-  header h1 span{display:block; font-size:10px; font-weight:600; color:var(--dim); letter-spacing:.09em; text-transform:uppercase; margin-top:1px;}
-  .conn-pill{
-    margin-left:auto; display:flex; align-items:center; gap:7px;
-    padding:6px 11px 6px 9px; border:1px solid var(--border); border-radius:99px;
-    background:var(--surface);
+
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--dim); flex-shrink: 0; transition: background .3s; position: relative;
   }
-  .dot{width:7px;height:7px;border-radius:50%;background:var(--dim); flex-shrink:0; transition:background .2s;}
-  .dot.on{background:var(--verify); box-shadow:0 0 7px rgba(79,178,134,.7);}
-  .dot.off{background:var(--danger); box-shadow:0 0 7px rgba(226,89,107,.6);}
-  .conn-pill .sub{font-size:11.5px; color:var(--dim); font-weight:600; white-space:nowrap;}
-
-  main{flex:1; padding:16px; display:flex; flex-direction:column; gap:14px; max-width:520px; width:100%; margin:0 auto;}
-
-  /* ---------- Cards & primitives ---------- */
-  .card{
-    background:var(--surface); border:1px solid var(--border-soft); border-radius:var(--radius-lg);
-    padding:17px; box-shadow:inset 0 1px 0 rgba(255,255,255,.03), 0 1px 3px rgba(0,0,0,.35);
+  .dot::after {
+    content: ''; position: absolute; inset: -3px; border-radius: 50%;
+    border: 1px solid transparent; transition: border-color .3s;
   }
-  .center{display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:9px;}
-  h2{font-size:14.5px; margin:0 0 4px; font-weight:700; letter-spacing:.005em;}
-  p.hint{color:var(--dim); font-size:13px; margin:0; line-height:1.55;}
-  p.hint span{color:var(--ink); font-family:var(--font-mono); font-size:12.5px;}
+  .dot.on { background: var(--verify); box-shadow: 0 0 10px rgba(79, 178, 134, .9); }
+  .dot.on::after { border-color: rgba(79, 178, 134, .4); animation: pulseRing 2s ease-out infinite; }
+  .dot.off { background: var(--danger); box-shadow: 0 0 8px rgba(226, 89, 107, .6); }
 
-  button{
-    font:inherit; cursor:pointer; border:none; border-radius:var(--radius-md); padding:14px 16px;
-    font-weight:600; font-size:14px; width:100%; transition:transform .12s ease, opacity .15s, border-color .15s, background .15s;
-    display:flex; align-items:center; justify-content:center; gap:8px;
+  @keyframes pulseRing { 0% { transform: scale(.8); opacity: .9; } 100% { transform: scale(2.2); opacity: 0; } }
+
+  .conn-pill .sub { font-size: 11px; color: var(--dim); font-weight: 600; white-space: nowrap; letter-spacing: .01em; }
+
+  /* Empresa Bar */
+  .empresa-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    margin: 0 0 12px;
+    background: linear-gradient(135deg, rgba(79, 195, 232, .12), rgba(79, 195, 232, .03));
+    border: 1px solid rgba(79, 195, 232, .25);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .05) inset;
   }
-  button:active{transform:scale(.975);}
-  button:focus-visible{outline:2px solid var(--celeste); outline-offset:2px;}
-
-  .btn-teal{ /* acción primaria — sello celeste */
-    background:linear-gradient(180deg, #8adcf5, var(--celeste));
-    color:var(--celeste-ink);
-    box-shadow:0 6px 18px rgba(79,195,232,.22), inset 0 1px 0 rgba(255,255,255,.25);
+  .empresa-bar .ico-chip {
+    width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(79, 195, 232, .18); color: var(--celeste);
   }
-  .btn-outline{background:var(--surface-2); color:var(--ink); border:1px solid var(--border);}
-  .btn-outline:active{background:var(--surface);}
-  .btn-danger{background:transparent; color:var(--danger); border:1px solid rgba(226,89,107,.3);}
+  .empresa-bar .k { font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--celeste); display: block; }
+  .empresa-bar .v { font-size: 13.5px; font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 
-  /* ---------- Cámara / escáner ---------- */
-  #cameraWrap{
-    position:relative; width:100%; aspect-ratio:1/1; border-radius:var(--radius-lg); overflow:hidden;
-    background:#000; border:1px solid var(--border);
-    box-shadow:0 10px 30px rgba(0,0,0,.5);
+  main {
+    flex: 1;
+    padding: 16px 16px calc(env(safe-area-inset-bottom, 0px) + 24px);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 480px;
+    width: 100%;
+    margin: 0 auto;
   }
-  #video{width:100%; height:100%; object-fit:cover; filter:saturate(1.05) contrast(1.02);}
-  #scanFrame{position:absolute; inset:11%; pointer-events:none; box-shadow:0 0 0 2000px rgba(0,0,0,.42);}
-  #scanFrame .corner{position:absolute; width:26px; height:26px; border:3px solid var(--celeste);}
-  #scanFrame .corner.tl{top:-3px; left:-3px; border-right:none; border-bottom:none; border-top-left-radius:8px;}
-  #scanFrame .corner.tr{top:-3px; right:-3px; border-left:none; border-bottom:none; border-top-right-radius:8px;}
-  #scanFrame .corner.bl{bottom:-3px; left:-3px; border-right:none; border-top:none; border-bottom-left-radius:8px;}
-  #scanFrame .corner.br{bottom:-3px; right:-3px; border-left:none; border-top:none; border-bottom-right-radius:8px;}
-  #scanFrame .scanline{
-    position:absolute; left:2%; right:2%; height:2px; top:0;
-    background:linear-gradient(90deg, transparent, var(--celeste) 20%, var(--celeste) 80%, transparent);
-    box-shadow:0 0 10px 1px rgba(79,195,232,.8);
-    animation:scan 2.6s cubic-bezier(.65,0,.35,1) infinite;
+
+  /* Cards & Primitives */
+  .card {
+    background: linear-gradient(180deg, var(--surface), var(--surface-3));
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-xl);
+    padding: 20px;
+    box-shadow: var(--shadow-card);
   }
-  @keyframes scan{
-    0%,100%{top:2%;}
-    50%{top:96%;}
+  .center { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 12px; }
+
+  h2 { font-size: 16px; margin: 0 0 4px; font-weight: 700; letter-spacing: -0.01em; }
+  p.hint { color: var(--dim); font-size: 13px; margin: 0; line-height: 1.5; }
+  p.hint span { color: var(--ink); font-family: var(--font-mono); font-size: 12px; }
+
+  /* Eyebrows */
+  .eyebrow {
+    font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--faint);
+    display: flex; align-items: center; gap: 12px; margin: 6px 4px 2px;
   }
-  @media (prefers-reduced-motion: reduce){
-    #scanFrame .scanline{animation:none; top:50%;}
+  .eyebrow::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--border-soft), transparent); }
+
+  /* Buttons */
+  button {
+    font: inherit; cursor: pointer; border: none; border-radius: var(--radius-md);
+    padding: 14px 18px; font-weight: 650; font-size: 14px; width: 100%;
+    transition: all .18s cubic-bezier(.2, .8, .2, 1);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    -webkit-tap-highlight-color: transparent;
   }
-  .scan-caption{text-align:center; color:var(--dim); font-size:12.5px; line-height:1.5;}
-  .scan-caption b{color:var(--ink); font-weight:600;}
+  button:active { transform: scale(.98); }
 
-  /* ---------- Formularios ---------- */
-  input, select{
-    width:100%; background:#0e1013; border:1px solid var(--border); color:var(--ink);
-    border-radius:var(--radius-sm); padding:11px 12px; font-size:14px; margin-top:6px;
-    font-family:var(--font-ui); transition:border-color .15s;
+  .btn-teal {
+    background: linear-gradient(135deg, var(--celeste-2), var(--celeste));
+    color: var(--celeste-ink);
+    box-shadow: 0 8px 20px -4px rgba(79, 195, 232, .4), inset 0 1px 0 rgba(255, 255, 255, .4);
   }
-  input:focus, select:focus{outline:none; border-color:var(--celeste);}
-  input::placeholder{color:var(--faint);}
-  label{font-size:10.5px; color:var(--faint); display:block; margin-top:14px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;}
-  label:first-of-type{margin-top:0;}
+  .btn-teal:active { box-shadow: 0 4px 12px -2px rgba(79, 195, 232, .3); }
+  .btn-outline { background: var(--surface-2); color: var(--ink); border: 1px solid var(--border); }
+  .btn-outline:active { background: var(--surface-3); border-color: var(--border-focus); }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid rgba(226, 89, 107, .3); }
+  .btn-danger:active { background: var(--danger-dim); }
 
-  /* ---------- Badges / clasificación (sello tipo pestaña) ---------- */
-  .badge{display:inline-flex; align-items:center; gap:5px; padding:3px 9px 3px 7px; border-radius:6px; font-size:11px; font-weight:700; letter-spacing:.02em;}
-  .badge::before{content:''; width:5px; height:5px; border-radius:50%; background:currentColor;}
-  .badge-03{background:var(--celeste-dim); color:var(--celeste);}
-  .badge-05{background:var(--info-dim); color:var(--info);}
-
-  /* ---------- Resultados de búsqueda (proveedor / cliente) ---------- */
-  #provResults, #clienteResults{display:flex; flex-direction:column; gap:8px;}
-  .prov-item{
-    padding:12px 13px; border:1px solid var(--border-soft); background:var(--surface-2);
-    border-radius:var(--radius-sm); margin-top:0; cursor:pointer; transition:border-color .15s, background .15s;
+  /* Menú de Escaneo */
+  .scan-menu { display: flex; flex-direction: column; gap: 10px; }
+  .scan-menu + .eyebrow { margin-top: 10px; }
+  
+  .action-row {
+    justify-content: flex-start; text-align: left; padding: 14px 16px; gap: 14px;
+    border-radius: var(--radius-lg); background: var(--surface-2); border: 1px solid var(--border);
   }
-  .prov-item:active{background:#101216; border-color:var(--celeste);}
-  .prov-item .nombre{font-weight:700; font-size:13.5px; color:var(--ink);}
-  .prov-item .nit{font-size:11.5px; color:var(--dim); font-family:var(--font-mono); margin-top:2px;}
-  .prov-item .clasif{font-size:11px; color:var(--celeste); margin-top:5px; font-weight:600;}
-
-  /* ---------- Toast ---------- */
-  .toast{
-    position:fixed; left:16px; right:16px; bottom:16px; max-width:488px; margin:0 auto;
-    background:var(--surface-2); border:1px solid var(--border); border-left:3px solid var(--dim);
-    border-radius:var(--radius-md); padding:13px 14px; font-size:13px; display:none; z-index:50;
-    box-shadow:0 12px 30px rgba(0,0,0,.5);
+  .action-row .ico {
+    width: 38px; height: 38px; border-radius: var(--radius-md); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; background: var(--surface-3);
+    color: var(--celeste); border: 1px solid var(--border-soft); transition: transform .2s;
   }
-  .toast.show{display:block; animation:toastIn .22s ease-out;}
-  @keyframes toastIn{from{transform:translateY(10px); opacity:0;} to{transform:translateY(0); opacity:1;}}
-  .toast.err{border-left-color:var(--danger); color:#f5b2bc;}
-  .toast.ok{border-left-color:var(--verify); color:#a6e8cd;}
-  .hidden{display:none !important;}
+  .action-row .txt { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .action-row .txt b { font-size: 14px; font-weight: 700; line-height: 1.2; color: var(--ink); }
+  .action-row .txt small { font-size: 11px; font-weight: 500; color: var(--dim); }
+  
+  .action-row.btn-teal {
+    background: linear-gradient(135deg, var(--celeste-2), var(--celeste)); border: none;
+  }
+  .action-row.btn-teal .ico { background: rgba(6, 38, 52, .15); color: var(--celeste-ink); border: none; }
+  .action-row.btn-teal .txt b { color: var(--celeste-ink); }
+  .action-row.btn-teal .txt small { color: var(--celeste-ink); opacity: .75; }
 
-  /* ---------- Spinner ---------- */
-  .spinner{width:28px;height:28px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--celeste);
-    animation:spin .8s linear infinite;}
-  @keyframes spin{to{transform:rotate(360deg);}}
+  .action-row .tail { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .action-row .chev { opacity: .4; transition: transform .2s, opacity .2s; }
+  .action-row:active .chev { opacity: .8; transform: translateX(3px); }
 
-  .btn-row{display:flex; gap:10px;}
-  .btn-toggle{background:var(--surface-2); color:var(--ink); border:1px solid var(--border);}
-  .btn-toggle.sel{background:var(--celeste); color:var(--celeste-ink); border-color:var(--celeste);}
+  /* Camera / Scanner */
+  #cameraWrap {
+    position: relative; width: 100%; aspect-ratio: 1/1; border-radius: var(--radius-xl); overflow: hidden;
+    background: #000; border: 1px solid var(--border); box-shadow: var(--shadow-pop);
+  }
+  #video { width: 100%; height: 100%; object-fit: cover; }
+  #scanFrame { position: absolute; inset: 10%; pointer-events: none; box-shadow: 0 0 0 2000px rgba(0, 0, 0, .5); border-radius: 16px; overflow: hidden; }
+  #scanFrame .corner { position: absolute; width: 24px; height: 24px; border: 3px solid var(--celeste); filter: drop-shadow(0 0 6px rgba(79, 195, 232, .8)); }
+  #scanFrame .corner.tl { top: -2px; left: -2px; border-right: none; border-bottom: none; border-top-left-radius: 10px; }
+  #scanFrame .corner.tr { top: -2px; right: -2px; border-left: none; border-bottom: none; border-top-right-radius: 10px; }
+  #scanFrame .corner.bl { bottom: -2px; left: -2px; border-right: none; border-top: none; border-bottom-left-radius: 10px; }
+  #scanFrame .corner.br { bottom: -2px; right: -2px; border-left: none; border-top: none; border-bottom-right-radius: 10px; }
 
-  /* ---------- Switch ---------- */
-  .switch-row{display:flex; align-items:center; justify-content:space-between; gap:12px;}
-  .switch-row .switch-label{font-size:14px; font-weight:700; color:var(--ink);}
-  .switch-row .switch-sub{font-size:12px; color:var(--dim); margin-top:2px;}
-  .switch{position:relative; width:48px; height:27px; flex-shrink:0;}
-  .switch input{opacity:0; width:0; height:0; position:absolute;}
-  .switch-track{position:absolute; inset:0; background:#262a31; border-radius:99px; cursor:pointer; transition:background .18s;}
-  .switch-track::before{content:''; position:absolute; width:21px; height:21px; left:3px; top:3px; background:#f3f1ea; border-radius:50%; transition:transform .18s; box-shadow:0 1px 3px rgba(0,0,0,.4);}
-  .switch input:checked + .switch-track{background:var(--celeste);}
-  .switch input:checked + .switch-track::before{transform:translateX(21px); background:var(--celeste-ink);}
+  .scan-caption { text-align: center; color: var(--dim); font-size: 13px; line-height: 1.5; margin: 0; }
+  .scan-caption b { color: var(--ink); }
 
-  /* ---------- Detalle documento (código/fecha) ---------- */
-  .doc-meta{display:flex; gap:10px; margin-top:10px;}
-  .doc-meta .field{flex:1; background:var(--surface-2); border:1px solid var(--border-soft); border-radius:var(--radius-sm); padding:9px 11px;}
-  .doc-meta .field .k{font-size:9.5px; color:var(--faint); font-weight:700; letter-spacing:.09em; text-transform:uppercase;}
-  .doc-meta .field .v{font-family:var(--font-mono); font-size:12.5px; color:var(--ink); margin-top:2px; word-break:break-all;}
+  /* Indicador de pasos */
+  .steps { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 4px 0; }
+  .steps .step { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; position: relative; }
+  .steps .bead { width: 100%; height: 4px; border-radius: 99px; background: var(--border-soft); transition: all .3s ease; }
+  .steps .lbl { font-size: 9.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); transition: color .3s; }
+  .steps .bar { display: none; }
+  .steps .step.done .bead, .steps .step.active .bead { background: var(--celeste); box-shadow: 0 0 10px rgba(79, 195, 232, .6); }
+  .steps .step.done .lbl, .steps .step.active .lbl { color: var(--celeste); }
 
-  /* ---------- Resultado final ---------- */
-  #screenResultado .result-icon{width:52px; height:52px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin-bottom:2px;}
+  /* Form Controls */
+  input, select {
+    width: 100%; background: var(--surface-3); border: 1px solid var(--border); color: var(--ink);
+    border-radius: var(--radius-sm); padding: 12px 14px; font-size: 14px; margin-top: 6px;
+    font-family: var(--font-ui); transition: border-color .2s, box-shadow .2s;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(79, 195, 232, .15); }
+  input::placeholder { color: var(--faint); }
+  
+  label { font-size: 10.5px; color: var(--faint); display: block; margin-top: 14px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  label:first-of-type { margin-top: 0; }
+  /* CORRECCIÓN — espaciado inconsistente en "Proveedor nuevo" (Escanear
+     Compras / Escanear Retención / Compra a Sujeto Excluido): la regla
+     "label:first-of-type" de arriba se calcula por CADA contenedor padre,
+     no por todo el formulario. Como las etiquetas "Tipo de Documento" y
+     "Clasificación" viven dentro de sus propios contenedores div (#pnExcluidoFields y
+     #pnClasifSection), el navegador las trataba como el PRIMER label de
+     ESE div y les quitaba el margen superior — quedaban pegadas al campo
+     anterior (DUI, o Tipo de Operación) en vez de guardar el mismo espacio
+     que el resto de etiquetas del formulario. Se restaura ese espacio.
+  */
+  #pnExcluidoFields label:first-of-type,
+  #pnClasifSection label:first-of-type {
+    margin-top: 14px;
+  }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+  .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  .badge-03 { background: var(--celeste-dim); color: var(--celeste); }
+  .badge-05 { background: var(--info-dim); color: var(--info); }
+  
+  .anexo-tag {
+    display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 99px;
+    font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+    background: var(--surface-3); color: var(--dim); border: 1px solid var(--border-soft);
+  }
+  .action-row.btn-teal .anexo-tag { background: rgba(6, 38, 52, .15); color: var(--celeste-ink); border: none; }
+
+  /* Listados / Resultados */
+  #provResults, #clienteResults { display: flex; flex-direction: column; gap: 8px; }
+  .prov-item {
+    padding: 12px 14px; border: 1px solid var(--border-soft); background: var(--surface-2);
+    border-radius: var(--radius-md); cursor: pointer; transition: all .15s ease;
+  }
+  .prov-item:active { background: var(--surface-3); border-color: var(--celeste); transform: scale(.99); }
+  .prov-item .nombre { font-weight: 700; font-size: 13.5px; color: var(--ink); }
+  .prov-item .nit { font-size: 11.5px; color: var(--dim); font-family: var(--font-mono); margin-top: 2px; }
+  .prov-item .clasif { font-size: 11px; color: var(--celeste); margin-top: 4px; font-weight: 600; }
+
+  /* Toast notification */
+  .toast {
+    position: fixed; left: 16px; right: 16px; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+    max-width: 440px; margin: 0 auto; background: rgba(21, 23, 27, .92); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 14px 18px; font-size: 13.5px; z-index: 50;
+    box-shadow: var(--shadow-pop); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+    display: none; align-items: center; gap: 10px;
+  }
+  .toast::before { content: ''; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--dim); box-shadow: 0 0 8px currentColor; }
+  .toast.show { display: flex; animation: toastIn .25s cubic-bezier(.2, .8, .2, 1); }
+  @keyframes toastIn { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .toast.err { border-color: rgba(226, 89, 107, .4); color: #f5b2bc; }
+  .toast.err::before { background: var(--danger); color: var(--danger); }
+  .toast.ok { border-color: rgba(79, 178, 134, .4); color: #a6e8cd; }
+  .toast.ok::before { background: var(--verify); color: var(--verify); }
+
+  .hidden { display: none !important; }
+
+  /* Utility Components */
+  .spinner {
+    width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--border);
+    border-top-color: var(--celeste); animation: spin .8s linear infinite; filter: drop-shadow(0 0 8px rgba(79, 195, 232, .4));
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .btn-row { display: flex; gap: 10px; }
+
+  .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .switch-row .switch-label { font-size: 14px; font-weight: 700; color: var(--ink); }
+  .switch-row .switch-sub { font-size: 12px; color: var(--dim); margin-top: 2px; }
+  .switch { position: relative; width: 48px; height: 28px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .switch-track { position: absolute; inset: 0; background: #242830; border-radius: 99px; cursor: pointer; transition: background .2s; }
+  .switch-track::before {
+    content: ''; position: absolute; width: 22px; height: 22px; left: 3px; top: 3px;
+    background: #f3f1ea; border-radius: 50%; transition: transform .2s cubic-bezier(.2, .8, .2, 1);
+  }
+  .switch input:checked + .switch-track { background: var(--celeste); }
+  .switch input:checked + .switch-track::before { transform: translateX(20px); background: var(--celeste-ink); }
+
+  .doc-meta { display: flex; gap: 10px; margin-top: 12px; }
+  .doc-meta .field { flex: 1; background: var(--surface-2); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 10px 12px; }
+  .doc-meta .field .k { font-size: 9.5px; color: var(--faint); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .doc-meta .field .v { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink); margin-top: 3px; word-break: break-all; }
 </style>
 </head>
 <body>
 
   <header>
-    <div class="brandmark"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAAfXElEQVR4nO3deZgU1bk/8O/p2YFZGZUd2RGQfQYRMOJFJCoMOzHRREyEa2JUjEa8yrVNTNDffS4uMQoqYiTXhW1kE2VQFpVtHGaYAdlhGJZZmH3v7uk6vz+EBKaXququqlPd9X6exyd5uqpPvcDUd6rqPVUFEEIIIYQQQgghxApYIF8aPXrZzW43JgHoBvDOjLF4jesiRBeShHIAJYzxY5y7N2dn/+6c6JpEUhwAI0Ysi4qMxDzOsQBALx1rIsQonDGWzRj+snfvvA2iixFBUQCkpS29jTG2HEBvneshRBD+jc3Gf7l37yOFoisxkmwApKcv+w2AvwOI1r8cQoSqYAyz9u2bv110IUbxGwBpae88yBhfYVQxhJhAM2O28fv2PbxXdCFG8BkAlw/7s0C/+Yn1FEdESGl79jxyQXQherN5+3DEiGVRl8/5aecnVtTR7Y54TXQRRvAaABERmA+64Ecsjc9MS3vnVtFV6M1rAAB4wsgiCDEjm40/JroGvXkEwKhR7w4G9fkJAee4u3fvN2JE16EnjwDgXLpLRCGEmFB8amrUaNFF6MkjABjjNwqogxBTcrsjbhRdg568HAGgo4hCCDEjxngn0TXoKbL1B4yxeM7VD5SYGIu5c4dh9OiuaN8+7pplnAPl5Y3YtasQH354EA0NTkVjMgZkZPTH5Mn90blzPCIjr82rhgYXCgpKsWJFLk6dqlRc64AB1+FXvxqGAQOuQ1zctX8FLpeEoqIaZGb+gC++OKl4TCKvxdUAR3Ml3G4nOCT9N8gZIiKiEBkdj9jYZAR27xtL0LosM/EIgEDEx8fgvfcy0K1bos91EhJi0LNnMkaP7op58zagublFdtynnhqLmTMH+N1uhw7tMHZsdzz66CYcOlQmO2Z6ehcsWTIJUVG+GiBASkochg7tgG7dkvDOO9/LjknkOR01aGwoBRDAb5cgtLS40dLSDLerCW3jOxu67VDgey9QYe7cYX53/qv165eKOXMGya43cOD1fnf+q8XFReLpp8fKrscY8Oyz4/zu/FebO3cYunQJ618AhuBcQlNjGYze+a/mctXD5awTtn2z0iQAhg9Xd9lg+HD506oRI9SdevXrl4r4eP8TFzt2jEenTsofXWCzMUW1Ev/cLc3g3IBDfhkuV5PoEkxHkwBISYmTX+kqqaltNB+TMSAlxf+4ascE4HE9g6gncfnTPSNwk9RhJpoEQFFRjar1CwurZdc5e1Z+nau5XBIuXKj1u05RUQ3UXuA8e1bdn414irCZ45aSiAhz1GEmmgTAli0nVK5/XHadnTsL0djoUjxmVtZJtLT4P8ysrXVg9+4ixWNWVTVh715LPzFKExGRsbCZYOeLiqIn17WmSQB8/vlxrFlzWHY9zoEVK3Lx7bfyO2FlZRMWLfoKTU3yIVBQUIolS/YoqvWvf92FkyflW4Z1dQ48++w2VSFEfGvbrjNsNk2aTgFgaNP2BkREhvWs3oB4NEZHjVqWxTkmBDLYwIHXY8yYbl7nAVy61IBvvjmL48crVI2ZmtoGd97ZC126JHidB5CfX4Jdu85CkpQf20dG2jB+fA8MHHi9xzwAp9ONoqIaZGWdQnV1s6paiX+cS3A56+B2OwAD5gHwy/MAoqLjYbNFBTgKe2X//nkLNS3MRDQNAELCT3gHgCanAISQ0EQBQIiFUQAQYmEUAIRYGAUAIRZGAUCIhVEAEGJhFACEWBgFACEWRgFAiIV5BIDNxkTdsUGI6dhsAT1IMGR47OyPP5FmU3NjDSHhLCLSFjdnlugq9OMRAJMm9XQG9vRUQsIQQ6PoEvRE1wAIsTAKAEIsjAKAEAujACDEwigACLEwCgBCLIwCgBALowAgxMIoAAixMAoAQiyMAoAQC6MAIMTCKAAIsTAKAEIsjAKAEAujACDEwigACLEwCgBCLIwCgBALowAgxMIoAAixMAoAQiyMAoAQC6MAIMTCKAAIsTAKAEIsjAKAEAujACDEwigACLEwCgBCLIwCgBALowAgxMIoAAixMAoAQiyMAoAQC6MAIMTCIkUXwDlHcXEZHI5mdO3aGZGR4koqL69AXV09OnfqiOiYaMO3L0kSKiur0NTkQHOzA23btkFsbAxSUpIMrwUAamrqUF5eAUniQrbfWkpyItqnpoguI6wIDYCcnHy8+bf3cf58MQCgXbu2+PnPp2HmrHvBGDOsjpMnz+D1197D0aMnAQCxsTGYPGUiHnroZ7oGUl1dPfbty8XBg4dx5MhJFF8sgdPp8lgvLi4WXbt2wsBB/TB8+GAMH34zoqOjdKurtPQSXl2yDAcOHALn5tj5r+jRozsef+I3GDiwr+hSwoLHXlZdU5MFsAl6bzg3twDPLlwMt9vtseyBB2bil7+apXcJAICiogv4/aPPobGxyWPZhAnj8MzCRzXf5qGCo8jM3IK9e3O87vBy2rVri/Hjx2DGzHvQuXMHTWtraGjEf85/BiUlZZqOq6WYmGj8/a3F6N69i/4bY3glKSFhof4bEkPYNYClb//T684PAB9//BkqKqoMqWPF+5963fkBYNu2b3Ds2CnNtnXixBk8+aQdCxa8gF279ga08wNAfX0DNm7ciofmLsDLi/+GivJKzWr88osdpt75AcDhcOKTT9aLLiMsCAmAmpo6nD5d6HN5S0sLdu/O1r0Oh8OJ/ftz/a6Tl3co6O04nS68/fY/8Ojv/gsF+UeCHu8KSZLw1VffYu7cBdi4casmYx4/rl3g6enE8dOiSwgLQgLA12/+q2VnH9S9jry8Q3A6nX7XUVKrP6Wll/DE44uwbu3nkCQpqLF8aWpqxhuvL8ef//QqmpqagxqrpSW4P69RWlpaRJcQFoQEQEpKkuzV3LzcQwEfIiuVvT9Pdp1evXoEPP7ZwnN44vEXcOLEmYDHUGPXrr146g8vorq6NuAxevW+UbuCdBTMvwv5N2HXANLShvpd3tTUjMOHj+paQ3Z2nt/l0dHRGDp0YEBjnz17Hk8++SLKyysC+n6gjh8/jT8+/RLq6xsD+v6kSeORmBivcVXastlsmDnrHtFlhAVhAZCePlR2nf0KfkMH6ty5i7h4sdTvOoMH34SYAOYDVJRXYuEzf0VtbV2g5QXlzJmzeOGF/wnoMDk5ORGLX34OXbt20qGy4CUlJWDRoidw0019RJcSFoTNAxgxYjAiIyP9/pDu35eL+fMf0GX7Sg7/09OHqR5XkiQsXvym6t/8MTHRGDFyMHrc2A1JyUlISGiH6qoaVFRW4djRUygoOKLqGkL+wR/w/vufYN68+9X+EdCnTw+8t3wJTp0qRFnpJbglddcF1qzejCNHTvhcnpyciEd/P1d1XSnJyejXvzeiooTPXwsbwv4m27SJw00D+vi9Kl5UdAHFxWXo2PF6zbcvd/UfANIUHKW0tnr1Rhw8eFjx+j16dMcDv5yBUenD/M4+rK2tw44du/HRR58pbvutWb0Jo0YNw5Ah6k9jbDaGPn16oE8f9efaO3fs8xsAsbExuO220arHJdoTei+AktOAnBztuwFOhxMFh/xfX+jQ4Xp06dJR1bilpeX458q1itaNi4vF008/gqXLXsG4caNkpx4nJMRjypS78MEHr+EXv5gOm01+piTnHG+8vhwuF10xJ96ZPgD0uA6Qm3cITof/9t+oUeoP/1euXI3mZofseqmp7fG/S+yYeNftinbkq8XGxuDBuXPw55cWom3bNrLrFxVdwNatO1Rtg1iH0ADo0aO7bDsw90CB5u1AJef/ag//y8oq8NW2b2XXa5+agjfffCmgQ+urpacPxUt/WajonoBPPl4f9HwGEp6EBgBjTLYd2Nzs0LwdKN/+i8LgwQNUjfnlF9tlr7pHR0fDbv+DZne0DRrUDwsWzJNdr6SkDN9/n6/JNkl4Ef48AKNPA5S1/wYgLi5W8Zicc2Rl7ZRd72f3ZaB//96Kx1Viwp234ZZbhsuu99W2bzTdLgkPwgPgSjvQHyWH7Erp0f47d+4iiov930CTlJSImTPvVTWuUg/Pux8RERF+18nOztVtKjIJXcID4Eo70J+zZ8+jtPSSJtvTo/2n5IahKRkTVR1VqNGtW2ekpQ3xu059faNhU5JJ6BAeAICy0wC583Yl9Gr/nTp5VnadsWPSVY2p1pgxabLrnD4lXyexlpAJAC2uA+jV/is6d9Hv8tTU9ujRs5vqcdVIU3DaUnTugq41kNBjigAwqh2oR/sPAKoq/T+8pGMn7Wcytta+fbLsZKKqymrd6yChxRQBYFQ7UI/2HwDZe/DbpySrHjMQqe39b6fBx5OPiHWZIgAA/U8D9Gj/XSF3ZNKmTZzqMQMhNzPQ6dD3+Qok9JgmAPRuB+p1958SRj7hmBA1TBMAercD9br7j5BQZpoAAPRrB+rV/iMk1IVcAARyHUCv9h8hoc5UAaBXO1Cv9h8hoc5UAaBXO1Cv9h8hoc5UAQBofxqgZ/uPkFBnugDQuh0osv1HiNmZLgC0bgdS+48Q30wXAIB27UBq/xHiX8gGgJLrANT+I8Q/U75h4Uo70N/z76+0A/09FNMs7T+ny4X6+gbdt+N2c923QcKLKQPgSjvwiy1f+1znSjtw2LCbfa5jlvZf1tadyNoq/8xAQoxmylMAIPjTAGr/ESLPtAEQbDuQ2n+EyDNtAChvB5Z7XUbtP0LkmTYAAKXtQM8dndp/hCgT8gHg7TrAgVxq/xGihKkDINC7A83S/iPE7EwdAIHeHfj993l+v0N3/xHyI1POA7haerr/+QDAj6cBV+YDmLH9179/b4wdp++LQQAgM/MLv5OnCGnN9AFwpR3o78272fvzMH/+A//6/3KMbv/16nUj5szJ0H07O3fsoQAgqpj6FABQ3w6k9h8hypk+AADl7UBq/xGiTtgEwP79edT+I0Ql018DAJTfHZiYmCA7Fh3+E/JvIXEEoLQduC1rl991oqOjMXToIA0rIyS0hUQAAMpOA/x1CgBg8OCbECPzBl1CrCRkAkDJ3YFy6O4/Qq4VMgGgpB0oh87/CblWyAQAoOw0wBdq/xHiyTIBQO0/QjyFVAAouTvQFzr8J8RTSAWAknagN3T3HyHehVQAAIGdBtDDPwnxLuQCIJB2ILX/CPEu5AIgkHYgnf8T4l3IBQCg7jSA2n+E+Bb2AUDtP0J8C8kAUNMOpMN/QnwLyQBQ2g6k9h8h/oVkAADKTgOo/UfkcHA0tDhQ0VyHiw2VOFtXhktNNah1NsIp+b+7NByExANBvFHysFCj2n8JCe38vv47IaGdYXUEs9y4OuINqQP4cQe/1FSL4oZKlDRUorixCiWX/2t0NSvZyf84da19HgMuco5jYDjGODsmgR2NlqKPrp69sMaIP4deQjYA2rSJw9ix6dixY7fX5dHR0bjtJ7cYUsuQoQP9Pop86LCBBtUxCDk5BSaoYwA2bcryXYfOD2W51FSDw5VncaL6An6oOoeq5vpghmMAkjmQDIaBAMAZBwOHK6JZmrrOfhQc3zLGtnHGsz6bZq/W4s9glJANAAB4cO4c5OUdRnW1ZwjPnTsH7dsnG1LH/ffPxJ7dOV7ruHVMGoYPH2xIHVOnTkLW1p04d+6ix7K+fXti4sTbDanjtttuwYbBW1GQf8Rj2Q03pGLW7Mmabo+D43jVBXxX8gPyywtR7Qhqh1fDBo4BAAZwzueBo2XqWvt+cLZKior8ZEPGc/5fUGECrPUH1TU1WQCbIKKYQJw/X4zl732M7OxcuFwudOveBffdNw133DHG0DpKSsrw7jsfIS/vEOrr69Ghw/X4jwnjcN990xAVZVzO1tTUYfnyj7B/Xy4qKqpw3XWpGDNmJOY+9DO0aRNnWB0OhxMffrgaO3fsQWnpJSQlJSItbTB+/eufB3xDV2sVzXXYW3oUO8/no6zJdEfibgDbOcPKpvq2a7f+8mnf54gChXwAXME5h8vVgujoKNGlwOl0UR061lFQUYhNhftxrOq8ZmPqrIYBS8GwJHO6vUx0MVcLmwAg4Y2D4+ClM9hwZi9O15aILidQDgD/4BGRL62f+vw50cUAFAAkBOSUncS609/hQn2F6FK04uQc/+BRUYtEXyegACCmdampBv889jUOlp8RXYpeqsGZPUq66c3Vs2e7RRRAAUBMxy1J+Pr8Qaw59Q0c7vCfjAOOPGaz/TZz+n/vMXrTFADEVArryrC0YDNKGqtEl2I0iXG8Hilh4erZdv/vt9NQyE4FJuFnx4V8/CX7Yyvu/ABg4wwLXBHYPTXzz70M26hRGyLEl6YWJ94u2IwPjmyDSxJyKmwmI+B2H8hY++IcIzZGpwBEqAv15Xjt4Ge41FQruhTTYRyvDjmEp+x2u6TXNugIgAhzqqYEi3NW0c7vA2dYcPBmrHlwhV23W1opAIgQeeWn8UrOKtS7mkWXYmocmFaTgM9/+k97gh7jUwAQw31XfAR/y99gifvttcCB8TFx+HraOvv1Wo9NAUAM9e3Fw3jv8Ba4Jd1Oa8PVCHB8PWuVXZs7qS6jACCGySs/jRVHssBFFxKiODDQFYHPJ374P221GpMCgBjiVE0x3i7YBDen3/xBGhXXtuHT27fbNbnHnAKA6O5CfQWW5GVaY1qvARhwT1IVVoB7tvHVogAgumpsceC1g5looKv92uK4f9pa+4Jgh6EAILpafngr9fl1whlezlhtvzWYMSgAiG6yzuUi59IJ0WWEsyhmwyfT1v21faADUAAQXRTWlWHViV2iy7CCrlxyfhDo9QAKAKI5l7sFSws20409RmG4d+o6+8OBfJUCgGhu89lsq97SK9LLgcwUpAAgmiprqsHms9miy7CiZHC8rPZLFABEU/937Gu4qN8vBAcenLbuTz9R8x0KAKKZnLKT4fwAz1DAwKU31MwSDOlXgxHz4OBYd9r7exqtijGGQand0SX+OtQ6G5FXekr3CVEcGJxcxeYA+D9FNbb+gJ4IRAKRU3YCf8vfKLoM07ihbTL+OGo2eiZ1+NdnDa5mLM3dhG/PH9Z780eGFmCQkicJ0SkA0cSmwv2iSzCN2MhoLLr1F9fs/ADQNioWC9JmoH/7rnqXcNPBwZiqZEUKABK0gopCnKk1/YtwDfPQ4LvQOd775DwbY5jed6zuNXAJi5RMDqIAIEGj3/7/lt6xH+68cbjfdXond9K/EIah0zLtd8mtRgFAglLaWI3jofOWXl0lxbTFb4dPll2vucWg935w/FpuFQoAEpTvin+gJ/zgx6vpvxsxBYkx8g/rySkx5gYpDkyRu1GIAoAEjINjT8kPosswhYk9RmBkh76y69U6GrH6mGE3SUVL3DXT3woUACRgx6rO073+ADq0TcaDN09UtO6yvM2odTTqXNHV+AP+lnoEAAejR7cQRXaXHBFdgnARzIYFaTMQGxktu25W4QHsvmDsERMDbp2x1t7T13KPAGAcJfqWRMJFQUWh6BKEm93/NvRN6Sy7XmlDFVbkf2lARR6YxNhPfS30PAJg/IK+9ZBwUNxQiarmetFlCNU7uRNm9Bsnu56bS3g1ex2ajLr63wrnfLyvZZ7XACTbTl2rIWHhh6oi0SUIFRsZhQVp0xFhk7+MtvboNzhWKbRVOt5ut3st1OPDpKR2uwCU614SCWlHxf5AC/fQ4Eno1E7+UXynqouxyrir/r6kHBhkG+Jtgec1AMbcDFipf00kVHFwHK0+J7oMYZTM9gMAh9uFV7PXmuI1aDbG7/D6ubcPOZf+DICe6US8utRUizpnk+gyhEiIaYNHFMz2A4AV+V/iQl2FzhUpxUd5+9RrACQlJVUxsOf1LYiEquKGStElCPP7ERlIUjDbL7f0FLaeyTGgImUY0M/b5z6vYCQmxr8FhmX6lURCVYlFA+CuHiOVzfZzNuKNnM9MNUWaA328XQj0ewkzMT7+MYB9rF9ZJBQVW/CJvz/O9rtT0brLcjej2nwt0rj8myM9HkTgNwAYY87EhHa/AMd/AaAnPRIAQHGjtY4AzD7bTyk3d/dv/ZlsE5MxxpOSEhbbGAaCYTVgqiMbIkBZU7XoEgwVArP9FGHgfVp/pvihoAkJCccBzK6qqroRNlsGA5sEoDuAzgAStCuTmF2ts7EFFnmgbKjM9lOEseTWH6n+R0xOTi4E8Prl/4jF3L7dHpkkwSW6DiOome23RvxsP1mc8fjWn9HtwESVpGq0E12DUdTM9jPwHv/ASaAAIMHhLNLjhygcheJsP1mMAoAEySbxsD8CCN3Zfv7ZQAFAgsble2EhLlRn+8mRAI9/OwoAogpnzHQzXLSkeLafw3yz/eTYAI9/OwoAoopks4VtAKiZ7bc0b5MZZ/vJqWv9AQUAUYXbXB4/ROFA7Wy/PRdC73mIEqcAIEHaeK+9CYBbZA3dEq7Hvb1H4d7eo9A14TpNxlQ626+4vhLvm3i2n182zwCwxGwuoiEGjrWoB5Bo9KYjmA0PDJqAKX1uAbv82jsOjs9P7cf7+V9C4oGdkfdN6YIZ/ZXN9nv9+0zj3uyjOUZHAEQDDEIeHDvnpp8go8/of+38P5bCcE+vUfhD+kxEMPU/zrGRUXh85FRF3w2F2X7+2ACP4ikAiHoSjhq9yfZx8X7n5N/aeQAeHzkNNib7QtxrKJ3td7LqIlYfDYHZfn64JX6s9WcUAEQ9Bo8fJL31Se4su3OP6zoIT4ycrjgElM72a25x4dXsdXDzEJjt54erGcdbf0YBQFRjnBkeAA63ssdRKA0BpW/yBYAPCrbiYn1ozPbz4+KW++0e73GjACCqMeZ5KKm3IxVFih9EKhcCat/ku/XM92pKNSUG70dtFABEtQh37BEAhh4PN7c4sSxvM7jCuXf+QmCiitl+b+asD6nZfr5w4LC3zykAiGqrZy+sAZBn9Ha/O38Ybx3YCK6w3Teu6yCP7oDq2X6OhoBqNRsOeH3jFwUACQjj+FrEdrcV5uKtXOUhcGvnAXgyfQYimM0Ss/18kKRo7PC2gCYCkYBIwHYGPCVi29sKcxHBbJg/7J5r5gT4cmvnAXCPlFDaUBX+s/28O7hxst3r6/4oAEhAeFTcN6ylyQUgSsT2vzyTAzeX8Nthk8EUtP3GdR2kaNzQn+3nlc+jNToFIAHZkPFMHYBskTWoPR1QItRn+3ljA9vuexkhgVstugAtQyBknu2nTlVTXPI2XwspAEjAGMNHgPgnBGsRAiH1bD8VOMenW+5+zOFrOQUACVjmdHsZB7aKrgMIPgRC6dl+qnCs9LeYAoAEifn9ATNSoCGQW3oypJ7tp8Kp9TPte/ytQAFAgpJcy9cDqBZdxxVqQ+DHZ/uFx2w/T2wlmP8/GgUACcoHc+3NDOZ6jbyaEAjRZ/vJ4kCzDZHvyK1HAUCCx7AEQKPoMq6mJATCbLbfNRjw7roZzxXLrUcBQIKWOd1eBmC56Dpa21aYi7dzN3m9j/9IRRGWH/xCQFWGcNkQ+b9KVqSZgEQTNuD/ScB8eHn5hEhZhQdQWFOKKX1G48bEG1DnbMTeC0fw+elstEhCn22qG87xwbqZz59Vsq665ycR4kfGGvs7jOFh0XVYnEtyY8CG2faTSlamUwCiGR4VtQhAleg6rIwzvKZ05wcoAIiGNmQ8V8oYWyS6Dgs7H92CP6n5AgUA0dSQfP42gP2i67Akzp5YPduuqqdJ1wCI5qassY+0MewFECG6Fstg2PrZdPtdar9GRwBEcxtm2r9nHG+IrsNCaiI4HgnkixQARBfXVXR8BoDfeehEGxz47doZ9tOBfJdOAYhuJq+yd4uIQC6AFNG1hCvO8ff1M+2PBvp9OgIgutk4217EOXsQCNN7bQRjQH60lPB0MGNQABBdrZ/5wkbG8ZroOsJQpduNGatnP6nsbSk+UAAQ3Q05hKcAfCq6jjDSxBgy1Ez48YWuARBDzFu2LKostXgjANWtKnINNwebtX7GC5laDEYBQAwzZf0r8baWpu0ARoiuJURxxvGbzJn297UakE4BiGE2ZDxTxxjuZj7eU0f84ozjKS13foCOAIgA92xanBzlcGwAMFZ0LSHCzRh7JHP6C+9qPTAFABHip5+/ERPTWPkRGKaLrsXkHIzh55nT7ev0GJxOAYgQW+5+zBElDZjNOTT/rRZGqhjDBL12foCOAIhoHGzquhefBPhiCHrPoEnlSm7M1qLV5w8FADGFy3cQfgqgp+haTGBllDthfrCTfJSgACCmMWvVy4muiOZ3AcwSXYsgdYxhXuZ0+ydGbZACgJgLB5u6zv4wgMWw1k1EX0YEcVdfoCgAiCnNWmVPcdrwAmN4FOF9sfoiZ3h2/XT7hyI2TgFATO3ytYG3AYwUXYvGWjjHWzwq7vkNGc/UiSqCAoCYnt1ut+UOYvcwxl8EMEx0PUFyAfhEckf8ZcPsRcdEF0MBQEIHB8tY++K9jPHnAaSLLkclB4B/8IjIl9ZPff6c6GKuoAAgIWnaOvskzvEbAPcCiBFdjx+nALZSioxcuiHjuVLRxbRGAUBC2qxVLyc6I5szGMcDAP4D5viZrgawkQMfrp9u/0ruFd0imeEvixBNzFhr7ykx9lMu8TvAcDuMayNK4MhnwHbG2FdNccnbttz9mMOgbQeFAoCEJbvdbjswyDbExvgdAB8FoC8H+jEgVoPhLzLgGAcOc2CnFI0dGyfbyzUY13AUAMQy7Ha7LW8IunE368cY+gJIAni7H/8X7RjQjgNxAKrBUMcl1DOGBs5YjQ0475b4MVczjm+5314r8s9BCCGEEEIIIYQQotb/BzebWkoBvEeYAAAAAElFTkSuQmCC" alt="FiscalSync"></div>
-    <h1>FiscalSync<span>Escaneo de documentos</span></h1>
+    <div class="brandmark">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 132 30" role="img" aria-label="FiscalSync">
+        <rect x="0" y="1" width="3" height="28" rx="1.5" fill="#4fc3e8"/>
+        <text x="11" y="22" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="19" font-weight="700" letter-spacing="-.3" fill="#f3f1ea">FiscalSync</text>
+      </svg>
+    </div>
     <div class="conn-pill">
       <div id="connDot" class="dot off"></div>
       <div class="sub" id="connSub">Conectando…</div>
@@ -207,42 +353,84 @@
 
   <main>
 
-    <!-- Pantalla: conectando / desconectado -->
-    <div id="screenConnecting" class="card center" style="padding:44px 16px;">
+    <div id="empresaBar" class="empresa-bar hidden">
+      <span class="ico-chip">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9v.01M9 12v.01M9 15v.01"/></svg>
+      </span>
+      <span style="min-width:0; display:flex; flex-direction:column; gap:1px;">
+        <span class="k">Empresa actual</span>
+        <span class="v" id="empresaBarNombre"></span>
+      </span>
+    </div>
+
+    <!-- Pantalla: Conectando -->
+    <div id="screenConnecting" class="card center" style="padding:48px 20px;">
       <div class="spinner"></div>
       <h2 id="connTitle">Conectando con FiscalSync…</h2>
       <p class="hint" id="connHint">Asegúrate de estar en la misma red WiFi que la computadora.</p>
     </div>
 
-    <!-- Pantalla: listo para escanear -->
-    <div id="screenReady" class="hidden" style="display:flex; flex-direction:column; gap:14px;">
-      <div class="card center">
-        <h2 style="margin-top:2px;">Conectado a FiscalSync</h2>
-        <p class="hint" id="empresaLabel"></p>
+    <!-- Pantalla: Listo para escanear -->
+    <div id="screenReady" class="hidden" style="display:flex; flex-direction:column; gap:16px;">
+
+      <div class="eyebrow">Compras</div>
+      <div class="scan-menu">
+        <button class="btn-teal action-row" id="btnEscanearCompra">
+          <span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
+          <span class="txt"><b>Escanear Compra</b><small>Libro de Compras</small></span>
+          <span class="tail"><span class="anexo-tag">Anexo 3</span><span class="chev"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></span>
+        </button>
+        <button class="btn-outline action-row" id="btnEscanearRetencion">
+          <span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"/></svg></span>
+          <span class="txt"><b>Escanear Retención</b><small>IVA Retenido</small></span>
+          <span class="tail"><span class="anexo-tag">Anexo 7</span><span class="chev"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></span>
+        </button>
+        <button class="btn-outline action-row" id="btnEscanearExcluido">
+          <span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="17" y1="8" x2="22" y2="13"/><line x1="22" y1="8" x2="17" y2="13"/></svg></span>
+          <span class="txt"><b>Compra a Sujeto Excluido</b><small>Compras a Sujeto Excluido</small></span>
+          <span class="tail"><span class="anexo-tag">Anexo 5</span><span class="chev"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></span>
+        </button>
       </div>
-      <button class="btn-teal" id="btnEscanearCompra"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Escanear Compra</button>
-      <button class="btn-outline" id="btnEscanearCF"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="14" x2="15" y2="14"/><line x1="9" y1="17" x2="13" y2="17"/></svg>Escanear Venta (Consumidor Final)</button>
-      <button class="btn-outline" id="btnEscanearCCF"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Escanear Venta (Crédito Fiscal)</button>
+
+      <div class="eyebrow">Ventas</div>
+      <div class="scan-menu">
+        <button class="btn-outline action-row" id="btnEscanearCF">
+          <span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="14" x2="15" y2="14"/><line x1="9" y1="17" x2="13" y2="17"/></svg></span>
+          <span class="txt"><b>Venta Consumidor Final</b><small>Sin identificar cliente</small></span>
+          <span class="tail"><span class="anexo-tag">Anexo 2</span><span class="chev"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></span>
+        </button>
+        <button class="btn-outline action-row" id="btnEscanearCCF">
+          <span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+          <span class="txt"><b>Venta Crédito Fiscal</b><small>Con cliente identificado</small></span>
+          <span class="tail"><span class="anexo-tag">Anexo 4</span><span class="chev"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></span>
+        </button>
+      </div>
     </div>
 
-    <!-- Pantalla: cámara activa -->
-    <div id="screenCamera" class="hidden" style="display:flex; flex-direction:column; gap:12px;">
+    <!-- Pantalla: Cámara activa -->
+    <div id="screenCamera" class="hidden" style="display:flex; flex-direction:column; gap:14px;">
+      <div class="steps" id="stepsCamara">
+        <div class="step active"><div class="bead"></div><div class="lbl">Escaneo</div></div>
+        <div class="bar"></div>
+        <div class="step"><div class="bead"></div><div class="lbl">Consultando</div></div>
+        <div class="bar"></div>
+        <div class="step"><div class="bead"></div><div class="lbl">Cargado</div></div>
+      </div>
       <div id="cameraWrap">
         <video id="video" playsinline autoplay muted></video>
         <div id="scanFrame">
           <div class="corner tl"></div><div class="corner tr"></div>
           <div class="corner bl"></div><div class="corner br"></div>
-          <div class="scanline"></div>
         </div>
       </div>
       <p class="scan-caption">Apunta al <b>código QR</b> del documento — esquina superior derecha del comprobante</p>
       <button class="btn-outline" id="btnCancelarCamara">Cancelar</button>
     </div>
 
-    <!-- Pantalla: documento detectado + selección de proveedor -->
+    <!-- Pantalla: Documento detectado + Selección Proveedor -->
     <div id="screenDocumento" class="hidden" style="display:flex; flex-direction:column; gap:14px;">
       <div class="card">
-        <h2>Documento detectado</h2>
+        <h2 id="docDetectadoTitulo">Documento detectado</h2>
         <div class="doc-meta">
           <div class="field"><div class="k">Código</div><div class="v" id="docCodGen"></div></div>
           <div class="field"><div class="k">Fecha</div><div class="v" id="docFecha"></div></div>
@@ -252,7 +440,7 @@
       <div class="card">
         <label>Buscar proveedor por nombre</label>
         <input type="text" id="provSearch" placeholder="Escribe el nombre para buscar…" autocomplete="off">
-        <div id="provResults" style="margin-top:8px;"></div>
+        <div id="provResults" style="margin-top:10px;"></div>
         <button class="btn-outline" id="btnProvNuevo" style="margin-top:12px;">+ Agregar proveedor nuevo</button>
       </div>
 
@@ -266,19 +454,42 @@
         <input type="text" id="pnNrc">
         <label>DUI (opcional)</label>
         <input type="text" id="pnDui">
-        <label>Clasificación</label>
-        <select id="pnClasif"></select>
-        <label>Sector</label>
-        <select id="pnSector"></select>
-        <label>Tipo de Costo/Gasto</label>
-        <select id="pnTipoCosto"></select>
-        <button class="btn-teal" id="btnPnConfirmar" style="margin-top:14px;">Usar este proveedor</button>
+        
+        <div id="pnExcluidoFields" class="hidden">
+          <label>Tipo de Documento</label>
+          <select id="pnTipoDocEx">
+            <option value="1">1 — NIT</option>
+            <option value="2">2 — DUI</option>
+            <option value="3">3 — Otro Documento</option>
+          </select>
+          <label>Tipo de Operación</label>
+          <select id="pnTipoOpEx">
+            <option value="">— Sin clasificar —</option>
+            <option value="1">1 — Gravada</option>
+            <option value="2">2 — No gravada o exenta</option>
+            <option value="3">3 — Excluido o no constituye Renta</option>
+            <option value="4">4 — Mixta (Regímenes Especiales)</option>
+            <option value="8">8 — Operaciones informadas en más de 1 anexo</option>
+            <option value="9">9 — Excepciones</option>
+            <option value="0">0 — Periodos anteriores a febrero de 2024</option>
+          </select>
+        </div>
+
+        <div id="pnClasifSection">
+          <label>Clasificación</label>
+          <select id="pnClasif"></select>
+          <label>Sector</label>
+          <select id="pnSector"></select>
+          <label>Tipo de Costo/Gasto</label>
+          <select id="pnTipoCosto"></select>
+        </div>
+        <button class="btn-teal" id="btnPnConfirmar" style="margin-top:16px;">Usar este proveedor</button>
       </div>
 
       <div id="provElegido" class="card hidden">
         <h2>Proveedor seleccionado</h2>
         <p class="hint" id="provElegidoTxt"></p>
-        <div id="provElegidoClasif" style="margin-top:8px; display:flex; flex-direction:column; gap:2px;"></div>
+        <div id="provElegidoClasif" style="margin-top:8px; display:flex; flex-direction:column; gap:4px;"></div>
         <button class="btn-outline" id="btnEditarProveedor" style="margin-top:14px;">Editar proveedor</button>
         <button class="btn-teal" id="btnConfirmarDocumento" style="margin-top:10px;">Confirmar y enviar a FiscalSync</button>
       </div>
@@ -299,7 +510,7 @@
         <select id="peSector"></select>
         <label>Tipo de Costo/Gasto</label>
         <select id="peTipoCosto"></select>
-        <div class="btn-row" style="margin-top:14px;">
+        <div class="btn-row" style="margin-top:16px;">
           <button class="btn-outline" id="btnPeCancelar">Cancelar</button>
           <button class="btn-teal" id="btnPeGuardar">Guardar cambios</button>
         </div>
@@ -308,7 +519,7 @@
       <button class="btn-danger" id="btnCancelarDocumento">Cancelar este documento</button>
     </div>
 
-    <!-- Pantalla: venta a Consumidor Final detectada (sin proveedor) -->
+    <!-- Pantalla: Venta Consumidor Final -->
     <div id="screenVentaCF" class="hidden" style="display:flex; flex-direction:column; gap:14px;">
       <div class="card">
         <h2>Venta a Consumidor Final detectada</h2>
@@ -335,7 +546,7 @@
       <button class="btn-danger" id="btnCancelarVentaCF">Cancelar este documento</button>
     </div>
 
-    <!-- Pantalla: documento detectado + selección de cliente + exenta (Crédito Fiscal) -->
+    <!-- Pantalla: Documento Venta Crédito Fiscal -->
     <div id="screenDocumentoCCF" class="hidden" style="display:flex; flex-direction:column; gap:14px;">
       <div class="card">
         <h2>Documento detectado</h2>
@@ -348,7 +559,7 @@
       <div class="card">
         <label>Buscar cliente por nombre</label>
         <input type="text" id="clienteSearch" placeholder="Escribe el nombre para buscar…" autocomplete="off">
-        <div id="clienteResults" style="margin-top:8px;"></div>
+        <div id="clienteResults" style="margin-top:10px;"></div>
         <button class="btn-outline" id="btnClienteNuevo" style="margin-top:12px;">+ Agregar cliente nuevo</button>
       </div>
 
@@ -364,7 +575,7 @@
         <select id="cnTipoOp"></select>
         <label>Tipo de Ingreso</label>
         <select id="cnTipoIng"></select>
-        <button class="btn-teal" id="btnCnConfirmar" style="margin-top:14px;">Usar este cliente</button>
+        <button class="btn-teal" id="btnCnConfirmar" style="margin-top:16px;">Usar este cliente</button>
       </div>
 
       <div id="clienteElegido" class="card hidden">
@@ -386,7 +597,7 @@
         <select id="ceTipoOp"></select>
         <label>Tipo de Ingreso</label>
         <select id="ceTipoIng"></select>
-        <div class="btn-row" style="margin-top:14px;">
+        <div class="btn-row" style="margin-top:16px;">
           <button class="btn-outline" id="btnCeCancelar">Cancelar</button>
           <button class="btn-teal" id="btnCeGuardar">Guardar cambios</button>
         </div>
@@ -409,18 +620,32 @@
       <button class="btn-danger" id="btnCancelarCCF">Cancelar este documento</button>
     </div>
 
-    <!-- Pantalla: procesando -->
-    <div id="screenProcesando" class="hidden card center" style="padding:44px 16px;">
-      <div class="spinner"></div>
+    <!-- Pantalla: Procesando -->
+    <div id="screenProcesando" class="hidden card center" style="padding:48px 20px;">
+      <div class="steps">
+        <div class="step done"><div class="bead"></div><div class="lbl">Escaneo</div></div>
+        <div class="bar"></div>
+        <div class="step active"><div class="bead"></div><div class="lbl">Consultando</div></div>
+        <div class="bar"></div>
+        <div class="step"><div class="bead"></div><div class="lbl">Cargado</div></div>
+      </div>
+      <div class="spinner" style="margin-top:12px;"></div>
       <h2>Consultando en el Ministerio de Hacienda…</h2>
       <p class="hint">Esto puede tardar unos segundos.</p>
     </div>
 
-    <!-- Pantalla: resultado -->
-    <div id="screenResultado" class="hidden card center" style="padding:36px 16px;">
+    <!-- Pantalla: Resultado -->
+    <div id="screenResultado" class="hidden card center" style="padding:40px 20px;">
+      <div class="steps" id="stepsResultado">
+        <div class="step done"><div class="bead"></div><div class="lbl">Escaneo</div></div>
+        <div class="bar"></div>
+        <div class="step done"><div class="bead"></div><div class="lbl">Consultando</div></div>
+        <div class="bar"></div>
+        <div class="step done"><div class="bead"></div><div class="lbl">Cargado</div></div>
+      </div>
       <h2 id="resTitulo"></h2>
       <p class="hint" id="resMensaje"></p>
-      <button class="btn-teal" id="btnOtroDocumento" style="margin-top:12px;">Escanear otro documento</button>
+      <button class="btn-teal" id="btnOtroDocumento" style="margin-top:16px;">Escanear otro documento</button>
     </div>
 
   </main>
