@@ -1882,6 +1882,7 @@
         /* ═══════════════════════════════════════════════════════════════════ */
         /* CORRECCIÓN 01 — Modo Claro: fondos de modal, texto blanco en        */
         /* botones de color e íconos "X" en Actualizaciones.                   */
+        /* CORRECCIÓN 02 (Cambio 06) — Modo Oscuro: bordes de modal blancos.   */
         /* ═══════════════════════════════════════════════════════════════════ */
 
         /* --- 1) Modales transparentes -----------------------------------------
@@ -1897,6 +1898,23 @@
            funciona igual en ambos modos, ya que usa las variables de tema. */
         .bg-\[var\(--rp-surface\)\] { background-color: var(--rp-surface) !important; }
         .bg-\[var\(--rp-inset\)\]   { background-color: var(--rp-inset) !important; }
+
+        /* --- 1b) AGREGADO (Cambio 06) — Bordes blancos en Modo Oscuro ----------
+           Mismo origen que el bug anterior: las tarjetas de los modales usan
+           "border border-[var(--rp-border)]" (y en un caso puntual
+           border-[var(--rp-border-strong)]) para su borde, pero esa clase con
+           valor arbitrario tampoco fue generada en el CSS de Tailwind
+           compilado. Sin una regla que la defina, el navegador usa el color de
+           borde por defecto que deja el "preflight" de Tailwind (#e5e7eb, un
+           gris muy claro). En Modo Claro eso es casi indistinguible del propio
+           --rp-border (#e2e8f0) y por eso el bug pasaba desapercibido ahí, pero
+           en Modo Oscuro --rp-border es casi negro (#18181b), así que ese gris
+           claro de respaldo se veía como un borde blanco rompiendo el tema.
+           Se define aquí la clase que faltaba — usa la variable de tema, así
+           que corrige TODOS los modales afectados a la vez y se ve correcto
+           en ambos modos sin necesidad de reglas separadas por tema. */
+        .border-\[var\(--rp-border\)\]        { border-color: var(--rp-border) !important; }
+        .border-\[var\(--rp-border-strong\)\] { border-color: var(--rp-border-strong) !important; }
 
         /* --- 2) Íconos/textos blancos sobre botones de color ------------------
            La regla general html[data-theme="light"] .text-white oscurece
