@@ -570,11 +570,20 @@
             font-size:9px; font-weight:700; text-transform:uppercase;
             letter-spacing:0.13em; color:var(--rp-text-secondary);
         }
+        /* AJUSTADO — Cambio 07 (Animaciones), 2da vuelta: a pedido del
+           usuario, se quita el desplazamiento/escala (dejaba una sensación
+           de "deslizamiento") y queda un simple fundido (fade) de opacidad.
+           Se usa tanto para el cambio entre anexos (switchScreen) como para
+           el paso empresas → interior de empresa (_mostrarPantalla), que
+           comparten esta misma clase. Sincronizado con los timeouts del JS
+           (150ms) para no cortar la animación a la mitad. Solo anima
+           opacidad, por lo que se ve igual en modo claro y oscuro. */
         .screen {
-            opacity: 0; transform: translateY(6px) scale(0.995);
-            transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0;
+            transition: opacity 0.15s ease-out;
+            will-change: opacity;
         }
-        .screen.active { opacity: 1; transform: translateY(0) scale(1); }
+        .screen.active { opacity: 1; }
         .home-title { font-size: 18px; color: var(--rp-text-secondary); font-weight: 400; letter-spacing: 1px; }
         /* ═══ SCROLLBARS MINIMALISTAS 4px ═══ */
         ::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -590,6 +599,36 @@
         /* AGREGADO NUEVO: Electron fix - garantiza que modal cerrado no capture eventos */
         .modal-overlay { pointer-events: none; }
         .modal-overlay.modal-open { pointer-events: all; }
+        /* AGREGADO NUEVO — Cambio 07 (Animaciones): animación de entrada
+           para los modales. Todos los modales del sistema alternan
+           "modal-open" al abrirse (ver funciones openXxxModal /
+           closeXxxModal), así que basta con esta regla CSS para animarlos
+           a todos sin tocar cada función individual. Se usa @keyframes
+           (no transition) porque el JS agrega la clase en el mismo tick en
+           que cambia display:none → flex, y una animación por keyframes sí
+           se reproduce igual aunque no haya un frame intermedio. El fondo
+           hace un fundido rápido y la tarjeta interna (primer div hijo)
+           un "pop" sutil de escala + fundido. Solo anima opacidad/escala,
+           por lo que se ve igual en modo claro y oscuro. */
+        @keyframes modalOverlayFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes modalCardPopIn {
+            from { opacity: 0; transform: scale(0.96); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .modal-overlay.modal-open { animation: modalOverlayFadeIn 0.16s ease-out; }
+        .modal-overlay.modal-open > div { animation: modalCardPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+        /* AGREGADO NUEVO — Cambio 07 (Animaciones), 2da vuelta: animación
+           de SALIDA para los modales. Se activa con la clase
+           "modal-closing" (agregada por el helper _cerrarModalAnimado(),
+           ver JS) antes de fijar display:none, para que el fundido/pop de
+           salida realmente se vea en vez de cortarse de golpe. */
+        @keyframes modalOverlayFadeOut { from { opacity: 1; } to { opacity: 0; } }
+        @keyframes modalCardPopOut {
+            from { opacity: 1; transform: scale(1); }
+            to   { opacity: 0; transform: scale(0.96); }
+        }
+        .modal-overlay.modal-closing { animation: modalOverlayFadeOut 0.15s ease-in forwards; }
+        .modal-overlay.modal-closing > div { animation: modalCardPopOut 0.15s ease-in forwards; }
         select {
             appearance: none;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2352525b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
@@ -633,13 +672,25 @@
         .export-submenu.show { max-height: 400px; opacity: 1; transform: translateY(0); }
         .progress-bar { height: 3px; background: var(--rp-border); border-radius: 2px; overflow: hidden; }
         .progress-fill { height: 100%; background: var(--rp-accent); border-radius: 2px; transition: width 0.3s ease; width: 0%; }
+        /* AJUSTADO — Cambio 07 (6ta vuelta): notificaciones en la esquina
+           inferior IZQUIERDA. Corregido el bug donde la notificación se
+           veía del ancho de toda la pantalla: showToast() todavía le
+           agregaba la clase de Tailwind "right-6" (right:24px) al toast,
+           y como esa clase no la quitaba nuestra regla de más abajo (que
+           solo define "left"), quedaban los dos lados fijados a la vez y
+           el elemento se estiraba de punta a punta. Ver el cambio en
+           showToast() (ya no incluye "right-6"). También se sube el
+           "bottom" para que la notificación quede justo arriba de la
+           línea de "By Roger Mejia" del sidebar, en vez de pegada al
+           borde inferior de la pantalla. */
         #toast {
-            position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+            position: fixed; bottom: 66px; left: 24px; z-index: 9999;
             background: var(--rp-surface); border: 1px solid var(--rp-border-strong); border-radius: 12px;
             padding: 14px 20px; font-size: 12px; color: var(--rp-text-secondary);
             transform: translateY(80px); opacity: 0;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex; align-items: center; gap-x: 10px; gap: 10px;
+            width: fit-content; right: auto;
         }
         #toast.show { transform: translateY(0); opacity: 1; }
         #toast.success { border-color: #22c55e44; }
@@ -1558,6 +1609,19 @@
             justify-content: center;
         }
         #dgiiProgressModal.dgii-open { display: flex; }
+        /* AGREGADO NUEVO — Cambio 07 (Animaciones), 5ta vuelta: animación
+           de apertura y cierre para el panel de "Consulta DTE" (botón de
+           consulta de cada anexo). Reutiliza las mismas @keyframes que ya
+           usan los demás modales (modalOverlayFadeIn/Out,
+           modalCardPopIn/Out). La apertura se dispara sola al agregar
+           "dgii-open" (ver dgiiAbrirModal()). El cierre necesita un paso
+           intermedio: dgiiCerrarModal() ahora agrega "dgii-closing" primero
+           (dispara el fundido/pop de salida) y recién después de esa
+           animación quita "dgii-open", para no cortarla a la mitad. */
+        #dgiiProgressModal.dgii-open { animation: modalOverlayFadeIn 0.16s ease-out; }
+        #dgiiProgressModal.dgii-open .dgii-progress-card { animation: modalCardPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+        #dgiiProgressModal.dgii-closing { display: flex; animation: modalOverlayFadeOut 0.15s ease-in forwards; }
+        #dgiiProgressModal.dgii-closing .dgii-progress-card { animation: modalCardPopOut 0.15s ease-in forwards; }
         .dgii-progress-card {
             background: var(--rp-inset);
             border: 1px solid var(--rp-border-strong);
@@ -2636,7 +2700,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <!-- ETAPA 1: PANTALLA DE SELECCIÓN DE EMPRESAS                        -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
-<div id="empresaScreen" class="flex-1 flex flex-col h-screen overflow-hidden">
+<div id="empresaScreen" class="flex-1 flex flex-col h-screen overflow-hidden screen active">
     <div class="empresa-screen-inner">
         <!-- Hero -->
         <div class="empresa-hero electron-drag">
@@ -2939,7 +3003,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <!-- ETAPA 2: WORKSPACE (SIDEBAR + MAIN) — oculto por defecto          -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
-<div id="workspaceContainer" class="hidden flex-1 flex h-screen overflow-hidden">
+<div id="workspaceContainer" class="hidden flex-1 flex h-screen overflow-hidden screen">
 
     <!-- SIDEBAR -->
     <aside class="w-64 sidebar flex flex-col p-6 electron-drag">
@@ -3738,7 +3802,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             <header class="flex justify-between items-center mb-8">
                 <div>
                     <h1 class="text-2xl font-medium text-white tracking-tight">Compras</h1>
-                    <p class="text-zinc-500 text-sm mt-1 font-light">Libro de Compras — Créditos Fiscales de Compra — Anexo 3.</p>
+                    <p class="text-zinc-500 text-sm mt-1 font-light">Libro de Compras — Créditos Fiscales y Documentos de Compra — Anexo 3.</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <button id="btnConsultaDte_compras" onclick="dgiiIniciarVerificacion('compras')" class="flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold rounded-lg border transition" style="color:#60a5fa;border-color:rgba(96,165,250,0.35);background:rgba(96,165,250,0.07);" onmouseover="this.style.background='rgba(96,165,250,0.15)'" onmouseout="this.style.background='rgba(96,165,250,0.07)'" title="Consultar el estado oficial de cada DTE en el Ministerio de Hacienda">
@@ -6576,7 +6640,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     }
 
     function closeEmpresaModal() {
-        document.getElementById('empresaModalForm').style.display='none'; document.getElementById('empresaModalForm').classList.remove('modal-open');
+        _cerrarModalAnimado('empresaModalForm');
     }
 
     function saveEmpresa() {
@@ -6689,8 +6753,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         renderAllTables();
         updateMonthLabel();
 
-        document.getElementById('empresaScreen').classList.add('hidden');
-        document.getElementById('workspaceContainer').classList.remove('hidden');
+        // AJUSTADO — Cambio 07 (Animaciones): transición visual al entrar
+        // a una empresa, en vez de un cambio instantáneo.
+        _mostrarPantalla('workspaceContainer', 'empresaScreen');
 
         // Mostrar/ocultar nav de correos según configuración de empresa
         var navCorreos = document.getElementById('navCorreosWrap');
@@ -6715,8 +6780,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         activeEmpresaId = null;
         resetInMemoryRecords();
 
-        document.getElementById('workspaceContainer').classList.add('hidden');
-        document.getElementById('empresaScreen').classList.remove('hidden');
+        // AJUSTADO — Cambio 07 (Animaciones): transición visual al volver
+        // a la pantalla de empresas, en vez de un cambio instantáneo.
+        _mostrarPantalla('empresaScreen', 'workspaceContainer');
 
         renderEmpresaList();
         lucide.createIcons();
@@ -7272,8 +7338,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     }
 
     function closeFaltaFisicoModal() {
-        document.getElementById('faltaFisicoModal').style.display = 'none';
-        document.getElementById('faltaFisicoModal').classList.remove('modal-open');
+        _cerrarModalAnimado('faltaFisicoModal');
     }
 
     // Inicializar listeners de botones del modal Falta Físico (evita onclick inline + CSP)
@@ -7785,26 +7850,115 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     function toggleSub(id) { document.getElementById(id).classList.toggle('show'); }
 
     function switchScreen(showId) {
-        ['homeScreen','jsonScreen','csvScreen','debitoFiscalScreen','consumidorFinalScreen','comprasScreen',
+        // AJUSTADO — Cambio 07 (4ta vuelta): reescrito para que la transición
+        // sea SECUENCIAL y no simultánea. Antes, mientras el anexo saliente
+        // se desvanecía, el anexo entrante ya estaba visible al mismo tiempo
+        // (crossfade). Como estos anexos son hijos directos de <main> en flujo
+        // normal (no superpuestos con position:absolute), tener dos visibles
+        // a la vez hacía que compitieran por el alto disponible y producía el
+        // salto/traba reportado. Ahora primero se oculta por completo el
+        // anexo anterior y RECIÉN DESPUÉS aparece el nuevo — nunca hay dos al
+        // mismo tiempo, así que no hay pelea de layout ni traba.
+        var ids = ['homeScreen','jsonScreen','csvScreen','debitoFiscalScreen','consumidorFinalScreen','comprasScreen',
          'percibidoScreen','retenidoScreen','anticipoScreen','excluidoScreen','exportScreen','librosLegalesScreen',
          'retencionesF14Screen','quincena25Screen','anuladosScreen','proveedoresScreen','clientesScreen','empleadosScreen','correosScreen',
-         'gestionCatalogosScreen'].forEach(function(id) {
-            var el = document.getElementById(id);
-            if (id === showId) {
-                el.classList.remove('hidden');
+         'gestionCatalogosScreen'];
+
+        function activarPantalla() {
+            var el = document.getElementById(showId);
+            if (!el) return;
+            el.classList.remove('hidden');
+            // Doble rAF: asegura que el navegador ya pintó el frame en
+            // opacity:0 antes de animar a "active" (mismo truco que usa
+            // fsConfirm() en este archivo), para que el fundido se vea
+            // siempre y no aparezca de golpe.
+            requestAnimationFrame(function() {
                 requestAnimationFrame(function() { el.classList.add('active'); });
-                if (id === 'exportScreen') updateExportCounts();
-                if (id === 'librosLegalesScreen') { updateLibrosLegalesCounts(); resetLibrosLegalesView(); }
-                if (id === 'proveedoresScreen') { renderProveedoresTable(); }
-                if (id === 'clientesScreen') { renderClientesTable(); }
-                if (id === 'empleadosScreen') { renderEmpleadosTable(); }
-                if (id === 'csvScreen') { initCsvScreen(); }
-                if (id === 'correosScreen') { correosRenderTabla(); correosRenderHistorial(); _correosCheckAutoloadBanner(); }
-            } else {
+            });
+            if (showId === 'exportScreen') updateExportCounts();
+            if (showId === 'librosLegalesScreen') { updateLibrosLegalesCounts(); resetLibrosLegalesView(); }
+            if (showId === 'proveedoresScreen') { renderProveedoresTable(); }
+            if (showId === 'clientesScreen') { renderClientesTable(); }
+            if (showId === 'empleadosScreen') { renderEmpleadosTable(); }
+            if (showId === 'csvScreen') { initCsvScreen(); }
+            if (showId === 'correosScreen') { correosRenderTabla(); correosRenderHistorial(); _correosCheckAutoloadBanner(); }
+        }
+
+        var habiaVisible = false;
+        ids.forEach(function(id) {
+            if (id === showId) return;
+            var el = document.getElementById(id);
+            if (el && !el.classList.contains('hidden')) {
+                habiaVisible = true;
                 el.classList.remove('active');
-                setTimeout(function() { if (!el.classList.contains('active')) el.classList.add('hidden'); }, 300);
+                setTimeout(function() { el.classList.add('hidden'); }, 150);
             }
         });
+
+        if (habiaVisible) {
+            setTimeout(activarPantalla, 150);
+        } else {
+            activarPantalla();
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // AGREGADO NUEVO — Cambio 07 (Animaciones): transición entre la
+    // pantalla de empresas y el workspace interno de una empresa.
+    // AJUSTADO (4ta vuelta): igual que switchScreen() arriba, ahora es
+    // SECUENCIAL. empresaScreen y workspaceContainer son hijos directos
+    // de <body class="flex ..."> — es decir, hermanos dentro de un flex
+    // row. Tenerlos visibles los dos al mismo tiempo (crossfade) hacía que
+    // ambos compitieran por el ancho de body como si fueran dos columnas,
+    // por eso el que entraba se veía angosto y "empujado" desde la
+    // derecha, y al ocultarse el otro se expandía de golpe. Ahora primero
+    // se oculta por completo la pantalla anterior y RECIÉN DESPUÉS aparece
+    // la nueva — un simple fundido, sin desplazamiento y sin ese salto.
+    // ══════════════════════════════════════════════════════════════════
+    function _mostrarPantalla(idMostrar, idOcultar) {
+        var elMostrar = document.getElementById(idMostrar);
+        var elOcultar = document.getElementById(idOcultar);
+
+        function mostrar() {
+            if (!elMostrar) return;
+            elMostrar.classList.remove('hidden');
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() { elMostrar.classList.add('active'); });
+            });
+        }
+
+        if (elOcultar) {
+            elOcultar.classList.remove('active');
+            setTimeout(function() {
+                elOcultar.classList.add('hidden');
+                mostrar();
+            }, 150);
+        } else {
+            mostrar();
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // AGREGADO NUEVO — Cambio 07 (Animaciones), 2da vuelta: cierre animado
+    // de modales. Todas las funciones closeXxxModal() de este archivo
+    // ocultaban el modal de golpe (display:none + quitar "modal-open" en
+    // el mismo instante). Este helper agrega la clase "modal-closing"
+    // (dispara el fundido/pop de salida por @keyframes, ver CSS de
+    // .modal-overlay.modal-closing) y espera a que termine antes de fijar
+    // display:none, para no cortar la animación. Acepta un id (string) o
+    // el elemento ya obtenido con getElementById. No cambia qué hace cada
+    // función al cerrar (limpiar campos, resetear estado, etc.), solo
+    // cómo se oculta visualmente el modal.
+    // ══════════════════════════════════════════════════════════════════
+    function _cerrarModalAnimado(idOrEl) {
+        var modal = (typeof idOrEl === 'string') ? document.getElementById(idOrEl) : idOrEl;
+        if (!modal) return;
+        modal.classList.remove('modal-open');
+        modal.classList.add('modal-closing');
+        setTimeout(function() {
+            modal.classList.remove('modal-closing');
+            modal.style.display = 'none';
+        }, 150);
     }
 
     function showScreen(type) {
@@ -8820,8 +8974,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         lucide.createIcons();
     }
     function closeCorreosConfigModal() {
-        document.getElementById('correosConfigModal').style.display = 'none';
-        document.getElementById('correosConfigModal').classList.remove('modal-open');
+        _cerrarModalAnimado('correosConfigModal');
     }
     function correosGuardarConfig() {
         var email = document.getElementById('correosConfigEmail').value.trim();
@@ -8862,8 +9015,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         lucide.createIcons();
     }
     function closeAdjuntosModal() {
-        document.getElementById('correosAdjuntosModal').style.display = 'none';
-        document.getElementById('correosAdjuntosModal').classList.remove('modal-open');
+        _cerrarModalAnimado('correosAdjuntosModal');
     }
     function correosSeleccionarPdf() {
         document.getElementById('adjuntosPdfInput').value = '';
@@ -10067,7 +10219,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     }
 
     function closeFirmaModal() {
-        document.getElementById('firmaModalForm').style.display='none'; document.getElementById('firmaModalForm').classList.remove('modal-open');
+        _cerrarModalAnimado('firmaModalForm');
     }
 
     function ejecutarImpresion() {
@@ -10187,7 +10339,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         document.getElementById('toastIcon').innerHTML = type === 'success'
             ? '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'
             : '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
-        t.className = 'fixed bottom-6 right-6 z-50 bg-[var(--rp-surface)] border border-[var(--rp-border-strong)] rounded-xl px-5 py-3 text-xs text-zinc-400 flex items-center gap-3 show ' + type;
+        t.className = 'fixed bottom-6 left-6 z-50 bg-[var(--rp-surface)] border border-[var(--rp-border-strong)] rounded-xl px-5 py-3 text-xs text-zinc-400 flex items-center gap-3 show ' + type;
         t.style.zIndex = '10000000';
         clearTimeout(t._timer);
         t._timer = setTimeout(function() { t.classList.remove('show'); }, 3500);
@@ -11891,8 +12043,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         document.getElementById('debitoModalForm').style.display='flex'; document.getElementById('debitoModalForm').classList.add('modal-open');
     }
     function closeDebitoModal() {
-        document.getElementById('debitoModalForm').style.display='none';
-        document.getElementById('debitoModalForm').classList.remove('modal-open');
+        _cerrarModalAnimado('debitoModalForm');
     }
     function navDebitoRecord(delta) {
         var cur = parseInt(document.getElementById('d_editIndex').value);
@@ -12115,8 +12266,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         document.getElementById('cfModalForm').style.display='flex'; document.getElementById('cfModalForm').classList.add('modal-open');
     }
     function closeCfModal() {
-        document.getElementById('cfModalForm').style.display='none';
-        document.getElementById('cfModalForm').classList.remove('modal-open');
+        _cerrarModalAnimado('cfModalForm');
     }
     function navCfRecord(delta) {
         var cur = parseInt(document.getElementById('cf_editIndex').value);
@@ -12316,7 +12466,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         _setModalMode('cp', index !== -1, comprasRecords, index);
         document.getElementById('comprasModalForm').style.display='flex'; document.getElementById('comprasModalForm').classList.add('modal-open');
     }
-    function closeComprasModal() { document.getElementById('comprasModalForm').style.display='none'; document.getElementById('comprasModalForm').classList.remove('modal-open'); }
+    function closeComprasModal() { _cerrarModalAnimado('comprasModalForm'); }
     function navComprasRecord(delta) {
         var cur = parseInt(document.getElementById('cp_editIndex').value);
         var next = cur + delta;
@@ -12688,7 +12838,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         _setModalMode('perc', index !== -1, percibidoRecords, index);
         document.getElementById('percibidoModalForm').style.display='flex'; document.getElementById('percibidoModalForm').classList.add('modal-open');
     }
-    function closePercibidoModal() { document.getElementById('percibidoModalForm').style.display='none'; document.getElementById('percibidoModalForm').classList.remove('modal-open'); }
+    function closePercibidoModal() { _cerrarModalAnimado('percibidoModalForm'); }
     function navPercibidoRecord(delta) {
         var cur = parseInt(document.getElementById('perc_editIndex').value);
         var next = cur + delta;
@@ -12816,7 +12966,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         _setModalMode('ret', index !== -1, retenidoRecords, index);
         document.getElementById('retenidoModalForm').style.display='flex'; document.getElementById('retenidoModalForm').classList.add('modal-open');
     }
-    function closeRetenidoModal() { document.getElementById('retenidoModalForm').style.display='none'; document.getElementById('retenidoModalForm').classList.remove('modal-open'); }
+    function closeRetenidoModal() { _cerrarModalAnimado('retenidoModalForm'); }
     function navRetenidoRecord(delta) {
         var cur = parseInt(document.getElementById('ret_editIndex').value);
         var next = cur + delta;
@@ -12943,7 +13093,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         _setModalMode('ant', index !== -1, anticipoRecords, index);
         document.getElementById('anticipoModalForm').style.display='flex'; document.getElementById('anticipoModalForm').classList.add('modal-open');
     }
-    function closeAnticipoModal() { document.getElementById('anticipoModalForm').style.display='none'; document.getElementById('anticipoModalForm').classList.remove('modal-open'); }
+    function closeAnticipoModal() { _cerrarModalAnimado('anticipoModalForm'); }
     function navAnticipoRecord(delta) {
         var cur = parseInt(document.getElementById('ant_editIndex').value);
         var next = cur + delta;
@@ -13073,7 +13223,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         _setModalMode('ex', index !== -1, excluidoRecords, index);
         document.getElementById('excluidoModalForm').style.display='flex'; document.getElementById('excluidoModalForm').classList.add('modal-open');
     }
-    function closeExcluidoModal() { document.getElementById('excluidoModalForm').style.display='none'; document.getElementById('excluidoModalForm').classList.remove('modal-open'); }
+    function closeExcluidoModal() { _cerrarModalAnimado('excluidoModalForm'); }
     function navExcluidoRecord(delta) {
         var cur = parseInt(document.getElementById('ex_editIndex').value);
         var next = cur + delta;
@@ -13232,7 +13382,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         lucide.createIcons();
     }
 
-    function closeF14Modal() { document.getElementById('f14ModalForm').style.display='none'; document.getElementById('f14ModalForm').classList.remove('modal-open'); }
+    function closeF14Modal() { _cerrarModalAnimado('f14ModalForm'); }
     function navF14Record(delta) {
         var cur = parseInt(document.getElementById('f14_editIndex').value);
         var next = cur + delta;
@@ -13408,7 +13558,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         lucide.createIcons();
     }
 
-    function closeQuincena25Modal() { document.getElementById('quincena25ModalForm').style.display='none'; document.getElementById('quincena25ModalForm').classList.remove('modal-open'); }
+    function closeQuincena25Modal() { _cerrarModalAnimado('quincena25ModalForm'); }
 
     function navQuincena25Record(delta) {
         var cur = parseInt(document.getElementById('quincena25_editIndex').value);
@@ -14981,7 +15131,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     }
 
     function closeBackupRestoreModal() {
-        document.getElementById('backupRestoreModal').style.display='none'; document.getElementById('backupRestoreModal').classList.remove('modal-open');
+        _cerrarModalAnimado('backupRestoreModal');
         brPendingBackupData = null;
     }
 
@@ -15037,8 +15187,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     }
 
     function closeRestoreNamesModal() {
-        document.getElementById('restoreNamesModal').style.display='none';
-        document.getElementById('restoreNamesModal').classList.remove('modal-open');
+        _cerrarModalAnimado('restoreNamesModal');
     }
 
     function renderBackupStats() {
@@ -15477,8 +15626,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             activeEmpresaId = null;
             resetInMemoryRecords();
 
-            document.getElementById('workspaceContainer').classList.add('hidden');
-            document.getElementById('empresaScreen').classList.remove('hidden');
+            // AJUSTADO — Cambio 07 (Animaciones): misma transición visual
+            // consistente al volver a la pantalla de empresas.
+            _mostrarPantalla('empresaScreen', 'workspaceContainer');
             renderEmpresaList();
             lucide.createIcons();
 
@@ -15677,8 +15827,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     }
 
     function closeAnuladosModal() {
-        document.getElementById('anuladosModalForm').style.display = 'none';
-        document.getElementById('anuladosModalForm').classList.remove('modal-open');
+        _cerrarModalAnimado('anuladosModalForm');
     }
 
     function navAnuladosRecord(delta) {
@@ -16180,7 +16329,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
     function _minimizarModuloEscaneo() {
         var modal = document.getElementById('qrScanModal');
-        modal.style.display = 'none'; modal.classList.remove('modal-open');
+        _cerrarModalAnimado(modal);
         if (_qrScanEstado.activo) {
             var floatBtn = document.getElementById('qrScanFloatBtn');
             floatBtn.style.display = 'flex'; floatBtn.classList.remove('hidden');
@@ -16200,7 +16349,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         if (window.qrScan) window.qrScan.detener().catch(function() {});
         _qrScanEstado = { activo: false, conectado: false, qrDataUrl: null };
         var modal = document.getElementById('qrScanModal');
-        modal.style.display = 'none'; modal.classList.remove('modal-open');
+        _cerrarModalAnimado(modal);
         var floatBtn = document.getElementById('qrScanFloatBtn');
         floatBtn.style.display = 'none'; floatBtn.classList.add('hidden');
     }
@@ -17145,8 +17294,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     }
 
     function closeProveedorModal() {
-        document.getElementById('proveedorModalForm').style.display = 'none';
-        document.getElementById('proveedorModalForm').classList.remove('modal-open');
+        _cerrarModalAnimado('proveedorModalForm');
     }
 
     function saveProveedorRecord(silent) {
@@ -17390,8 +17538,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     }
 
     function closeEmpleadoModal() {
-        document.getElementById('empleadoModalForm').style.display = 'none';
-        document.getElementById('empleadoModalForm').classList.remove('modal-open');
+        _cerrarModalAnimado('empleadoModalForm');
     }
 
     function navEmpleadoRecord(delta) {
@@ -17694,8 +17841,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     }
 
     function closeCsvImportModal() {
-        document.getElementById('csvImportModal').style.display = 'none';
-        document.getElementById('csvImportModal').classList.remove('modal-open');
+        _cerrarModalAnimado('csvImportModal');
         csvPendingFile = null;
         csvParsedRows  = [];
     }
@@ -18492,8 +18638,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     }
 
     function closeClienteModal() {
-        document.getElementById('clienteModalForm').style.display = 'none';
-        document.getElementById('clienteModalForm').classList.remove('modal-open');
+        _cerrarModalAnimado('clienteModalForm');
     }
 
     function saveClienteRecord() {
@@ -19028,7 +19173,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
     function dgiiCerrarModal() {
         var m = document.getElementById('dgiiProgressModal');
-        if (m) m.classList.remove('dgii-open');
+        if (!m) return;
+        // AJUSTADO — Cambio 07 (5ta vuelta): cierre animado (ver CSS de
+        // #dgiiProgressModal.dgii-closing). Se agrega "dgii-closing" para
+        // que se vea el fundido/pop de salida y, recién cuando termina, se
+        // quita "dgii-open" (que es lo que controla la visibilidad real).
+        m.classList.add('dgii-closing');
+        m.classList.remove('dgii-open');
+        setTimeout(function() { m.classList.remove('dgii-closing'); }, 150);
     }
 
     function dgiiCancelarVerificacion() {
