@@ -2665,6 +2665,42 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 </div>
                 <button onclick="confirmarReindexarSistema();" style="padding:9px 18px;background:var(--rp-accent);color:#fff;font-size:11.5px;font-weight:600;border:none;border-radius:9px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;flex-shrink:0;transition:background 0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='var(--rp-accent)'">Ejecutar</button>
             </div>
+            <!-- ═══ AGREGADO NUEVO (Cambio 01): tarjeta "Apariencia" — el interruptor
+                 de Modo Claro/Oscuro se reubicó aquí desde la barra inferior. El
+                 botón conserva exactamente los mismos IDs (themeToggleBtn,
+                 themeToggleIconSun, themeToggleIconMoon, themeToggleLabel) y el
+                 mismo onclick="toggleFiscalSyncTheme()", así que
+                 applyFiscalSyncTheme()/toggleFiscalSyncTheme() (script al final
+                 del documento) siguen funcionando sin ningún cambio de lógica;
+                 solo cambió su ubicación y su estilo visual, para integrarse con
+                 el resto de tarjetas del panel de Admin. -->
+            <div style="display:flex;align-items:center;gap:14px;background:var(--rp-surface);border:1px solid var(--rp-border-strong);border-radius:14px;padding:18px 20px;">
+                <div style="width:38px;height:38px;border-radius:10px;background:var(--rp-border);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#60a5fa"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>
+                </div>
+                <div style="flex:1;">
+                    <p style="font-size:13px;font-weight:600;color:var(--rp-text-primary);margin-bottom:3px;">Apariencia</p>
+                    <p style="font-size:11.5px;color:var(--rp-text-secondary);line-height:1.4;">Alterna entre Modo Claro y Modo Oscuro para toda la aplicación.</p>
+                </div>
+                <button id="themeToggleBtn" onclick="toggleFiscalSyncTheme()" title="Activar Modo Claro" style="display:flex;align-items:center;gap:7px;padding:9px 18px;background:var(--rp-accent);color:#fff;font-size:11.5px;font-weight:600;border:none;border-radius:9px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;flex-shrink:0;transition:background 0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='var(--rp-accent)'">
+                    <svg id="themeToggleIconSun" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="4"></circle>
+                        <path d="M12 2v2"></path>
+                        <path d="M12 20v2"></path>
+                        <path d="m4.93 4.93 1.41 1.41"></path>
+                        <path d="m17.66 17.66 1.41 1.41"></path>
+                        <path d="M2 12h2"></path>
+                        <path d="M20 12h2"></path>
+                        <path d="m6.34 17.66-1.41 1.41"></path>
+                        <path d="m19.07 4.93-1.41 1.41"></path>
+                    </svg>
+                    <svg id="themeToggleIconMoon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <span id="themeToggleLabel">Modo Claro</span>
+                </button>
+            </div>
+
 
             <!-- ═══ AGREGADO NUEVO (Cambio 03): RUTAS DE EXPORTACIÓN ═══ -->
             <div style="background:var(--rp-surface);border:1px solid var(--rp-border-strong);border-radius:14px;padding:20px;margin-top:4px;">
@@ -2753,8 +2789,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                  independiente; ahora se abre desde dentro del panel de Admin
                  (pestaña Sistema, ver adminSistemaStep) para evitar que quede
                  "suelta" en la barra y para que su navegación (abrir/cerrar)
-                 quede anidada correctamente dentro del flujo de Admin. El nuevo
-                 orden de la barra es: Admin | Escaneo QR | Modo Claro. -->
+                 quede anidada correctamente dentro del flujo de Admin.
+                 MODIFICADO (Cambio 01): el interruptor de Modo Claro/Oscuro se
+                 retiró de esta barra y se reubicó dentro del panel de Admin
+                 (pestaña Sistema, tarjeta "Apariencia"), conservando exactamente
+                 la misma función toggleFiscalSyncTheme() y los mismos IDs
+                 (themeToggleBtn / themeToggleIconSun / themeToggleIconMoon /
+                 themeToggleLabel), solo que ahora viven ahí en vez de aquí. El
+                 nuevo orden de la barra es: Admin | Escaneo QR. -->
             <div style="display:flex;align-items:center;gap:4px;">
                 <button onclick="openAdminPanel()" title="Panel de Administración" style="display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--rp-text-secondary);font-family:'Inter',sans-serif;padding:4px 8px;border-radius:6px;transition:all 0.2s;position:relative;" onmouseover="this.style.color='var(--rp-text-primary)';this.style.background='var(--rp-border)';" onmouseout="this.style.color='var(--rp-text-secondary)';this.style.background='none';">
                     <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
@@ -2775,29 +2817,6 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                         <path d="M14 14h3v3h-3zM14 20h7M20 14v3M17 20v.01M20 20v.01"/>
                     </svg>
                     Escaneo QR
-                </button>
-                <!-- AGREGADO NUEVO (Cambio 01 — Modo Claro): botón para alternar
-                     entre Modo Oscuro y Modo Claro. El ícono (sol/luna) y el
-                     tooltip se actualizan desde applyFiscalSyncTheme() /
-                     toggleFiscalSyncTheme() (ver script al final del documento);
-                     no depende de recursos externos. -->
-                <span style="color:var(--rp-border-strong);font-size:10px;">|</span>
-                <button id="themeToggleBtn" onclick="toggleFiscalSyncTheme()" title="Activar Modo Claro" class="theme-toggle-btn">
-                    <svg id="themeToggleIconSun" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="4"></circle>
-                        <path d="M12 2v2"></path>
-                        <path d="M12 20v2"></path>
-                        <path d="m4.93 4.93 1.41 1.41"></path>
-                        <path d="m17.66 17.66 1.41 1.41"></path>
-                        <path d="M2 12h2"></path>
-                        <path d="M20 12h2"></path>
-                        <path d="m6.34 17.66-1.41 1.41"></path>
-                        <path d="m19.07 4.93-1.41 1.41"></path>
-                    </svg>
-                    <svg id="themeToggleIconMoon" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
-                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                    </svg>
-                    <span id="themeToggleLabel">Modo Claro</span>
                 </button>
             </div>
         </div>
@@ -13675,7 +13694,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
     // Credenciales base (admin siempre existe, no se puede eliminar)
     var FS_ADMIN_USER = 'admin';
-    var FS_ADMIN_PASS_DEFAULT = 'fiscal2024';
+    var FS_ADMIN_PASS_DEFAULT = 'Fiscal0215'; // Cambio 02: clave admin actualizada (antes 'fiscal2024')
 
     function loadFsUsers() {
         var raw = fsStore.getItem('fs_v' + APP_VERSION + '_users');
@@ -13686,16 +13705,47 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         // Si no hay datos válidos, retornar lista por defecto
         if (!users || !Array.isArray(users) || users.length === 0) {
             return [
-                { user: 'admin', pass: 'fiscal2024', isAdmin: true },
+                { user: 'admin', pass: 'Fiscal0215', isAdmin: true }, // Cambio 02: clave admin actualizada (antes 'fiscal2024')
                 { user: 'roger', pass: '2025', isAdmin: false },
-                { user: 'user',  pass: 'FiscalSync', isAdmin: false }
+                { user: 'user',  pass: 'User2026', isAdmin: false } // Cambio 03: clave de 'user' actualizada (antes 'FiscalSync')
             ];
         }
         // Garantizar que admin SIEMPRE exista en la lista cargada
         var adminExists = users.some(function(u) { return u.user === FS_ADMIN_USER; });
+        var needsPersist = false;
         if (!adminExists) {
             users.unshift({ user: FS_ADMIN_USER, pass: FS_ADMIN_PASS_DEFAULT, isAdmin: true });
-            // Persistir la corrección
+            needsPersist = true;
+        }
+        // AGREGADO NUEVO (Cambio 02): migración de la clave de admin para
+        // instalaciones ya existentes. Los datos de usuarios se guardan en
+        // disco (fsStore) desde la primera vez que se usó la app, así que el
+        // valor por defecto de arriba (FS_ADMIN_PASS_DEFAULT) NO alcanza a las
+        // instalaciones que ya tenían guardada la clave anterior 'fiscal2024'.
+        // Aquí se detecta ese caso puntual y se actualiza la clave del admin a
+        // 'Fiscal0215', dejando intacto el resto de usuarios y su lógica.
+        users.forEach(function(u) {
+            if (u.user === FS_ADMIN_USER && u.pass === 'fiscal2024') {
+                u.pass = FS_ADMIN_PASS_DEFAULT;
+                needsPersist = true;
+            }
+        });
+        // AGREGADO NUEVO (Cambio 03): igual que con admin arriba, garantizamos
+        // que el usuario 'user' SIEMPRE exista en instalaciones ya existentes
+        // (las que ya tenían su lista de usuarios guardada en disco antes de
+        // este cambio), y migramos su clave anterior 'FiscalSync' a 'User2026'.
+        var userExists = users.some(function(u) { return u.user === 'user'; });
+        if (!userExists) {
+            users.push({ user: 'user', pass: 'User2026', isAdmin: false });
+            needsPersist = true;
+        }
+        users.forEach(function(u) {
+            if (u.user === 'user' && u.pass === 'FiscalSync') {
+                u.pass = 'User2026';
+                needsPersist = true;
+            }
+        });
+        if (needsPersist) {
             try { fsStore.setItem('fs_v' + APP_VERSION + '_users', JSON.stringify(users)); } catch(e) {}
         }
         return users;
