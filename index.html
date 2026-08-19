@@ -1015,8 +1015,9 @@
         .workspace-topbar .back-btn:hover { color: var(--rp-text-heading); background: var(--rp-border); }
         .workspace-topbar .empresa-info {
             display: flex;
-            align-items: center;
-            gap: 12px;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
         }
         .workspace-topbar .empresa-info .empresa-name {
             font-size: 14px;
@@ -17302,10 +17303,63 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             if (navEl) navEl.style.display = 'none';
             if (posEl) posEl.innerText = '';
         }
+        // CAMBIO 03: al abrir el modal (nuevo o edición) se filtran las opciones
+        // de Tipo de Costo/Gasto según la Clasificación ya cargada, para que el
+        // select nunca muestre opciones inválidas para esa clasificación.
+        filtrarTipoCostoPorClasif();
         toggleProveedorUsoFields();
         document.getElementById('proveedorModalForm').style.display = 'flex';
         document.getElementById('proveedorModalForm').classList.add('modal-open');
         lucide.createIcons();
+    }
+
+    // ═══ CAMBIO 03 — Regla de validación "Clasificación" ↔ "Tipo de Costo/Gasto" ═══
+    // Mapa de valores permitidos de Tipo de Costo/Gasto para cada Clasificación.
+    // Cuando la Clasificación es "" (Sin clasificar) no se restringe el listado,
+    // ya que esa combinación no forma parte de las reglas solicitadas.
+    var CLASIF_TIPO_COSTO_MAP = {
+        '1': ['4', '5', '6', '7'],
+        '2': ['1', '2', '3', '7'],
+        '8': ['8'],
+        '9': ['9'],
+        '0': ['0']
+    };
+
+    // Catálogo completo de opciones de Tipo de Costo/Gasto, usado para
+    // reconstruir el <select> ya filtrado según la Clasificación elegida.
+    var TIPO_COSTO_OPTIONS_FULL = [
+        { value: '1', label: '1 — Gasto de Venta sin Donación' },
+        { value: '2', label: '2 — Gasto de Administración sin Donación' },
+        { value: '3', label: '3 — Gastos Financieros sin Donación' },
+        { value: '4', label: '4 — Costo Art. Producidos/Comprados Imp./Intern.' },
+        { value: '5', label: '5 — Costo Art. Producidos/Comprados Interno' },
+        { value: '6', label: '6 — Costo Indirectos de Fabricación' },
+        { value: '7', label: '7 — Mano de obra' },
+        { value: '8', label: '8 — Operaciones informadas en más de 1 anexo' },
+        { value: '9', label: '9 — Excepciones' },
+        { value: '0', label: '0 — Periodos anteriores a febrero de 2024' }
+    ];
+
+    // Actualiza dinámicamente las opciones visibles de "Tipo de Costo/Gasto"
+    // en el formulario de Proveedores según la "Clasificación" seleccionada.
+    // Si el valor previamente elegido en Tipo de Costo/Gasto ya no es válido
+    // para la nueva Clasificación, se limpia (vuelve a "— Sin clasificar —")
+    // para evitar dejar armada una combinación inválida en el formulario.
+    function filtrarTipoCostoPorClasif() {
+        var clasifSel    = document.getElementById('prov_clasif');
+        var tipoCostoSel = document.getElementById('prov_tipo_costo');
+        if (!clasifSel || !tipoCostoSel) return;
+        var clasif     = clasifSel.value;
+        var permitidos = CLASIF_TIPO_COSTO_MAP[clasif] || null; // null = sin restricción
+        var valorActual = tipoCostoSel.value;
+        var html = '<option value="">— Sin clasificar —</option>';
+        TIPO_COSTO_OPTIONS_FULL.forEach(function(opt) {
+            if (!permitidos || permitidos.indexOf(opt.value) !== -1) {
+                html += '<option value="' + opt.value + '">' + opt.label + '</option>';
+            }
+        });
+        tipoCostoSel.innerHTML = html;
+        tipoCostoSel.value = (permitidos && valorActual && permitidos.indexOf(valorActual) === -1) ? '' : valorActual;
     }
 
     // AGREGADO — CAMBIO 05: fuerza que un proveedor solo pueda pertenecer a
@@ -17375,9 +17429,28 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             tipoCosto = '';
         }
 
+        // CAMBIO 03: valida que la combinación Clasificación / Tipo de Costo-Gasto
+        // sea una de las permitidas antes de guardar. Aplica tanto al agregar un
+        // proveedor nuevo como al editar uno existente; si el proveedor es
+        // exclusivamente de "IVA Retenido" (esSoloRetenido) estos campos no
+        // aplican y ya quedaron forzados a vacío arriba, así que se omite.
+        if (!esSoloRetenido && clasif) {
+            var tipoCostoPermitidos = CLASIF_TIPO_COSTO_MAP[clasif];
+            if (tipoCostoPermitidos && tipoCostoPermitidos.indexOf(tipoCosto) === -1) {
+                showToast('El Tipo de Costo/Gasto seleccionado no es válido para la Clasificación elegida', 'error');
+                return false;
+            }
+        }
+
         if (!nit && !nombre) { showToast('Ingresa al menos el NIT/NRC o el nombre', 'error'); return false; }
 
         var list = loadProveedores();
+
+        // AGREGADO — Cambio 02: recordar el NIT anterior del proveedor (solo
+        // aplica al editar un registro existente) para poder sincronizar ese
+        // dato en los anexos si el usuario lo corrige. No afecta la lógica
+        // de clasificación, que sigue igual.
+        var nitAnterior = '';
 
         if (isNaN(index) || index === -1) {
             // Verificar duplicado por NIT
@@ -17388,6 +17461,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             list.push({ nit: nit, nrc: nrc, dui: dui, nombre: nombre, clasif: clasif, sector: sector, tipoCosto: tipoCosto, usos: usos, tipoDocEx: tipoDocEx, tipoOpEx: tipoOpEx });
         } else {
             if (!list[index]) return false;
+            nitAnterior = (list[index].nit || '').trim();
             list[index].nit = nit;
             list[index].nrc = nrc;
             list[index].dui = dui;
@@ -17409,6 +17483,20 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             if (actualizados > 0) {
                 saveCurrentMonthData();
                 renderComprasTable();
+            }
+        }
+
+        // AGREGADO — Cambio 02: si el NIT del proveedor cambió, sincronizar el
+        // nuevo NIT en los anexos (Compras, IVA Retenido, Sujeto Excluido) que
+        // ya tenían registrado el NIT anterior. Solo toca el campo NIT — no
+        // modifica clasificación, sector ni tipo de costo/gasto.
+        if (nitAnterior && nit && nitAnterior !== nit) {
+            var anexosActualizados = aplicarNuevoNitProveedorAAnexos(nitAnterior, nit);
+            if (anexosActualizados > 0) {
+                saveCurrentMonthData();
+                renderComprasTable();
+                renderRetenidoTable();
+                renderExcluidoTable();
             }
         }
 
@@ -17436,6 +17524,44 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 count++;
             }
         });
+        return count;
+    }
+
+    // AGREGADO — Cambio 02: cuando se corrige el NIT de un proveedor desde el
+    // Directorio, actualizar ese mismo dato en los anexos del mes actual que
+    // ya lo tenían registrado con el NIT anterior (Compras, IVA Retenido y
+    // Compras a Sujeto Excluido — los tres anexos que usan datos del
+    // proveedor). Únicamente se toca el campo de identificación/NIT; no se
+    // modifica clasificación, sector ni tipo de costo/gasto de los registros.
+    function aplicarNuevoNitProveedorAAnexos(nitAnterior, nitNuevo) {
+        if (!nitAnterior || !nitNuevo || nitAnterior === nitNuevo) return 0;
+        var count = 0;
+
+        comprasRecords.forEach(function(r) {
+            var coincide = false;
+            if (r.nit === nitAnterior) { r.nit = nitNuevo; coincide = true; }
+            if (r.nrc === nitAnterior) { r.nrc = nitNuevo; coincide = true; }
+            if (coincide) count++;
+        });
+
+        retenidoRecords.forEach(function(r) {
+            if (r.nit === nitAnterior) {
+                r.nit = nitNuevo;
+                count++;
+            }
+        });
+
+        // Sujeto Excluido guarda el dato en "identificacion" (puede ser NIT,
+        // DUI o NRC según el caso) — solo se actualiza cuando ese valor
+        // coincide con el NIT anterior, para no tocar registros identificados
+        // por DUI.
+        excluidoRecords.forEach(function(r) {
+            if (r.identificacion === nitAnterior) {
+                r.identificacion = nitNuevo;
+                count++;
+            }
+        });
+
         return count;
     }
 
@@ -19959,7 +20085,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                     <div class="grid grid-cols-1 gap-4">
                         <div>
                             <label class="f-label">Clasificación</label>
-                            <select id="prov_clasif" class="f-input">
+                            <select id="prov_clasif" class="f-input" onchange="filtrarTipoCostoPorClasif()">
                                 <option value="">— Sin clasificar —</option>
                                 <option value="1">1 — Costo</option>
                                 <option value="2">2 — Gasto</option>
@@ -19970,6 +20096,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                         </div>
                         <div>
                             <label class="f-label">Tipo de Costo/Gasto</label>
+                            <!-- CAMBIO 03: las opciones de este select se generan dinámicamente
+                                 en JS (ver filtrarTipoCostoPorClasif) según la Clasificación
+                                 elegida arriba; el listado original queda solo como fallback
+                                 mientras carga el script. -->
                             <select id="prov_tipo_costo" class="f-input">
                                 <option value="">— Sin clasificar —</option>
                                 <option value="1">1 — Gasto de Venta sin Donación</option>
