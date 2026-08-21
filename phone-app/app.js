@@ -224,20 +224,20 @@
     // aviso de que hubo un problema con la lectura/consulta y conviene
     // volver a escanear.
     if (msg.tipo === 'resultado-documento') {
-      els.resTitulo.innerHTML = msg.ok
-        ? 'Enviado <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-left:2px;"><polyline points="20 6 9 17 4 12"/></svg>'
+      els.resTitulo.textContent = msg.ok
+        ? 'Enviado'
         : 'No se pudo procesar';
       els.resMensaje.textContent = msg.mensaje || (msg.ok
         ? 'Revisa el documento en tu computadora.'
         : 'Vuelve a escanear el documento.');
       mostrarPantalla('screenResultado');
-      // Vuelve sola a la cámara (el mismo tipo de documento sigue vigente)
-      // después de un momento, así el usuario puede seguir escaneando sin
-      // tocar nada más — igual que si la PC hubiera vuelto a ordenar el
-      // mismo tipo de documento.
+      // Ya no vuelve a abrir la cámara por su cuenta: tras mostrar el
+      // resultado, el teléfono pasa a "Teléfono listo" y espera. La cámara
+      // solo se abre de nuevo cuando la computadora ordena otro escaneo
+      // (mensaje 'iniciar-escaneo', ver arriba).
       setTimeout(function () {
         if (els.screenResultado.classList.contains('hidden')) return; // el usuario ya salió de esta pantalla
-        abrirCamara();
+        mostrarPantalla('screenReady');
       }, 1600);
       return;
     }

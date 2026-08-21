@@ -103,11 +103,20 @@
     .hdr-dropdown.open { display: flex; }
 
     /* ═══ AUTOCOMPLETE DROPDOWN ═══ */
+    /* Corrección 01 — antes usaba colores fijos (#18181b, #e4e4e7, etc.)
+       que no cambiaban con html[data-theme="light"], por eso la lista se
+       veía oscura aunque el resto de la interfaz estuviera en Modo Claro.
+       Ahora usa las mismas variables --rp-* que ya usa el resto del
+       sistema para temizarse, así responde automáticamente en ambos
+       modos sin necesitar reglas de override aparte. Se aplica a TODAS
+       las listas que usan esta misma clase (Proveedores, Clientes, y el
+       resto de anexos: d_ac_list, cp_ac_list, qrDoc_provResults,
+       ret_ac_list, ex_ac_list, quincena25_ac_list, f14_ac_list, etc.) */
     .autocomplete-wrap { position: relative; }
     .autocomplete-list {
         position: absolute; top: calc(100% + 3px); left: 0; right: 0; z-index: 9999;
-        background: #18181b; border: 1px solid #3f3f46; border-radius: 10px;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+        background: var(--rp-surface); border: 1px solid var(--rp-border-strong); border-radius: 10px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.35);
         max-height: 200px; overflow-y: auto;
         display: none; flex-direction: column;
     }
@@ -115,14 +124,14 @@
     .autocomplete-item {
         padding: 8px 12px; font-size: 11px; font-family: 'Inter', sans-serif;
         cursor: pointer; transition: background .1s; border: none; background: transparent;
-        text-align: left; color: #e4e4e7; display: flex; flex-direction: column; gap: 2px;
+        text-align: left; color: var(--rp-text-primary); display: flex; flex-direction: column; gap: 2px;
     }
-    .autocomplete-item:hover, .autocomplete-item.active { background: rgba(255,255,255,0.08); }
-    .autocomplete-item .ac-id { font-family: monospace; font-size: 10px; color: #a78bfa; }
-    .autocomplete-item .ac-name { font-weight: 500; }
+    .autocomplete-item:hover, .autocomplete-item.active { background: var(--rp-inset); }
+    .autocomplete-item .ac-id { font-family: monospace; font-size: 10px; color: var(--rp-violet-soft); }
+    .autocomplete-item .ac-name { font-weight: 500; color: var(--rp-text-primary); }
     .autocomplete-list::-webkit-scrollbar { width: 4px; }
     .autocomplete-list::-webkit-scrollbar-track { background: transparent; }
-    .autocomplete-list::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
+    .autocomplete-list::-webkit-scrollbar-thumb { background: var(--rp-border-strong); border-radius: 4px; }
 
     .hdr-drop-item {
         display: flex; align-items: center; gap: 9px;
@@ -319,6 +328,13 @@
         body { font-family: 'Inter', sans-serif; background-color: var(--rp-canvas); color: var(--rp-text-secondary); }
         .sidebar { background: var(--rp-surface); border-right: 1px solid var(--rp-border); }
         .nav-link { transition: all 0.2s; border-radius: 8px; }
+        /* Cambio 02 — Espaciado del sidebar: reemplaza el "space-y-6" (24px)
+           original entre las opciones del menú por un valor moderado (14px),
+           ya que las utilidades de Tailwind compiladas en este archivo no
+           incluyen "space-y-4". Mantiene separación visual cómoda sin quedar
+           demasiado compacto. No afecta orden, nombres, iconos ni funciones. */
+        #sidebarNav > div { margin-top: 14px; }
+        #sidebarNav > div:first-child { margin-top: 0; }
         .nav-link:hover { background: var(--rp-border); color: var(--rp-text-heading); }
         .nav-active { background: var(--rp-border); color: var(--rp-accent); }
         .card-bento { background: var(--rp-surface); border: 1px solid var(--rp-border); border-radius: 16px; transition: border 0.3s; }
@@ -2585,6 +2601,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 <button id="adminTabBtnParametros" onclick="switchAdminTab('parametros')" style="flex:1;padding:6px 14px;font-size:11px;font-weight:600;border:none;border-radius:7px;cursor:pointer;transition:all .15s;background:transparent;color:var(--rp-text-secondary);font-family:'Inter',sans-serif;">Parámetros</button>
                 <!-- AGREGADO NUEVO (Cambio 02): pestaña Sistema — agrupa Backup y Reindexar -->
                 <button id="adminTabBtnSistema" onclick="switchAdminTab('sistema')" style="flex:1;padding:6px 14px;font-size:11px;font-weight:600;border:none;border-radius:7px;cursor:pointer;transition:all .15s;background:transparent;color:var(--rp-text-secondary);font-family:'Inter',sans-serif;">Sistema</button>
+                <!-- AGREGADO NUEVO (Cambio 03): pestaña Escaneo QR — tipos de documento
+                     permitidos por módulo/anexo al escanear -->
+                <button id="adminTabBtnEscaneoQR" onclick="switchAdminTab('escaneoqr')" style="flex:1;padding:6px 14px;font-size:11px;font-weight:600;border:none;border-radius:7px;cursor:pointer;transition:all .15s;background:transparent;color:var(--rp-text-secondary);font-family:'Inter',sans-serif;">Escaneo QR</button>
             </div>
         </div>
         <!-- Verificación admin -->
@@ -2799,6 +2818,36 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 </div>
 
                 <button onclick="resetExportPaths()" style="padding:8px 16px;background:transparent;color:var(--rp-error);font-size:11px;font-weight:600;border:1px solid rgba(248,113,113,0.3);border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;" onmouseover="this.style.borderColor='rgba(248,113,113,0.7)'" onmouseout="this.style.borderColor='rgba(248,113,113,0.3)'">Restablecer valores predeterminados</button>
+            </div>
+        </div>
+
+        <!-- ═══ AGREGADO NUEVO (Cambio 03): PANEL ESCANEO QR — tipos de
+             documento permitidos por módulo/anexo al escanear. Misma
+             estructura de dos columnas que "Parámetros" (nav de módulos a
+             la izquierda, checklist a la derecha). Los 5 tipos que se
+             listan (QRSCAN_TIPOS_DTE) son siempre los mismos para
+             cualquier anexo — el valor real de texto que devuelve la
+             consulta pública del Ministerio en "Tipo de DTE" — y no
+             reemplaza la validación existente (aviso "Tipo no reconocido
+             automáticamente" del modal de Documento Escaneado): la
+             complementa — si el tipo SÍ se reconoce (uno de los 5) pero no
+             está marcado aquí para el anexo seleccionado, el escaneo se
+             bloquea antes de abrir ese modal (ver qrScanTipoPermitido() y
+             los 5 _autocompletar...DesdeQR). -->
+        <div id="adminEscaneoQRStep" style="display:none;flex:1;flex-direction:row;overflow:hidden;min-height:0;">
+            <div id="qrTiposModuloNav" style="width:200px;flex-shrink:0;border-right:1px solid var(--rp-border);overflow-y:auto;padding:12px 10px;display:flex;flex-direction:column;gap:3px;">
+                <!-- generado por JS -->
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;min-height:0;">
+                <div style="padding:16px 20px 4px;flex-shrink:0;">
+                    <span id="qrTiposModuloLabel" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--rp-text-secondary);"></span>
+                    <p style="font-size:11px;color:var(--rp-text-secondary);margin-top:6px;line-height:1.5;">Marca los tipos de DTE que pueden procesarse al escanear un QR para este anexo. Un documento cuyo Tipo de DTE se identifique automáticamente pero no esté marcado aquí será rechazado antes de abrir la pantalla de revisión, sin importar que el QR y la consulta a Hacienda hayan sido exitosos.</p>
+                </div>
+                <div id="qrTiposEditorBody" style="flex:1;overflow-y:auto;padding:8px 20px 12px;"></div>
+                <div style="padding:12px 20px;border-top:1px solid var(--rp-border);display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-shrink:0;">
+                    <button onclick="qrTiposResetModulo()" style="padding:7px 14px;background:transparent;color:var(--rp-error);font-size:11px;font-weight:600;border:1px solid rgba(248,113,113,0.3);border-radius:7px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;" onmouseover="this.style.borderColor='rgba(248,113,113,0.7)'" onmouseout="this.style.borderColor='rgba(248,113,113,0.3)'">Permitir todos</button>
+                    <button id="qrTiposSaveBtn" onclick="qrTiposSaveModulo()" style="padding:7px 18px;background:#fff;color:#000;font-size:11px;font-weight:700;border:none;border-radius:7px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;" onmouseover="this.style.background='var(--rp-text-primary)'" onmouseout="if(!this._saving)this.style.background='#fff'">Guardar cambios</button>
+                </div>
             </div>
         </div>
 
@@ -3095,7 +3144,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             <div class="h-6 w-1 bg-blue-600 rounded-full"></div>
             <span class="text-white font-semibold tracking-tight text-lg">FiscalSync</span>
         </div>
-        <nav class="flex-1 space-y-6 overflow-y-auto electron-no-drag">
+        <nav id="sidebarNav" class="flex-1 overflow-y-auto electron-no-drag">
             <div>
                 <a href="#" onclick="switchScreen('homeScreen')" class="nav-link w-full flex items-center gap-3 px-3 py-2 text-sm">
                     <i data-lucide="home" class="w-4"></i> Inicio
@@ -3187,7 +3236,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 </a>
             </div>
         </nav>
-        <div class="pt-6 border-t border-zinc-900 text-[10px] uppercase tracking-widest text-zinc-600 font-medium electron-no-drag">By Roger Mejia</div>
+        <!-- Cambio 02 — se agrega "mt-2" (8px) para separar ligeramente esta
+             línea de la última opción del menú ("Borrar Datos del Mes"),
+             sin modificar el borde ni el padding-top ya existentes. -->
+        <div class="mt-2 pt-6 border-t border-zinc-900 text-[10px] uppercase tracking-widest text-zinc-600 font-medium electron-no-drag">By Roger Mejia</div>
     </aside>
 
     <!-- MAIN -->
@@ -14195,6 +14247,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         document.getElementById('adminUsersStep').style.display = 'none';
         document.getElementById('adminParametrosStep').style.display = 'none';
         document.getElementById('adminSistemaStep').style.display = 'none';
+        document.getElementById('adminEscaneoQRStep').style.display = 'none'; // Cambio 03 — faltaba ocultar este paso al abrir el panel
         document.getElementById('adminTabNav').style.display = 'none';
         document.getElementById('adminAuthPass').value = '';
         document.getElementById('adminAuthError').innerText = '';
@@ -14236,15 +14289,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         var usersStep     = document.getElementById('adminUsersStep');
         var paramStep     = document.getElementById('adminParametrosStep');
         var sistemaStep   = document.getElementById('adminSistemaStep');
+        var escaneoStep   = document.getElementById('adminEscaneoQRStep');
         var btnU = document.getElementById('adminTabBtnUsuarios');
         var btnP = document.getElementById('adminTabBtnParametros');
         var btnS = document.getElementById('adminTabBtnSistema');
+        var btnQ = document.getElementById('adminTabBtnEscaneoQR');
         var title = document.getElementById('adminModalTitle');
         var box = document.getElementById('adminModalBox');
 
-        // Reset visual de los 3 botones antes de activar el correspondiente
-        [btnU, btnP, btnS].forEach(function(b) { if (b) { b.style.background = 'transparent'; b.style.color = 'var(--rp-text-secondary)'; } });
-        [usersStep, paramStep, sistemaStep].forEach(function(s) { if (s) s.style.display = 'none'; });
+        // Reset visual de los botones antes de activar el correspondiente
+        [btnU, btnP, btnS, btnQ].forEach(function(b) { if (b) { b.style.background = 'transparent'; b.style.color = 'var(--rp-text-secondary)'; } });
+        [usersStep, paramStep, sistemaStep, escaneoStep].forEach(function(s) { if (s) s.style.display = 'none'; });
 
         if (tab === 'usuarios') {
             usersStep.style.display = 'flex';
@@ -14258,6 +14313,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             if (title) title.innerText = 'Sistema';
             if (box) { box.style.maxWidth = '500px'; box.style.height = ''; box.style.maxHeight = '90vh'; }
             loadExportConfigUI(); // AGREGADO NUEVO (Cambio 03)
+        } else if (tab === 'escaneoqr') {
+            escaneoStep.style.display = 'flex';
+            btnQ.style.background = 'var(--rp-border)'; btnQ.style.color = 'var(--rp-text-primary)';
+            if (title) title.innerText = 'Escaneo QR — Tipos de Documento Permitidos';
+            if (box) { box.style.maxWidth = Math.min(760, window.innerWidth - 32) + 'px'; box.style.height = Math.min(window.innerHeight * 0.8, window.innerHeight - 32) + 'px'; box.style.maxHeight = '90vh'; }
+            renderQrTiposEditor();
         } else {
             paramStep.style.display = 'flex';
             btnP.style.background = 'var(--rp-border)'; btnP.style.color = 'var(--rp-text-primary)';
@@ -16611,6 +16672,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             }
             _qrScanEstado.activo = true;
             _qrScanEstado.qrDataUrl = res.qrDataUrl;
+            // Cambio 02 — Asegura que main.js tenga, desde que arranca el
+            // módulo, la copia vigente de "Tipos de Documento Permitidos"
+            // (no solo a partir del primer guardado que haga el admin).
+            _sincronizarTiposPermitidosQR();
             if (callback) callback(true);
         }).catch(function(e) {
             showToast((e && e.message) || 'Error desconocido al iniciar el módulo.', 'error');
@@ -17011,6 +17076,20 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             return;
         }
 
+        // Cambio 03 — Control de tipos de documento permitidos por módulo.
+        // Solo bloquea si el tipo SÍ se reconoció automáticamente (mapeo
+        // existente) y no está en la lista configurada en Admin para este
+        // módulo. Si no se reconoció (null), no se bloquea aquí — sigue el
+        // flujo existente (aviso "Tipo no reconocido" en el modal).
+        if (!qrScanTipoPermitido('compras', combinado.tipoDteTexto)) {
+            var _msgTipoCp = 'Este tipo de documento (' + (combinado.tipoDteTexto || combinado.tipoDocMapeado) + ') no está permitido para escaneo en el módulo de Compras — revísalo en Admin › Escaneo QR.';
+            showToast(_msgTipoCp, 'error');
+            if (window.qrScan && window.qrScan.reportarResultado) {
+                window.qrScan.reportarResultado({ ok: false, mensaje: _msgTipoCp });
+            }
+            return;
+        }
+
         openQrDocModal('compras', combinado);
     }
 
@@ -17045,6 +17124,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             showToast('Documento ya procesado.', 'error');
             if (window.qrScan && window.qrScan.reportarResultado) {
                 window.qrScan.reportarResultado({ ok: false, mensaje: 'Documento ya procesado.' });
+            }
+            return;
+        }
+
+        // Cambio 03 — Control de tipos de documento permitidos por módulo.
+        if (!qrScanTipoPermitido('cf', combinado.tipoDteTexto)) {
+            var _msgTipoCf = 'Este tipo de documento (' + (combinado.tipoDteTexto || combinado.tipoDocMapeado) + ') no está permitido para escaneo en Ventas — Consumidor Final — revísalo en Admin › Escaneo QR.';
+            showToast(_msgTipoCf, 'error');
+            if (window.qrScan && window.qrScan.reportarResultado) {
+                window.qrScan.reportarResultado({ ok: false, mensaje: _msgTipoCf });
             }
             return;
         }
@@ -17090,6 +17179,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             return;
         }
 
+        // Cambio 03 — Control de tipos de documento permitidos por módulo.
+        if (!qrScanTipoPermitido('retencion', combinado.tipoDteTexto)) {
+            var _msgTipoRet = 'Este tipo de documento (' + (combinado.tipoDteTexto || combinado.tipoDocMapeado) + ') no está permitido para escaneo en Retención IVA — revísalo en Admin › Escaneo QR.';
+            showToast(_msgTipoRet, 'error');
+            if (window.qrScan && window.qrScan.reportarResultado) {
+                window.qrScan.reportarResultado({ ok: false, mensaje: _msgTipoRet });
+            }
+            return;
+        }
+
         openQrDocModal('retencion', combinado);
     }
 
@@ -17131,6 +17230,20 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             showToast('Documento ya procesado.', 'error');
             if (window.qrScan && window.qrScan.reportarResultado) {
                 window.qrScan.reportarResultado({ ok: false, mensaje: 'Documento ya procesado.' });
+            }
+            return;
+        }
+
+        // Cambio 03 — Control de tipos de documento permitidos por módulo.
+        // A diferencia de antes, Sujeto Excluido YA participa de este
+        // control: se compara el texto real detectado (normalmente
+        // "FACTURA DE SUJETO EXCLUIDO") contra lo configurado en Admin
+        // para este anexo, igual que en los demás módulos.
+        if (!qrScanTipoPermitido('excluido', combinado.tipoDteTexto)) {
+            var _msgTipoEx = 'Este tipo de documento (' + (combinado.tipoDteTexto || combinado.tipoDocMapeado) + ') no está permitido para escaneo en Sujeto Excluido — revísalo en Admin › Escaneo QR.';
+            showToast(_msgTipoEx, 'error');
+            if (window.qrScan && window.qrScan.reportarResultado) {
+                window.qrScan.reportarResultado({ ok: false, mensaje: _msgTipoEx });
             }
             return;
         }
@@ -17239,6 +17352,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             return;
         }
 
+        // Cambio 03 — Control de tipos de documento permitidos por módulo.
+        if (!qrScanTipoPermitido('ccf', combinado.tipoDteTexto)) {
+            var _msgTipoCcf = 'Este tipo de documento (' + (combinado.tipoDteTexto || combinado.tipoDocMapeado) + ') no está permitido para escaneo en Ventas — Crédito Fiscal — revísalo en Admin › Escaneo QR.';
+            showToast(_msgTipoCcf, 'error');
+            if (window.qrScan && window.qrScan.reportarResultado) {
+                window.qrScan.reportarResultado({ ok: false, mensaje: _msgTipoCcf });
+            }
+            return;
+        }
+
         openQrDocModal('ccf', combinado);
     }
 
@@ -17289,6 +17412,250 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             tiposDoc: [], tipoDocDefault: ''
         }
     };
+
+    // ══════════════════════════════════════════════════════════════════
+    // CAMBIO 03 — CONTROL DE TIPOS DE DOCUMENTO PERMITIDOS POR MÓDULO DE
+    // ESCANEO QR (configurable desde Modo Admin, pestaña "Escaneo QR").
+    //
+    // Esta capa NO sustituye la validación existente: el mapeo automático
+    // del Tipo de Documento (_mapearTipoDteQr* en main.js -> combinado.
+    // tipoDocMapeado) sigue intacto y se usa igual que antes para
+    // autocompletar el registro. El aviso "Tipo no reconocido
+    // automáticamente" del modal de Documento Escaneado (openQrDocModal)
+    // también sigue intacto.
+    //
+    // Lo que agrega/valida esta capa es independiente de ese mapeo: usa el
+    // TEXTO REAL de "Tipo de DTE" (combinado.tipoDteTexto, tal como lo
+    // devuelve la consulta pública) traducido con _canonTipoDteQR a uno de
+    // los 5 valores de QRSCAN_TIPOS_DTE. Si ese texto no corresponde a
+    // ninguno de los 5 tipos contemplados, esta capa NO bloquea — sigue el
+    // comportamiento existente (el usuario verifica manualmente, como ya
+    // hacía el sistema).
+    //
+    // Cuando el texto SÍ corresponde a uno de los 5 tipos, se consulta la
+    // lista de tipos permitidos para ese módulo/anexo configurada en Admin.
+    // Si no está en esa lista, el escaneo se rechaza ANTES de abrir el
+    // modal de Documento Escaneado — el documento no se agrega ni se envía
+    // a ningún anexo (ver los 5 _autocompletar...DesdeQR más abajo, que
+    // llaman a qrScanTipoPermitido justo antes de openQrDocModal).
+    //
+    // Por defecto (mientras el admin no guarde ninguna configuración) se
+    // permiten TODOS los tipos en TODOS los anexos — es decir, el
+    // comportamiento actual del sistema no cambia hasta que el admin
+    // decida restringir algo.
+    //
+    // Cambio 03 (revisión): esta capa se independiza por completo de
+    // QRDOC_LIBRO_INFO.tiposDoc (esa lista sigue existiendo tal cual, sin
+    // tocarse, para el selector manual de "Tipo de Documento" dentro del
+    // modal de cada registro — es un campo distinto). El catálogo y los
+    // identificadores que usa la configuración de Admin ahora son
+    // EXCLUSIVAMENTE los 5 valores reales de "Tipo de DTE" que devuelve la
+    // consulta pública del Ministerio (ver QRSCAN_TIPOS_DTE), nunca los
+    // códigos internos (01/03/05/06/07/14) ni atributos HTML dinámicos
+    // (_ngcontent-...), que pueden cambiar entre consultas. Esto además
+    // corrige un caso que antes NO se bloqueaba: un tipo de DTE que se
+    // detecta correctamente pero que ese anexo nunca esperaba (ej. una
+    // FACTURA escaneada en Compras) — antes el mapeo de códigos de Compras
+    // no reconocía "FACTURA" y el documento pasaba sin control; ahora se
+    // compara siempre el texto real contra los 5 tipos, sin importar el
+    // anexo.
+    // ══════════════════════════════════════════════════════════════════
+    var QRSCAN_TIPOS_STORAGE_KEY = 'fs_qrscan_tipos_v2';
+
+    // Módulos configurables desde Admin — mismo módulo/anexo que usa
+    // QRDOC_LIBRO_INFO. Cambio 03: "excluido" ya participa de este control
+    // igual que los demás (antes quedaba exento por tener un tipo fijo en
+    // el mapeo interno de códigos; ahora se valida contra el texto real
+    // igual que cualquier otro anexo).
+    var QRSCAN_MODULOS = [
+        { id: 'compras',   label: 'Compras',                  anexo: 'Anexo 3', color: 'var(--rp-violet-soft)' },
+        { id: 'cf',        label: 'Venta Consumidor Final',   anexo: 'Anexo 2', color: 'var(--rp-success)' },
+        { id: 'ccf',       label: 'Venta Crédito Fiscal',     anexo: 'Anexo 1', color: 'var(--rp-accent)' },
+        { id: 'retencion', label: 'Retención IVA',            anexo: 'Anexo 7', color: 'var(--rp-warning)' },
+        { id: 'excluido',  label: 'Sujeto Excluido',          anexo: 'Anexo 5', color: 'var(--rp-text-secondary)' }
+    ];
+
+    // Cambio 03 — Catálogo único de Tipos de DTE reales (fuente única de
+    // verdad, igual para los 5 anexos). El "id" de cada uno es el
+    // identificador usado en toda la lógica de permisos; el "label" es
+    // exactamente el valor de texto que devuelve la consulta pública del
+    // Ministerio en el campo "Tipo de DTE".
+    var QRSCAN_TIPOS_DTE = [
+        { id: 'FACTURA',   label: 'FACTURA' },
+        { id: 'CCF',       label: 'COMPROBANTE DE CRÉDITO FISCAL' },
+        { id: 'NC',        label: 'NOTA DE CRÉDITO' },
+        { id: 'RETENCION', label: 'COMPROBANTE DE RETENCIÓN' },
+        { id: 'EXCLUIDO',  label: 'FACTURA DE SUJETO EXCLUIDO' }
+    ];
+
+    // Traduce el texto real de "Tipo de DTE" (tal como lo devuelve la
+    // consulta pública, en combinado.tipoDteTexto) a uno de los 5
+    // identificadores de QRSCAN_TIPOS_DTE. Debe mantenerse igual que
+    // _canonTipoDteQR en main.js. Devuelve null si el texto no corresponde
+    // a ninguno de los 5 tipos contemplados — en ese caso esta capa no
+    // bloquea, sigue el aviso existente de "tipo no reconocido
+    // automáticamente" del modal de Documento Escaneado.
+    function _canonTipoDteQR(textoTipoDte) {
+        var n = String(textoTipoDte || '').toUpperCase();
+        if (n.indexOf('COMPROBANTE DE CRÉDITO FISCAL') !== -1 || n.indexOf('COMPROBANTE DE CREDITO FISCAL') !== -1) return 'CCF';
+        if (n.indexOf('COMPROBANTE DE RETENCIÓN') !== -1 || n.indexOf('COMPROBANTE DE RETENCION') !== -1) return 'RETENCION';
+        if (n.indexOf('NOTA DE CRÉDITO') !== -1 || n.indexOf('NOTA DE CREDITO') !== -1) return 'NC';
+        if (n.indexOf('FACTURA DE SUJETO EXCLUIDO') !== -1) return 'EXCLUIDO';
+        if (n.indexOf('FACTURA') !== -1) return 'FACTURA';
+        return null;
+    }
+
+    function qrScanTiposDefaults() {
+        var out = {};
+        var todos = QRSCAN_TIPOS_DTE.map(function(t) { return t.id; });
+        QRSCAN_MODULOS.forEach(function(m) {
+            out[m.id] = todos.slice();
+        });
+        return out;
+    }
+
+    function qrScanTiposLoad() {
+        var defaults = qrScanTiposDefaults();
+        var raw = fsStore.getItem(QRSCAN_TIPOS_STORAGE_KEY);
+        if (!raw) return defaults;
+        var saved;
+        try { saved = JSON.parse(raw); } catch (e) { return defaults; }
+        if (!saved || typeof saved !== 'object') return defaults;
+        // Completa con los defaults cualquier módulo que aún no se
+        // hubiera guardado nunca (ej. si se agrega un módulo nuevo más
+        // adelante) — un módulo SÍ guardado (incluso como lista vacía)
+        // se respeta tal cual, sin recibir el default por encima.
+        Object.keys(defaults).forEach(function(id) {
+            if (!Array.isArray(saved[id])) saved[id] = defaults[id];
+        });
+        return saved;
+    }
+
+    function qrScanTiposSave(data) {
+        fsStore.setItem(QRSCAN_TIPOS_STORAGE_KEY, JSON.stringify(data));
+        _sincronizarTiposPermitidosQR(data);
+    }
+
+    // Cambio 02 — Empuja la configuración vigente de "Tipos de Documento
+    // Permitidos" al proceso principal (main.js), para que la validación
+    // que ahí se agregó tenga siempre una copia al día y pueda bloquear un
+    // documento no permitido ANTES de reenviarlo a esta pantalla. No
+    // sustituye qrScanTipoPermitido() (se deja intacta como segunda capa):
+    // esto solo mantiene sincronizada la copia que usa main.js.
+    function _sincronizarTiposPermitidosQR(data) {
+        if (!window.qrScan || !window.qrScan.actualizarTiposPermitidos) return;
+        window.qrScan.actualizarTiposPermitidos(data || qrScanTiposLoad());
+    }
+
+    // Punto único de validación — llamado desde los 5 _autocompletar...
+    // DesdeQR justo antes de abrir el modal de Documento Escaneado. Recibe
+    // el TEXTO REAL de "Tipo de DTE" (combinado.tipoDteTexto), no el código
+    // interno anexo-específico — así la validación es la misma para los 5
+    // anexos, incluido Sujeto Excluido.
+    function qrScanTipoPermitido(libro, tipoDteTexto) {
+        var canon = _canonTipoDteQR(tipoDteTexto);
+        if (!canon) return true; // no identificado -> lo maneja el aviso existente, no esta capa
+        var permitidos = qrScanTiposLoad()[libro] || [];
+        return permitidos.indexOf(canon) !== -1;
+    }
+
+    // ── Editor en Modo Admin (pestaña "Escaneo QR") ──────────────────
+    var _qrTiposActivoModulo = 'compras';
+    var _qrTiposEditorData = {}; // copia editable en memoria mientras el admin marca/desmarca, hasta Guardar
+
+    function _renderQrTiposModuloNav() {
+        var nav = document.getElementById('qrTiposModuloNav');
+        if (!nav) return;
+        nav.innerHTML = '';
+        QRSCAN_MODULOS.forEach(function(m) {
+            var btn = document.createElement('button');
+            var isActive = m.id === _qrTiposActivoModulo;
+            btn.style.cssText = 'width:100%;text-align:left;padding:9px 12px;font-size:12px;font-weight:600;border:none;border-radius:8px;cursor:pointer;font-family:\'Inter\',sans-serif;transition:all .15s;line-height:1.3;' +
+                (isActive
+                    ? 'background:var(--rp-border);color:' + m.color + ';border-left:3px solid ' + m.color + ';'
+                    : 'background:transparent;color:var(--rp-text-secondary);border-left:3px solid transparent;');
+            btn.innerHTML = m.label + '<br><span style="font-size:10px;font-weight:500;opacity:.7;">' + m.anexo + '</span>';
+            btn.onclick = (function(mod) { return function() { qrTiposSelectModulo(mod.id); }; })(m);
+            nav.appendChild(btn);
+        });
+    }
+
+    function qrTiposSelectModulo(moduloId) {
+        _qrTiposActivoModulo = moduloId;
+        _renderQrTiposModuloNav();
+        _loadQrTiposEditorData();
+        _renderQrTiposRows();
+    }
+
+    function _loadQrTiposEditorData() {
+        _qrTiposEditorData = JSON.parse(JSON.stringify(qrScanTiposLoad()));
+    }
+
+    function renderQrTiposEditor() {
+        if (!_qrTiposActivoModulo) _qrTiposActivoModulo = 'compras';
+        _renderQrTiposModuloNav();
+        _loadQrTiposEditorData();
+        _renderQrTiposRows();
+    }
+
+    function _renderQrTiposRows() {
+        var body = document.getElementById('qrTiposEditorBody');
+        var labelEl = document.getElementById('qrTiposModuloLabel');
+        if (!body) return;
+        var m = QRSCAN_MODULOS.find(function(x) { return x.id === _qrTiposActivoModulo; });
+        if (labelEl && m) labelEl.textContent = m.label + ' › ' + m.anexo;
+        body.innerHTML = '';
+
+        // Cambio 03: se muestran siempre los mismos 5 tipos reales de DTE
+        // (QRSCAN_TIPOS_DTE) para CUALQUIER anexo, incluido Sujeto
+        // Excluido — ya no depende de QRDOC_LIBRO_INFO[libro].tiposDoc.
+        var seleccionados = _qrTiposEditorData[_qrTiposActivoModulo] || [];
+        var wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
+        QRSCAN_TIPOS_DTE.forEach(function(t) {
+            var marcado = seleccionados.indexOf(t.id) !== -1;
+            var row = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--rp-inset);border:1px solid var(--rp-border-strong);border-radius:8px;padding:10px 12px;';
+            row.innerHTML =
+                '<span style="font-size:12.5px;color:var(--rp-text-primary);">' + _esc(t.label) + '</span>' +
+                '<label class="toggle-switch">' +
+                '<input type="checkbox" ' + (marcado ? 'checked' : '') + ' onchange="qrTiposToggle(\'' + t.id + '\',this.checked)">' +
+                '<span class="toggle-slider"></span>' +
+                '</label>';
+            wrap.appendChild(row);
+        });
+        body.appendChild(wrap);
+    }
+
+    function qrTiposToggle(codigo, marcado) {
+        var lista = _qrTiposEditorData[_qrTiposActivoModulo] || [];
+        var idx = lista.indexOf(codigo);
+        if (marcado && idx === -1) lista.push(codigo);
+        if (!marcado && idx !== -1) lista.splice(idx, 1);
+        _qrTiposEditorData[_qrTiposActivoModulo] = lista;
+    }
+
+    function qrTiposResetModulo() {
+        _qrTiposEditorData[_qrTiposActivoModulo] = QRSCAN_TIPOS_DTE.map(function(t) { return t.id; });
+        _renderQrTiposRows();
+    }
+
+    function qrTiposSaveModulo() {
+        qrScanTiposSave(_qrTiposEditorData);
+        var btn = document.getElementById('qrTiposSaveBtn');
+        if (btn) {
+            btn._saving = true;
+            var original = btn.textContent;
+            btn.textContent = 'Guardado ✓';
+            btn.style.background = 'var(--rp-success)'; btn.style.color = '#fff';
+            setTimeout(function() {
+                btn.textContent = original;
+                btn.style.background = '#fff'; btn.style.color = '#000';
+                btn._saving = false;
+            }, 1100);
+        }
+        showToast('Configuración de Escaneo QR guardada', 'success');
+    }
 
     // Corrección 02 — Llena los campos adicionales del documento escaneado
     // (mismo estilo que "Sello de Recepción": label + input readonly,
@@ -17378,6 +17745,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             document.getElementById('qrDoc_provBuscarLabel').innerText = info.esCliente
                 ? 'Buscar cliente por nombre, NIT o NRC'
                 : 'Buscar proveedor por nombre, NIT, NRC o DUI';
+            // Cambio 01 — mismo criterio esCliente: el botón para registrar
+            // uno nuevo y el botón de confirmación dentro del formulario
+            // también deben decir "cliente" en Venta – Crédito Fiscal, para
+            // que coincidan con el encabezado "Cliente". Solo texto, la
+            // función (onclick) es la misma en ambos casos.
+            document.getElementById('qrDoc_btnProvNuevo').innerText = info.esCliente
+                ? '+ Agregar cliente nuevo'
+                : '+ Agregar proveedor nuevo';
+            document.getElementById('qrDoc_provNuevoForm').querySelector('button[onclick="qrDocUsarProveedorNuevo()"]').innerText = info.esCliente
+                ? 'Usar este cliente'
+                : 'Usar este proveedor';
             document.getElementById('qrDoc_pn_clasifWrap').classList.toggle('hidden', info.esCliente);
             document.getElementById('qrDoc_pn_sectorWrap').classList.toggle('hidden', info.esCliente);
             document.getElementById('qrDoc_pn_tipoCostoWrap').classList.toggle('hidden', info.esCliente);

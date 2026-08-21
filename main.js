@@ -5,6 +5,38 @@ const { autoUpdater } = require('electron-updater'); // 👈 NUEVO
 
 let mainWindowRef = null; // 👈 NUEVO: referencia para enviar el estado del updater al renderer
 
+// Cambio 04 — Trae la ventana principal al frente (por encima de cualquier
+// otra ventana/aplicación abierta) SOLO en el instante en que llega un
+// documento escaneado por QR que sí va a mostrarse (justo antes de enviarlo
+// al renderer, que es quien abre el modal de "Documento Escaneado"). No se
+// llama en ningún otro momento — si el documento se rechaza por tipo no
+// permitido, la ventana se queda como estaba.
+// - restore(): si estaba minimizada, la regresa a su tamaño normal.
+// - show()+focus(): la hace visible y le da el foco del teclado.
+// - setAlwaysOnTop(true) seguido de false: fuerza que quede por encima de
+//   CUALQUIER otra ventana (de esta app o de otras apps del sistema) en el
+//   instante en que se muestra, sin dejarla fija "siempre encima" después
+//   — apenas el usuario haga clic en otra ventana, vuelve a comportarse
+//   como una ventana normal.
+function _traerVentanaAlFrente(win) {
+  if (!win || win.isDestroyed()) return;
+  try {
+    if (win.isMinimized()) win.restore();
+    win.setAlwaysOnTop(true);
+    win.show();
+    win.focus();
+    win.moveTop();
+    // Se quita el "siempre encima" casi de inmediato — solo se usó para
+    // ganarle el frente a otras ventanas en este instante, no para
+    // mantenerla fija arriba de forma permanente.
+    setTimeout(() => {
+      if (win && !win.isDestroyed()) win.setAlwaysOnTop(false);
+    }, 300);
+  } catch (e) {
+    console.warn('[QR] No se pudo traer la ventana al frente: ' + e.message);
+  }
+}
+
 function createWindow() {
   // Leer versión una sola vez — app.getVersion() lee del package.json automáticamente
   const appVersion = app.getVersion() || '';
@@ -1089,6 +1121,32 @@ function _mapearTipoDteQrSujetoExcluido(textoTipoDte) {
   return null;
 }
 
+// Cambio 03 — Traduce el valor REAL de texto de "Tipo de DTE" (tal como lo
+// devuelve la consulta pública del Ministerio, ej. "FACTURA",
+// "COMPROBANTE DE CRÉDITO FISCAL") a uno de los 5 identificadores que usa
+// la configuración de "Admin → Escaneo QR → Tipos de Documento Permitidos"
+// (ver misma lista en QRSCAN_TIPOS_DTE dentro de index.html — debe
+// mantenerse igual en ambos lados). A diferencia de los _mapearTipoDteQr*
+// de arriba (que devuelven códigos 01/03/05/06/07/14 SEGÚN EL ANEXO donde
+// se está escaneando, y por eso un mismo texto puede no reconocerse en un
+// anexo donde no se esperaba), esta función es la MISMA para los 5 anexos:
+// siempre traduce el texto tal cual vino, sin importar en qué anexo se
+// escaneó. Esto es lo que permite bloquear, por ejemplo, una FACTURA
+// escaneada en Compras — antes esa combinación no se detectaba porque
+// _mapearTipoDteQr (el de Compras) no reconocía el texto "FACTURA".
+// Devuelve null si el texto no corresponde a ninguno de los 5 tipos
+// contemplados — en ese caso esta capa no bloquea (igual que con un tipo
+// no reconocido automáticamente, sigue el aviso existente en la pantalla).
+function _canonTipoDteQR(textoTipoDte) {
+  const n = String(textoTipoDte || '').toUpperCase();
+  if (n.indexOf('COMPROBANTE DE CRÉDITO FISCAL') !== -1 || n.indexOf('COMPROBANTE DE CREDITO FISCAL') !== -1) return 'CCF';
+  if (n.indexOf('COMPROBANTE DE RETENCIÓN') !== -1 || n.indexOf('COMPROBANTE DE RETENCION') !== -1) return 'RETENCION';
+  if (n.indexOf('NOTA DE CRÉDITO') !== -1 || n.indexOf('NOTA DE CREDITO') !== -1) return 'NC';
+  if (n.indexOf('FACTURA DE SUJETO EXCLUIDO') !== -1) return 'EXCLUIDO';
+  if (n.indexOf('FACTURA') !== -1) return 'FACTURA';
+  return null;
+}
+
 // Ejecuta la consulta pública igual que _dgiiConsultarUno (misma URL, mismo
 // llenado de formulario, mismo botón "Realizar Búsqueda"), pero usando el
 // carril QR_SLOT y llamando a extraerCamposCompras al final en vez de solo
@@ -1635,6 +1693,54 @@ async function _dgiiConsultarParaExcluido(fechaGeneracion, codigoGeneracion) {
 let _qrServerModule = null;
 let _qrEventosEnganchados = false;
 
+// Cambio 02 — Validación de "Tipos de Documento Permitidos" (Admin →
+// Escaneo QR) hecha también en el proceso principal, no solo en el
+// renderer. La configuración en sí la sigue guardando el renderer (vive en
+// fsStore/localStorage, ver qrScanTiposLoad() en index.html) — este mapa es
+// solo una COPIA en memoria que el renderer empuja aquí (ver el handler
+// 'qr-actualizar-tipos-permitidos' más abajo) cada vez que cambia o cada
+// vez que se abre el módulo, para que main.js pueda bloquear un documento
+// no permitido ANTES de reenviarlo a la pantalla de la PC.
+// Cambio 03: las listas ya NO usan códigos internos (01/03/05/...) sino los
+// mismos 5 identificadores de texto real de "Tipo de DTE" que usa
+// QRSCAN_TIPOS_DTE en index.html: 'FACTURA' | 'CCF' | 'NC' | 'RETENCION' |
+// 'EXCLUIDO'. Forma: { compras: ['FACTURA','CCF',...], cf: [...], ccf: [...],
+// retencion: [...], excluido: [...] }
+// null = todavía no se ha recibido ninguna copia desde el renderer (recién
+// abierta la app) -> se permite todo, igual que hace qrScanTiposLoad() por
+// defecto en el renderer mientras el admin no haya guardado nada.
+let _tiposPermitidosPorLibroQR = null;
+
+// Mismo catálogo de anexos que QRSCAN_MODULOS en index.html, solo para
+// poder armar el mensaje de rechazo que se muestra en el teléfono.
+const _QR_ANEXO_LABEL = {
+  compras: 'Compras',
+  cf: 'Venta Consumidor Final',
+  ccf: 'Venta Crédito Fiscal',
+  retencion: 'Retención IVA',
+  excluido: 'Sujeto Excluido'
+};
+
+// Punto único de validación en el proceso principal — se llama justo
+// después de consultar el Ministerio y antes de reenviar el documento al
+// renderer (ver el listener de 'documento-escaneado' más abajo).
+// Cambio 03: recibe el TEXTO REAL de "Tipo de DTE" (no el código
+// anexo-específico) y lo traduce aquí mismo con _canonTipoDteQR, para que
+// la validación sea la MISMA para los 5 anexos — incluido 'excluido', que
+// antes quedaba totalmente exento de este control. Si el texto no
+// corresponde a ninguno de los 5 tipos contemplados, o si aún no ha
+// llegado ninguna copia de la configuración desde el renderer, no se
+// bloquea aquí — sigue el aviso existente de "tipo no reconocido" en la
+// pantalla de la PC.
+function _qrTipoDocumentoPermitidoEnMain(libro, tipoDteTexto) {
+  const canon = _canonTipoDteQR(tipoDteTexto);
+  if (!canon) return true;
+  if (!_tiposPermitidosPorLibroQR) return true; // aún no sincronizado — no bloquear
+  const permitidos = _tiposPermitidosPorLibroQR[libro];
+  if (!Array.isArray(permitidos)) return true; // libro sin config recibida — no bloquear
+  return permitidos.indexOf(canon) !== -1;
+}
+
 function _obtenerQrServerModule() {
   if (!_qrServerModule) {
     _qrServerModule = require('./qrPairingServer');
@@ -1710,7 +1816,36 @@ function _obtenerQrServerModule() {
           codGen: payload.qr.codGen,
           ambiente: payload.qr.ambiente
         });
+
+        // Cambio 02 — Reforzar validación de "Tipos de Documento Permitidos"
+        // (Admin → Escaneo QR): se comprueba AQUÍ, en el proceso principal,
+        // antes de reenviar el documento a la pantalla de la PC. Si el tipo
+        // detectado no está permitido para este anexo, el proceso se
+        // detiene de inmediato: no se manda 'combinado' al renderer (por lo
+        // tanto nunca se abre ningún modal ni se crea ningún registro
+        // pendiente en la PC — queda como si el documento nunca hubiera
+        // llegado) y se avisa al teléfono con un mensaje claro. La consulta
+        // al Ministerio ya se hizo (es necesaria para poder identificar el
+        // tipo), pero su resultado se descarta aquí mismo sin persistir ni
+        // mostrar nada más. El renderer conserva su propia validación
+        // (qrScanTipoPermitido) como segunda capa, por si un documento
+        // llegara a colarse antes de que este proceso sincronizara la
+        // configuración vigente.
+        if (!_qrTipoDocumentoPermitidoEnMain(libro, resultado.tipoDteTexto)) {
+          const anexoLabel = _QR_ANEXO_LABEL[libro] || libro;
+          const tipoTexto = resultado.tipoDteTexto || resultado.tipoDocMapeado;
+          _qrServerModule.enviarResultadoDocumento({
+            ok: false,
+            mensaje: 'Documento no permitido. Este tipo de documento (' + tipoTexto + ') no es válido para el anexo de ' + anexoLabel + '. Verifique el tipo de documento permitido en la configuración de Escaneo QR.'
+          });
+          return;
+        }
+
         if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+          // Cambio 04 — Solo aquí, justo antes de enviar el documento que sí
+          // va a abrir el modal de "Documento Escaneado" en la PC, se trae
+          // la ventana al frente.
+          _traerVentanaAlFrente(mainWindowRef);
           mainWindowRef.webContents.send(canal, combinado);
         }
 
@@ -1834,6 +1969,21 @@ ipcMain.handle('qr-actualizar-empresa-activa', async (event, { proveedores, clie
         costoLabels: costoLabels || {}
       });
     }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+// Cambio 02 — El renderer llama esto para mantener sincronizada en el
+// proceso principal la copia de "Tipos de Documento Permitidos" (Admin →
+// Escaneo QR): al arrancar/abrir el módulo, y cada vez que el admin guarda
+// cambios en el editor (ver qrTiposSaveModulo() en index.html). No depende
+// de que el módulo de escaneo esté corriendo — se guarda siempre, así ya
+// está lista en cuanto el teléfono se conecte y empiece a escanear.
+ipcMain.handle('qr-actualizar-tipos-permitidos', async (event, tipos) => {
+  try {
+    _tiposPermitidosPorLibroQR = (tipos && typeof tipos === 'object') ? tipos : null;
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e.message };

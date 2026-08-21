@@ -146,6 +146,14 @@ contextBridge.exposeInMainWorld('qrScan', {
     // Reenvía un catálogo de proveedores actualizado al teléfono (si cambió mientras el módulo está abierto)
     actualizarCatalogo: (proveedores) => ipcRenderer.invoke('qr-actualizar-catalogo', proveedores),
 
+    // Cambio 02 — Sincroniza con el proceso principal la configuración de
+    // "Tipos de Documento Permitidos" (Admin → Escaneo QR), para que
+    // main.js pueda bloquear ahí mismo un documento no permitido antes de
+    // reenviarlo a la pantalla de la PC. tipos: { compras:[...], cf:[...],
+    // ccf:[...], retencion:[...] } — mismo formato que devuelve
+    // qrScanTiposLoad() en index.html.
+    actualizarTiposPermitidos: (tipos) => ipcRenderer.invoke('qr-actualizar-tipos-permitidos', tipos),
+
     // Reenvía un catálogo de clientes actualizado al teléfono (si cambió mientras el módulo está abierto)
     actualizarClientes: (clientes) => ipcRenderer.invoke('qr-actualizar-clientes', clientes),
 
