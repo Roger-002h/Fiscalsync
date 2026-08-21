@@ -982,12 +982,37 @@ async function extraerCamposCompras(win) {
       function norm(s) {
         return (s || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
       }
-      function valorDespuesDeLabel(labels, buscado) {
-        var idx = labels.findIndex(function(l) { return norm(l.textContent).indexOf(buscado) !== -1; });
-        if (idx === -1) return '';
-        for (var i = idx + 1; i < labels.length; i++) {
-          var txt = (labels[i].textContent || '').trim();
-          if (txt && norm(txt).indexOf(buscado) === -1) return txt;
+      // Corrección 02 — ahora acepta un solo texto o un arreglo de textos
+      // candidatos (para labels cuyo texto exacto en la página puede variar
+      // ligeramente). Prueba cada candidato en orden y devuelve el primer
+      // valor encontrado; si ninguno aparece, devuelve ''. No cambia el
+      // comportamiento para las llamadas existentes (que siguen pasando un
+      // solo string).
+      // Corrección 06 — "total de la operacion" es substring de "monto total
+      // de la operacion" (el label que ya usamos para montoTotal). Antes,
+      // valorDespuesDeLabel encontraba ESE MISMO label al buscar
+      // totalOperacion (porque lo contiene) y devolvía el valor del
+      // siguiente label del DOM (p.ej. el de IVA percibido), mostrando un
+      // número que no correspondía al total real. Ahora se excluye
+      // cualquier label que también contenga "monto", para que sólo
+      // encuentre un label "Total de la Operación" standalone (si existe
+      // en la página) y no el de "Monto Total de la Operación".
+      function valorDespuesDeLabel(labels, buscado, excluirSiContiene) {
+        var candidatos = Array.isArray(buscado) ? buscado : [buscado];
+        var excluir = excluirSiContiene || [];
+        for (var b = 0; b < candidatos.length; b++) {
+          var needle = candidatos[b];
+          var idx = labels.findIndex(function(l) {
+            var t = norm(l.textContent);
+            if (t.indexOf(needle) === -1) return false;
+            for (var e = 0; e < excluir.length; e++) { if (t.indexOf(excluir[e]) !== -1) return false; }
+            return true;
+          });
+          if (idx === -1) continue;
+          for (var i = idx + 1; i < labels.length; i++) {
+            var txt = (labels[i].textContent || '').trim();
+            if (txt && norm(txt).indexOf(needle) === -1) return txt;
+          }
         }
         return '';
       }
@@ -1000,15 +1025,21 @@ async function extraerCamposCompras(win) {
           montoTotal:   valorDespuesDeLabel(labels, 'monto total de la operacion'),
           ivaPercibido: valorDespuesDeLabel(labels, 'iva percibido'),
           numeroControl: valorDespuesDeLabel(labels, 'numero de control'),
-          retencionRenta: valorDespuesDeLabel(labels, 'retencion renta')
+          retencionRenta: valorDespuesDeLabel(labels, 'retencion renta'),
+          // Corrección 02 — 3 campos adicionales, solo para mostrarlos en el
+          // resumen visual del modal de Documento Escaneado (index.html).
+          // No participan en ningún mapeo/cálculo/validación existente.
+          ivaOperaciones: valorDespuesDeLabel(labels, ['iva de las operaciones', 'iva de operaciones']),
+          ivaRetenido:    valorDespuesDeLabel(labels, 'iva retenido'),
+          totalOperacion: valorDespuesDeLabel(labels, ['total de la operacion', 'total operacion', 'total de operacion'], ['monto'])
         };
       } catch (e) {
-        return { tipoDte: '', fechaHora: '', sello: '', montoTotal: '', ivaPercibido: '', numeroControl: '', retencionRenta: '' };
+        return { tipoDte: '', fechaHora: '', sello: '', montoTotal: '', ivaPercibido: '', numeroControl: '', retencionRenta: '', ivaOperaciones: '', ivaRetenido: '', totalOperacion: '' };
       }
     })();
   `;
   return await win.webContents.executeJavaScript(script, true).catch(() => ({
-    tipoDte: '', fechaHora: '', sello: '', montoTotal: '', ivaPercibido: '', numeroControl: '', retencionRenta: ''
+    tipoDte: '', fechaHora: '', sello: '', montoTotal: '', ivaPercibido: '', numeroControl: '', retencionRenta: '', ivaOperaciones: '', ivaRetenido: '', totalOperacion: ''
   }));
 }
 
@@ -1152,7 +1183,12 @@ async function _dgiiConsultarParaCompras(fechaGeneracion, codigoGeneracion) {
     fecha: fechaSolo,
     selloRecepcion: campos.sello || '',
     montoTotal: _parseMontoQr(campos.montoTotal),
-    ivaPercibido: _parseMontoQr(campos.ivaPercibido)
+    ivaPercibido: _parseMontoQr(campos.ivaPercibido),
+    // Corrección 02 — solo para el resumen visual del modal; no participan
+    // en el mapeo/registro del Libro de Compras.
+    ivaOperaciones: _parseMontoQr(campos.ivaOperaciones),
+    ivaRetenido: _parseMontoQr(campos.ivaRetenido),
+    totalOperacion: _parseMontoQr(campos.totalOperacion)
   };
 }
 
@@ -1254,7 +1290,12 @@ async function _dgiiConsultarParaCF(fechaGeneracion, codigoGeneracion) {
     fecha: fechaSolo,
     selloRecepcion: campos.sello || '',
     numeroControl: campos.numeroControl || '',
-    montoTotal: _parseMontoQr(campos.montoTotal)
+    montoTotal: _parseMontoQr(campos.montoTotal),
+    // Corrección 02 — solo para el resumen visual del modal; no participan
+    // en el registro de Consumidor Final.
+    ivaOperaciones: _parseMontoQr(campos.ivaOperaciones),
+    ivaRetenido: _parseMontoQr(campos.ivaRetenido),
+    totalOperacion: _parseMontoQr(campos.totalOperacion)
   };
 }
 
@@ -1357,7 +1398,12 @@ async function _dgiiConsultarParaRetencion(fechaGeneracion, codigoGeneracion) {
     tipoDteTexto: campos.tipoDte || '',
     fecha: fechaSolo,
     selloRecepcion: campos.sello || '',
-    montoTotal: _parseMontoQr(campos.montoTotal)
+    montoTotal: _parseMontoQr(campos.montoTotal),
+    // Corrección 02 — solo para el resumen visual del modal; no participan
+    // en el registro de Retenciones (Anexo 7).
+    ivaOperaciones: _parseMontoQr(campos.ivaOperaciones),
+    ivaRetenido: _parseMontoQr(campos.ivaRetenido),
+    totalOperacion: _parseMontoQr(campos.totalOperacion)
   };
 }
 
@@ -1458,7 +1504,12 @@ async function _dgiiConsultarParaCCF(fechaGeneracion, codigoGeneracion) {
     fecha: fechaSolo,
     selloRecepcion: campos.sello || '',
     numeroControl: campos.numeroControl || '',
-    montoTotal: _parseMontoQr(campos.montoTotal)
+    montoTotal: _parseMontoQr(campos.montoTotal),
+    // Corrección 02 — solo para el resumen visual del modal; no participan
+    // en el registro de Crédito Fiscal (Anexo 1).
+    ivaOperaciones: _parseMontoQr(campos.ivaOperaciones),
+    ivaRetenido: _parseMontoQr(campos.ivaRetenido),
+    totalOperacion: _parseMontoQr(campos.totalOperacion)
   };
 }
 
@@ -1568,7 +1619,12 @@ async function _dgiiConsultarParaExcluido(fechaGeneracion, codigoGeneracion) {
     fecha: fechaSolo,
     selloRecepcion: campos.sello || '',
     montoTotal: _parseMontoQr(campos.montoTotal),
-    retencionRenta: _parseMontoQr(campos.retencionRenta)
+    retencionRenta: _parseMontoQr(campos.retencionRenta),
+    // Corrección 02 — solo para el resumen visual del modal; no participan
+    // en el registro de Sujeto Excluido (Anexo 5).
+    ivaOperaciones: _parseMontoQr(campos.ivaOperaciones),
+    ivaRetenido: _parseMontoQr(campos.ivaRetenido),
+    totalOperacion: _parseMontoQr(campos.totalOperacion)
   };
 }
 
@@ -1599,213 +1655,84 @@ function _obtenerQrServerModule() {
       }
     });
 
-    _qrServerModule.eventos.on('proveedor-nuevo', (proveedor) => {
-      if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-        mainWindowRef.webContents.send('qr-proveedor-nuevo', proveedor);
-      }
-    });
-
-    _qrServerModule.eventos.on('cliente-nuevo', (cliente) => {
-      if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-        mainWindowRef.webContents.send('qr-cliente-nuevo', cliente);
-      }
-    });
-
-    // Cambio 01 (ampliación): un proveedor EXISTENTE fue editado desde el
-    // teléfono — se reenvía tal cual al renderer, que es quien sabe cómo
-    // actualizar fiscaldata.json (misma estructura que el catálogo de escritorio).
-    _qrServerModule.eventos.on('proveedor-editado', (proveedorEditado) => {
-      if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-        mainWindowRef.webContents.send('qr-proveedor-editado', proveedorEditado);
-      }
-    });
-
-    // Cambio 01 (ampliación): mismo patrón que proveedor-editado, pero para un
-    // cliente existente editado desde el teléfono (flujo Ventas — Crédito Fiscal).
-    _qrServerModule.eventos.on('cliente-editado', (clienteEditado) => {
-      if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-        mainWindowRef.webContents.send('qr-cliente-editado', clienteEditado);
-      }
-    });
+    // Cambio 03: el teléfono ya no crea ni edita proveedores/clientes (esa
+    // gestión vive ahora por completo en la computadora), así que
+    // qrPairingServer nunca vuelve a emitir 'proveedor-nuevo', 'cliente-nuevo',
+    // 'proveedor-editado' ni 'cliente-editado' — se quitan estos listeners.
+    // Los canales IPC 'qr-proveedor-nuevo', etc. y sus manejadores en
+    // index.html se dejan intactos (quedan inertes, sin romper nada) por si
+    // en el futuro alguna otra vía los vuelve a emitir.
 
     _qrServerModule.eventos.on('documento-escaneado', async (payload) => {
       const libro = payload.libro || 'compras';
+      // Cambio 03 (gestión trasladada a la computadora): el teléfono ya no
+      // manda proveedor, cliente ni "exenta" — solo el QR. main.js consulta
+      // el Ministerio (igual que antes) y SIEMPRE reenvía el resultado al
+      // renderer para que la computadora lo muestre y el usuario lo revise
+      // (seleccione/agregue proveedor o cliente y confirme) — ya no se
+      // decide aquí si el documento "se agrega" o no; eso ahora lo decide
+      // el usuario en la pantalla de la PC, aunque el tipo de documento no
+      // se haya podido mapear automáticamente o el estado no sea
+      // TRANSMITIDO (el renderer avisa de ambos casos igual que antes).
+      // Al teléfono solo se le confirma que el QR se recibió correctamente
+      // — nunca el resultado final del guardado, porque eso ya no ocurre
+      // de forma automática.
+      const CANAL_POR_LIBRO = {
+        cf: 'qr-documento-escaneado-cf',
+        ccf: 'qr-documento-escaneado-ccf',
+        retencion: 'qr-documento-escaneado-retencion',
+        excluido: 'qr-documento-escaneado-excluido',
+        compras: 'qr-documento-escaneado'
+      };
+      const CONSULTA_POR_LIBRO = {
+        cf: _dgiiConsultarParaCF,
+        ccf: _dgiiConsultarParaCCF,
+        retencion: _dgiiConsultarParaRetencion,
+        excluido: _dgiiConsultarParaExcluido,
+        compras: _dgiiConsultarParaCompras
+      };
+      // Cambio 04 — carril (slot) de ventana oculta que le corresponde a
+      // cada libro, para poder cerrar SOLO esa ventana una vez procesado
+      // este documento (ver _dgiiCerrarVentanaSlot más abajo).
+      const SLOT_POR_LIBRO = {
+        cf: QR_SLOT_CF,
+        ccf: QR_SLOT_CCF,
+        retencion: QR_SLOT_RETENCION,
+        excluido: QR_SLOT_EXCLUIDO,
+        compras: QR_SLOT
+      };
       try {
-        if (libro === 'cf') {
-          const resultado = await _dgiiConsultarParaCF(payload.qr.fechaEmi, payload.qr.codGen);
-
-          // Tipo de DTE no soportado aún (tipoDocMapeado null) -> no se agrega
-          // al Libro de Consumidor Final, se avisa al teléfono y se corta aquí.
-          if (resultado.estado !== 'ERROR' && !resultado.tipoDocMapeado) {
-            _qrServerModule.enviarResultadoDocumento({
-              ok: false,
-              estado: resultado.estado,
-              mensaje: 'Tipo de documento no soportado para Consumidor Final' +
-                (resultado.tipoDteTexto ? (' (' + resultado.tipoDteTexto + ')') : '') +
-                '. No se agregó.'
-            });
-            return;
-          }
-
-          const combinado = Object.assign({}, resultado, {
-            codGen: payload.qr.codGen,
-            ambiente: payload.qr.ambiente,
-            exenta: !!payload.exenta
-          });
-          if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-            mainWindowRef.webContents.send('qr-documento-escaneado-cf', combinado);
-          }
-          const ok = resultado.estado !== 'ERROR';
-          _qrServerModule.enviarResultadoDocumento({
-            ok: ok,
-            estado: resultado.estado,
-            mensaje: ok
-              ? 'Documento cargado en FiscalSync — revisa y guarda en la computadora.'
-              : ('No se pudo consultar el documento: ' + (resultado.error || 'error desconocido'))
-          });
-          return;
-        }
-
-        if (libro === 'ccf') {
-          const resultado = await _dgiiConsultarParaCCF(payload.qr.fechaEmi, payload.qr.codGen);
-
-          // Tipo de DTE no soportado aún (tipoDocMapeado null) -> no se agrega
-          // al Libro de Crédito Fiscal, se avisa al teléfono y se corta aquí.
-          if (resultado.estado !== 'ERROR' && !resultado.tipoDocMapeado) {
-            _qrServerModule.enviarResultadoDocumento({
-              ok: false,
-              estado: resultado.estado,
-              mensaje: 'Tipo de documento no soportado para Crédito Fiscal' +
-                (resultado.tipoDteTexto ? (' (' + resultado.tipoDteTexto + ')') : '') +
-                '. No se agregó.'
-            });
-            return;
-          }
-
-          const combinado = Object.assign({}, resultado, {
-            codGen: payload.qr.codGen,
-            ambiente: payload.qr.ambiente,
-            cliente: payload.cliente,
-            exenta: !!payload.exenta
-          });
-          if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-            mainWindowRef.webContents.send('qr-documento-escaneado-ccf', combinado);
-          }
-          const ok = resultado.estado !== 'ERROR';
-          _qrServerModule.enviarResultadoDocumento({
-            ok: ok,
-            estado: resultado.estado,
-            mensaje: ok
-              ? 'Documento cargado en FiscalSync — revisa y guarda en la computadora.'
-              : ('No se pudo consultar el documento: ' + (resultado.error || 'error desconocido'))
-          });
-          return;
-        }
-
-        if (libro === 'retencion') {
-          const resultado = await _dgiiConsultarParaRetencion(payload.qr.fechaEmi, payload.qr.codGen);
-
-          // Tipo de DTE no soportado aún (tipoDocMapeado null) -> no se agrega
-          // al Libro de Retenciones, se avisa al teléfono y se corta aquí.
-          if (resultado.estado !== 'ERROR' && !resultado.tipoDocMapeado) {
-            _qrServerModule.enviarResultadoDocumento({
-              ok: false,
-              estado: resultado.estado,
-              mensaje: 'Tipo de documento no soportado para Retenciones' +
-                (resultado.tipoDteTexto ? (' (' + resultado.tipoDteTexto + ')') : '') +
-                '. No se agregó.'
-            });
-            return;
-          }
-
-          const combinado = Object.assign({}, resultado, {
-            codGen: payload.qr.codGen,
-            ambiente: payload.qr.ambiente,
-            proveedor: payload.proveedor
-          });
-          if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-            mainWindowRef.webContents.send('qr-documento-escaneado-retencion', combinado);
-          }
-          const ok = resultado.estado !== 'ERROR';
-          _qrServerModule.enviarResultadoDocumento({
-            ok: ok,
-            estado: resultado.estado,
-            mensaje: ok
-              ? 'Documento cargado en FiscalSync — revisa y guarda en la computadora.'
-              : ('No se pudo consultar el documento: ' + (resultado.error || 'error desconocido'))
-          });
-          return;
-        }
-
-        if (libro === 'excluido') {
-          const resultado = await _dgiiConsultarParaExcluido(payload.qr.fechaEmi, payload.qr.codGen);
-
-          // Tipo de DTE no soportado aún (tipoDocMapeado null) -> no se agrega
-          // al Libro de Compras a Sujetos Excluidos, se avisa al teléfono y
-          // se corta aquí.
-          if (resultado.estado !== 'ERROR' && !resultado.tipoDocMapeado) {
-            _qrServerModule.enviarResultadoDocumento({
-              ok: false,
-              estado: resultado.estado,
-              mensaje: 'Tipo de documento no soportado para Compras a Sujeto Excluido' +
-                (resultado.tipoDteTexto ? (' (' + resultado.tipoDteTexto + ')') : '') +
-                '. No se agregó.'
-            });
-            return;
-          }
-
-          const combinado = Object.assign({}, resultado, {
-            codGen: payload.qr.codGen,
-            ambiente: payload.qr.ambiente,
-            proveedor: payload.proveedor
-          });
-          if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-            mainWindowRef.webContents.send('qr-documento-escaneado-excluido', combinado);
-          }
-          const ok = resultado.estado !== 'ERROR';
-          _qrServerModule.enviarResultadoDocumento({
-            ok: ok,
-            estado: resultado.estado,
-            mensaje: ok
-              ? 'Documento cargado en FiscalSync — revisa y guarda en la computadora.'
-              : ('No se pudo consultar el documento: ' + (resultado.error || 'error desconocido'))
-          });
-          return;
-        }
-
-        const resultado = await _dgiiConsultarParaCompras(payload.qr.fechaEmi, payload.qr.codGen);
-
-        // Tipo de DTE no soportado aún (tipoDocMapeado null) -> no se agrega
-        // al Libro de Compras, se avisa al teléfono y se corta aquí.
-        if (resultado.estado !== 'ERROR' && !resultado.tipoDocMapeado) {
-          _qrServerModule.enviarResultadoDocumento({
-            ok: false,
-            estado: resultado.estado,
-            mensaje: 'Tipo de documento no soportado para Compras' +
-              (resultado.tipoDteTexto ? (' (' + resultado.tipoDteTexto + ')') : '') +
-              '. No se agregó.'
-          });
-          return;
-        }
+        const consultar = CONSULTA_POR_LIBRO[libro] || CONSULTA_POR_LIBRO.compras;
+        const canal = CANAL_POR_LIBRO[libro] || CANAL_POR_LIBRO.compras;
+        const resultado = await consultar(payload.qr.fechaEmi, payload.qr.codGen);
 
         const combinado = Object.assign({}, resultado, {
           codGen: payload.qr.codGen,
-          ambiente: payload.qr.ambiente,
-          proveedor: payload.proveedor
+          ambiente: payload.qr.ambiente
         });
         if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-          mainWindowRef.webContents.send('qr-documento-escaneado', combinado);
+          mainWindowRef.webContents.send(canal, combinado);
         }
-        const ok = resultado.estado !== 'ERROR';
+
+        const consultaOk = resultado.estado !== 'ERROR';
         _qrServerModule.enviarResultadoDocumento({
-          ok: ok,
+          ok: consultaOk,
           estado: resultado.estado,
-          mensaje: ok
-            ? 'Documento cargado en FiscalSync — revisa y guarda en la computadora.'
+          mensaje: consultaOk
+            ? 'Documento recibido — revísalo en tu computadora.'
             : ('No se pudo consultar el documento: ' + (resultado.error || 'error desconocido'))
         });
       } catch (e) {
         _qrServerModule.enviarResultadoDocumento({ ok: false, mensaje: 'Error inesperado: ' + e.message });
+      } finally {
+        // Cambio 04 — Ya se extrajeron los datos de este documento y se
+        // enviaron a la pantalla de la PC (o falló la consulta): la
+        // ventana oculta que se usó para ESTE escaneo se cierra aquí. El
+        // próximo escaneo (de este mismo libro) la vuelve a abrir desde
+        // cero, sola, a través de _dgiiGetWindow — no reutiliza la
+        // anterior. Se hace en el 'finally' para que también se cierre si
+        // la consulta terminó en error.
+        _dgiiCerrarVentanaSlot(SLOT_POR_LIBRO[libro] || QR_SLOT);
       }
     });
   }
@@ -1831,6 +1758,21 @@ ipcMain.handle('iniciar-qr-scan', async (event, { proveedores, clientes, empresa
     });
   } catch (e) {
     return { ok: false, error: e.message || 'Error desconocido al iniciar el módulo de escaneo' };
+  }
+});
+
+// Cambio 01 (Escaneo de Documentos — control desde la PC): la computadora
+// ordena al teléfono qué tipo de documento escanear a continuación. El
+// teléfono ya no elige nada por su cuenta — solo obedece esta orden y
+// funciona como cámara/lector. libro: 'compras'|'cf'|'ccf'|'retencion'|'excluido'.
+ipcMain.handle('qr-ordenar-escaneo', async (event, libro) => {
+  try {
+    if (!_qrServerModule || !_qrServerModule.estaCorriendo()) {
+      return { ok: false, error: 'El módulo de escaneo no está iniciado.' };
+    }
+    return _qrServerModule.ordenarEscaneo(libro);
+  } catch (e) {
+    return { ok: false, error: e.message };
   }
 });
 
@@ -1952,6 +1894,20 @@ function _dgiiCerrarVentanasQR() {
     if (w && !w.isDestroyed()) { try { w.destroy(); } catch (e) { /* ya cerrada */ } }
     _dgiiWins[slot] = null;
   });
+}
+
+// Cambio 04 — Cierra ÚNICAMENTE el carril de UN libro (una sola ventana
+// oculta), y no los demás. Se llama justo después de extraer los datos de
+// un documento escaneado por QR y enviarlos a la pantalla de la PC (ver
+// 'documento-escaneado' más abajo): esa ventana ya cumplió su propósito
+// para ESE documento, así que se cierra en vez de dejarla reutilizable.
+// Al llegar el siguiente escaneo, _dgiiGetWindow encuentra el carril vacío
+// (null) y crea una ventana nueva desde cero para ese nuevo documento —
+// mismo patrón que ya usaba _dgiiCerrarVentanasQR, pero de a una.
+function _dgiiCerrarVentanaSlot(slot) {
+  const w = _dgiiWins[slot];
+  if (w && !w.isDestroyed()) { try { w.destroy(); } catch (e) { /* ya cerrada */ } }
+  _dgiiWins[slot] = null;
 }
 
 ipcMain.handle('cancelar-verificacion-dte', async () => {

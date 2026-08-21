@@ -194,6 +194,7 @@
     "info": `<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>`,
     "upload": `<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>`,
     "file-json": `<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M10 12a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1 1 1 0 0 1 1 1v1a1 1 0 0 0 1 1"/><path d="M14 18a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1 1 1 0 0 1-1-1v-1a1 1 0 0 0-1-1"/>`,
+    "qr-code": `<rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/>`,
   };
   function createIcons(opts) {
     var els = document.querySelectorAll('[data-lucide]');
@@ -322,6 +323,28 @@
         .nav-active { background: var(--rp-border); color: var(--rp-accent); }
         .card-bento { background: var(--rp-surface); border: 1px solid var(--rp-border); border-radius: 16px; transition: border 0.3s; }
         .card-bento:hover { border-color: var(--rp-border-strong); }
+        /* Cambio 01 — Escaneo de Documentos: botones de selección de tipo de
+           documento en la pantalla nueva de la barra lateral. */
+        .escaneo-doc-btn {
+            display: flex; align-items: center; gap: 10px; text-align: left;
+            padding: 12px 14px; border-radius: 10px; border: 1px solid var(--rp-border);
+            background: var(--rp-inset); color: var(--rp-text-secondary); cursor: pointer;
+            transition: all 0.18s ease; width: 100%;
+        }
+        .escaneo-doc-btn:hover { border-color: var(--rp-border-strong); color: var(--rp-text-heading); }
+        .escaneo-doc-btn .ico {
+            width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--rp-border); color: var(--rp-cyan);
+        }
+        .escaneo-doc-btn .txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+        .escaneo-doc-btn .txt b { font-size: 12.5px; font-weight: 700; color: var(--rp-text-heading); }
+        .escaneo-doc-btn .txt small { font-size: 10.5px; color: var(--rp-text-secondary); }
+        .escaneo-doc-btn.activo {
+            border-color: rgba(45,212,191,0.5); background: rgba(45,212,191,0.08);
+        }
+        .escaneo-doc-btn.activo .ico { background: rgba(45,212,191,0.16); color: var(--rp-cyan); }
+        .escaneo-doc-btn.activo .txt b { color: var(--rp-cyan); }
         .submenu {
             max-height: 0; overflow: hidden; margin-left: 2rem;
             border-left: 1px solid var(--rp-border); opacity: 0; transform: translateY(-4px);
@@ -664,6 +687,55 @@
         .f-input:focus { border-color: var(--rp-accent); }
         .f-label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--rp-text-secondary); margin-bottom: 8px; }
         .f-label.blue { color: var(--rp-accent); }
+        /* Toggle-switch (slide) usado en reemplazo de checkboxes tipo
+           "Venta Exenta" — ver qrDoc_exentaWrap. Estructura:
+           <label class="toggle-switch"><input type="checkbox">
+           <span class="toggle-slider"></span></label> */
+        .toggle-switch { position: relative; display: inline-block; width: 44px; height: 26px; flex-shrink: 0; cursor: pointer; }
+        .toggle-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+        .toggle-switch .toggle-slider {
+            position: absolute; inset: 0; background: var(--rp-border-strong); border-radius: 999px;
+            transition: background-color 0.18s ease;
+        }
+        .toggle-switch .toggle-slider::before {
+            content: ''; position: absolute; height: 20px; width: 20px; left: 3px; top: 3px;
+            background: #fff; border-radius: 50%; transition: transform 0.18s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+        }
+        .toggle-switch input:checked + .toggle-slider { background: var(--rp-accent); }
+        .toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); }
+        .toggle-switch input:focus-visible + .toggle-slider { outline: 2px solid var(--rp-accent); outline-offset: 2px; }
+        /* Tarjeta de opción tipo switch (label + descripción + toggle),
+           usada por "Venta Exenta" dentro del modal de Documento Escaneado. */
+        .option-switch-card {
+            display: flex; align-items: center; justify-content: space-between; gap: 16px;
+            background: var(--rp-inset); border: 1px solid var(--rp-border); border-radius: 12px;
+            padding: 16px 18px; transition: border-color 0.18s ease;
+        }
+        .option-switch-card:has(input:checked) { border-color: var(--rp-accent); }
+        /* Corrección 03 — utilidades de gap que faltaban en el build de Tailwind
+           purgado (gap-x-5 / gap-y-4 no estaban generadas), lo que causaba que
+           las filas de "Datos del Documento" en el modal de Documento Escaneado
+           se vieran pegadas/encimadas entre sí. Se restauran con los valores
+           estándar de Tailwind (5 = 1.25rem, 4 = 1rem). */
+        .gap-x-5 { -moz-column-gap: 1.25rem; column-gap: 1.25rem; }
+        .gap-y-4 { row-gap: 1rem; }
+        /* Corrección 05 — el <select> de "Tipo de Documento" tiene opciones de
+           texto largo (p.ej. "12 — Declaración de Mercancías"). Por defecto,
+           un elemento de grid no se encoge por debajo del ancho de su
+           contenido (min-width:auto), así que esa celda empujaba su columna
+           más ancha que las otras 2, aunque las 3 comparten el mismo 1fr —
+           esto es lo que causaba que los contenedores de "Datos del
+           Documento" se vieran con anchuras distintas. Forzar min-width:0 en
+           las celdas del grid deja que las 3 columnas midan siempre lo
+           mismo, sin importar el texto que traiga el <select>. */
+        .qrdoc-datos-grid > div { min-width: 0; }
+        /* Corrección 06 — pt-5 y pb-4 tampoco estaban generadas en el build
+           purgado (mismo problema que gap-x-5/gap-y-4). Por eso el header del
+           modal "Documento Escaneado" quedaba sin relleno vertical real y el
+           título se veía pegado al borde superior redondeado. */
+        .pt-5 { padding-top: 1.25rem; }
+        .pb-4 { padding-bottom: 1rem; }
         .export-submenu {
             max-height: 0; overflow: hidden; margin-left: 2rem;
             border-left: 1px solid var(--rp-border); opacity: 0; transform: translateY(-4px);
@@ -2806,19 +2878,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                          el botón Admin, ya que Actualizaciones vive dentro de su panel. -->
                     <span id="updateDotBadge" style="display:none;position:absolute;top:1px;right:1px;width:6px;height:6px;border-radius:50%;background:var(--rp-accent);"></span>
                 </button>
-                <!-- Escaneo QR de documentos físicos — abrirEscaneoDocumentosFisicos ya
-                     valida que haya una empresa activa seleccionada antes de iniciar el
-                     módulo (muestra un aviso si no la hay), así que el comportamiento
-                     queda intacto. -->
-                <span style="color:var(--rp-border-strong);font-size:10px;">|</span>
-                <button onclick="abrirEscaneoDocumentosFisicos('compras')" title="Escanear documentos físicos por QR" style="display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--rp-text-secondary);font-family:'Inter',sans-serif;padding:4px 8px;border-radius:6px;transition:all 0.2s;" onmouseover="this.style.color='var(--rp-text-primary)';this.style.background='var(--rp-border)';" onmouseout="this.style.color='var(--rp-text-secondary)';this.style.background='none';">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-                        <rect x="3" y="14" width="7" height="7"/>
-                        <path d="M14 14h3v3h-3zM14 20h7M20 14v3M17 20v.01M20 20v.01"/>
-                    </svg>
-                    Escaneo QR
-                </button>
+                <!-- Cambio 03 — Se eliminó el botón "Escaneo" de este footer: no
+                     hacía nada funcional (quedó huérfano tras Cambio 01, que ya
+                     movió el control real del escaneo al módulo permanente de la
+                     barra lateral "Escaneo de Documentos"). Ese módulo lateral
+                     sigue siendo el único punto de acceso al escaneo. -->
             </div>
         </div>
     </div>
@@ -3098,6 +3162,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             <div>
                 <a href="#" onclick="switchScreen('exportScreen')" class="nav-link w-full flex items-center gap-3 px-3 py-2 text-sm">
                     <i data-lucide="download" class="w-4"></i> Exportación
+                </a>
+            </div>
+            <!-- Corrección 01 — Escaneo de Documentos: módulo permanente en la
+                 barra lateral, ubicado justo debajo de "Exportación". Toda la
+                 configuración y el control del escaneo por QR (vinculación del
+                 teléfono + elección del tipo de documento) se hace desde aquí;
+                 el teléfono solo obedece. -->
+            <div>
+                <a href="#" onclick="switchScreen('escaneoDocumentosScreen')" class="nav-link w-full flex items-center gap-3 px-3 py-2 text-sm">
+                    <i data-lucide="qr-code" class="w-4"></i> Escaneo de Documentos
                 </a>
             </div>
             <!-- CORREOS DTE -->
@@ -4417,6 +4491,68 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         </div>
 
         <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <!-- CAMBIO 01 — ESCANEO DE DOCUMENTOS (control desde la PC)             -->
+        <!-- La computadora es el centro de control: aquí se vincula el teléfono -->
+        <!-- (reutilizando el sistema QR existente) y se elige el tipo de        -->
+        <!-- documento a escanear. El teléfono ya no elige nada — solo funciona  -->
+        <!-- como cámara/lector sincronizado y obedece la orden que se manda     -->
+        <!-- desde este apartado.                                                -->
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <div id="escaneoDocumentosScreen" class="hidden screen">
+            <header class="flex justify-between items-center mb-8">
+                <div>
+                    <h1 class="text-2xl font-medium text-white tracking-tight">Escaneo de Documentos</h1>
+                    <p class="text-zinc-500 text-sm mt-1 font-light">Vincula tu teléfono y controla el escaneo por QR directamente desde la computadora.</p>
+                </div>
+                <div id="escaneoDocConnBadge" style="display:flex;align-items:center;gap:8px;padding:6px 14px;border-radius:99px;border:1px solid var(--rp-border-strong);background:var(--rp-inset);">
+                    <span id="escaneoDocConnDot" style="width:8px;height:8px;border-radius:50%;background:var(--rp-text-secondary);flex-shrink:0;"></span>
+                    <span id="escaneoDocConnTxt" style="font-size:11px;font-weight:600;color:var(--rp-text-secondary);">Teléfono no vinculado</span>
+                </div>
+            </header>
+
+            <div class="card-bento" style="padding:24px;margin-bottom:20px;">
+                <div id="escaneoDocPairingArea">
+                    <!-- Se llena dinámicamente por _renderEscaneoDocScreen(): botón para
+                         vincular (sin teléfono), el QR (esperando escaneo) o un aviso de
+                         "teléfono conectado" con opción de desvincular. -->
+                </div>
+            </div>
+
+            <div class="card-bento" style="padding:24px;">
+                <h2 style="color:var(--rp-text-heading);font-weight:600;font-size:14px;margin:0 0 4px;">Selecciona qué escanear</h2>
+                <p style="color:var(--rp-text-secondary);font-size:12px;margin:0 0 18px;">Al elegir un tipo de documento, el teléfono vinculado activará su cámara automáticamente. Si aún no se ha vinculado, la orden queda guardada y se envía sola en cuanto se conecte.</p>
+
+                <p style="color:var(--rp-text-secondary);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin:0 0 8px;">Compras</p>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:18px;">
+                    <button class="escaneo-doc-btn" data-libro="compras" onclick="seleccionarTipoEscaneo('compras')">
+                        <span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
+                        <span class="txt"><b>Compras</b><small>Libro de Compras — Anexo 3</small></span>
+                    </button>
+                    <button class="escaneo-doc-btn" data-libro="retencion" onclick="seleccionarTipoEscaneo('retencion')">
+                        <span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"/></svg></span>
+                        <span class="txt"><b>Retención IVA</b><small>Comprobantes de Retención — Anexo 7</small></span>
+                    </button>
+                    <button class="escaneo-doc-btn" data-libro="excluido" onclick="seleccionarTipoEscaneo('excluido')">
+                        <span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="17" y1="8" x2="22" y2="13"/><line x1="22" y1="8" x2="17" y2="13"/></svg></span>
+                        <span class="txt"><b>Sujeto Excluido</b><small>Compras a Sujeto Excluido — Anexo 5</small></span>
+                    </button>
+                </div>
+
+                <p style="color:var(--rp-text-secondary);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin:0 0 8px;">Ventas</p>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;">
+                    <button class="escaneo-doc-btn" data-libro="cf" onclick="seleccionarTipoEscaneo('cf')">
+                        <span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="14" x2="15" y2="14"/><line x1="9" y1="17" x2="13" y2="17"/></svg></span>
+                        <span class="txt"><b>Venta Consumidor Final</b><small>Sin identificar cliente — Anexo 2</small></span>
+                    </button>
+                    <button class="escaneo-doc-btn" data-libro="ccf" onclick="seleccionarTipoEscaneo('ccf')">
+                        <span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+                        <span class="txt"><b>Venta Crédito Fiscal</b><small>Con cliente identificado — Anexo 4</small></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
         <!-- DOCUMENTOS ANULADOS / INVALIDADOS SCREEN                          -->
         <!-- ═══════════════════════════════════════════════════════════════════ -->
         <div id="anuladosScreen" class="hidden screen">
@@ -5042,39 +5178,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 </div>
 
 <!-- ════════════════════════════════ MODAL COMPRAS -->
-<!-- ══════════════════════════════════════════════════════════════════
-     CAMBIO 01 — Modal de Escaneo de Documentos Físicos vía QR
-     Aislado del resto de la interfaz: no toca comprasModalForm ni ningún
-     otro modal existente. Solo se abre/cierra desde los botones nuevos.
-     ══════════════════════════════════════════════════════════════════ -->
-<div id="qrScanModal" class="fixed inset-0 modal-overlay z-50 hidden items-center justify-center p-4" style="display:none">
-    <div style="background:var(--rp-inset);border:1px solid var(--rp-border-strong);border-radius:16px;max-width:380px;width:100%;padding:24px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-            <h2 style="color:var(--rp-text-heading);font-weight:600;font-size:16px;margin:0;display:flex;align-items:center;gap:8px;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="var(--rp-cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM14 20h7M20 14v3M17 20v.01M20 20v.01"/></svg>
-                Escanear Documentos Físicos
-            </h2>
-            <button onclick="cerrarModuloEscaneo()" style="background:transparent;border:none;color:var(--rp-text-secondary);cursor:pointer;font-size:20px;line-height:1;padding:2px 6px;">×</button>
-        </div>
-
-        <div id="qrScanBody" style="display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;">
-            <p style="color:var(--rp-text-secondary);font-size:12px;margin:0;">Cargando…</p>
-        </div>
-
-        <p style="color:var(--rp-text-secondary);font-size:11px;margin:16px 0 0;line-height:1.5;">
-            El módulo se cierra automáticamente al presionar "Cerrar módulo" — no queda nada corriendo en segundo plano.
-        </p>
-        <button onclick="cerrarModuloEscaneo()" style="margin-top:14px;width:100%;padding:10px;border-radius:8px;border:1px solid rgba(248,113,113,0.35);background:rgba(248,113,113,0.08);color:var(--rp-error);cursor:pointer;font-size:13px;font-weight:600;">
-            Cerrar módulo
-        </button>
-    </div>
-</div>
-
-<!-- Indicador flotante de sesión de escaneo activa (aparece cuando el modal está minimizado tras autocompletar un documento) -->
-<div id="qrScanFloatBtn" onclick="reabrirModuloEscaneo()" class="hidden" style="position:fixed;bottom:22px;right:22px;z-index:60;display:none;align-items:center;gap:8px;background:var(--rp-inset);border:1px solid rgba(45,212,191,0.4);color:var(--rp-cyan);padding:10px 16px;border-radius:99px;cursor:pointer;font-size:12px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.4);">
-    <span style="width:8px;height:8px;border-radius:50%;background:var(--rp-cyan);box-shadow:0 0 6px var(--rp-cyan);"></span>
-    Escaneo QR activo
-</div>
+<!-- Cambio 02 — El modal "Escanear Documentos Físicos" (qrScanModal) se
+     eliminó por completo. La vinculación por QR ahora se muestra siempre
+     inline dentro de la propia pantalla "Escaneo de Documentos"
+     (escaneoDocPairingArea), controlada por _renderEscaneoDocScreen(). -->
 
 <div id="comprasModalForm" class="fixed inset-0 modal-overlay z-50 hidden items-center justify-center p-4" style="display:none">
     <div class="bg-[var(--rp-surface)] border border-[var(--rp-border)] w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden flex flex-col" style="max-height:90vh;">
@@ -5266,7 +5373,158 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     </div>
 </div>
 
-<!-- ════════════════════════════════ MODAL IVA PERCIBIDO -->
+<!-- ════════════════════════════════ MODAL DOCUMENTOS ESCANEADOS ════════
+     Corrección 01: pantalla independiente de "bandeja de recepción" para
+     los documentos que llegan desde el escaneo QR del teléfono. Ya NO se
+     abre el modal de "Nuevo Registro" de cada anexo — este modal es
+     autónomo (su propio HTML/CSS/JS), aunque internamente reutiliza el
+     catálogo de Proveedores/Clientes y autoRegistrarProveedor/
+     autoRegistrarCliente para no duplicar esa lógica. Un mismo modal sirve
+     para los 5 libros (Compras, Consumidor Final, Crédito Fiscal,
+     Retención, Sujeto Excluido) — qrDocState.libro decide qué secciones
+     mostrar y qué construye qrDocEnviar() al confirmar. -->
+<div id="qrDocModalForm" class="fixed inset-0 modal-overlay z-50 hidden items-center justify-center p-4" style="display:none">
+    <div class="bg-[var(--rp-surface)] border border-[var(--rp-border)] w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col" style="max-height:80vh;">
+        <header class="px-6 pt-5 pb-4 border-b border-[var(--rp-border)] bg-zinc-950/60 flex-shrink-0">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p id="qrDocAnexoLabel" class="text-[10px] font-bold uppercase tracking-widest text-zinc-600 mb-1">Escaneo de Documentos</p>
+                    <h2 id="qrDocModalTitle" class="text-white font-semibold text-lg tracking-tight">Documento Escaneado</h2>
+                </div>
+                <button onclick="closeQrDocModal()" class="text-zinc-600 hover:text-white transition mt-1"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+        </header>
+        <div class="overflow-y-auto flex-1 px-6 py-5">
+            <p class="section-label">Datos del Documento</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-x-5 gap-y-4 mb-5 qrdoc-datos-grid">
+                <div><label class="f-label">Fecha de Emisión</label><input type="text" id="qrDoc_fecha" class="f-input" readonly></div>
+                <div><label class="f-label">Código de Generación</label><input type="text" id="qrDoc_codGenView" class="f-input" readonly style="font-family:ui-monospace,monospace;font-size:11px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;"></div>
+                <div><label class="f-label">Estado en el Ministerio</label><input type="text" id="qrDoc_estado" class="f-input" readonly></div>
+                <div><label class="f-label">Tipo de Documento</label><select id="qrDoc_tipoDoc" class="f-input"></select></div>
+                <div><label class="f-label">Sello de Recepción</label><input type="text" id="qrDoc_sello" class="f-input" readonly></div>
+                <div><label class="f-label" id="qrDoc_montoLabel">Monto</label>
+                    <div style="position:relative;">
+                        <span style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--rp-text-secondary); font-size:14px; pointer-events:none;">$</span>
+                        <input type="number" step="0.01" id="qrDoc_monto" class="f-input" style="padding-left:28px;">
+                    </div>
+                </div>
+                <!-- Corrección 02 — Campos adicionales del documento escaneado.
+                     Mismo estilo que "Sello de Recepción" (label + input
+                     readonly, dentro del mismo grid). Cada wrapper se oculta
+                     con la clase "hidden" cuando el documento escaneado no
+                     trae ese dato — ver poblarQrDocCamposAdicionales(). No
+                     se modificó ningún campo existente de este grid. -->
+                <div id="qrDoc_ivaOperacionesWrap" class="hidden"><label class="f-label">IVA de las operaciones</label><input type="text" id="qrDoc_ivaOperaciones" class="f-input" readonly></div>
+                <div id="qrDoc_ivaPercibidoWrap" class="hidden"><label class="f-label">IVA percibido</label><input type="text" id="qrDoc_ivaPercibidoView" class="f-input" readonly></div>
+                <div id="qrDoc_ivaRetenidoWrap" class="hidden"><label class="f-label">IVA retenido</label><input type="text" id="qrDoc_ivaRetenido" class="f-input" readonly></div>
+                <div id="qrDoc_retencionRentaWrap" class="hidden"><label class="f-label">Retención renta</label><input type="text" id="qrDoc_retencionRentaView" class="f-input" readonly></div>
+                <div id="qrDoc_totalOperacionWrap" class="hidden"><label class="f-label">Total de Operación</label><input type="text" id="qrDoc_totalOperacion" class="f-input" readonly></div>
+            </div>
+            <div id="qrDoc_avisoTipo" class="hidden" style="background:rgba(224,168,87,.12); border:1px solid rgba(224,168,87,.3); border-radius:10px; padding:10px 14px; font-size:11.5px; color:#e0a857; margin-bottom:18px;"></div>
+
+            <p class="section-label" id="qrDoc_provLabel">Proveedor</p>
+            <div id="qrDoc_provBuscar" class="bg-zinc-950 border border-zinc-900 rounded-xl p-5">
+                <div class="autocomplete-wrap">
+                    <label class="f-label" id="qrDoc_provBuscarLabel">Buscar por nombre, NIT, NRC o DUI</label>
+                    <input type="text" id="qrDoc_provSearch" class="f-input" placeholder="Escribe para buscar…" autocomplete="off" oninput="qrDocBuscarProveedor()" onkeydown="acKeyDown(event,'qrDoc_provResults')" onblur="setTimeout(function(){acClose('qrDoc_provResults')},180)">
+                    <div id="qrDoc_provResults" class="autocomplete-list"></div>
+                </div>
+                <button type="button" onclick="qrDocMostrarFormNuevoProveedor()" class="mt-5 px-4 py-2 text-xs font-medium text-zinc-300 border border-zinc-700 hover:border-zinc-500 rounded-lg transition" id="qrDoc_btnProvNuevo">+ Agregar proveedor nuevo</button>
+            </div>
+
+            <div id="qrDoc_provElegido" class="hidden" style="background:rgba(139,92,246,0.07);border:1px solid rgba(139,92,246,0.25);border-radius:10px;padding:14px 16px;margin-top:16px;">
+                <p class="text-xs text-zinc-500 mb-1" id="qrDoc_provElegidoK">Seleccionado</p>
+                <p id="qrDoc_provElegidoTxt" class="text-sm text-white font-medium"></p>
+                <button type="button" onclick="qrDocQuitarProveedor()" class="mt-2 text-[11px] text-zinc-400 hover:text-white underline">Cambiar</button>
+            </div>
+
+            <div id="qrDoc_provNuevoForm" class="hidden grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 mt-4 bg-zinc-950 rounded-xl border border-zinc-900 p-6">
+                <div class="md:col-span-2"><label class="f-label">Nombre / Razón social</label><input type="text" id="qrDoc_pn_nombre" class="f-input"></div>
+                <div><label class="f-label">NIT</label><input type="text" id="qrDoc_pn_nit" class="f-input" placeholder="0000-000000-000-0"></div>
+                <div><label class="f-label">NRC (opcional)</label><input type="text" id="qrDoc_pn_nrc" class="f-input"></div>
+                <div><label class="f-label">DUI (opcional)</label><input type="text" id="qrDoc_pn_dui" class="f-input"></div>
+                <div id="qrDoc_pn_clasifWrap"><label class="f-label">Clasificación</label>
+                    <select id="qrDoc_pn_clasif" class="f-input">
+                        <option value="1">1 — Costo</option>
+                        <option value="2">2 — Gasto</option>
+                        <option value="8">8 — Operaciones informadas en más de 1 anexo</option>
+                        <option value="9">9 — Excepciones</option>
+                        <option value="0">0 — Periodos anteriores a febrero de 2024</option>
+                    </select>
+                </div>
+                <div id="qrDoc_pn_sectorWrap"><label class="f-label">Sector</label>
+                    <select id="qrDoc_pn_sector" class="f-input">
+                        <option value="1">1 — Industria</option>
+                        <option value="2">2 — Comercio</option>
+                        <option value="3">3 — Agropecuaria</option>
+                        <option value="4">4 — Servicios, Profesiones, Artes y Oficios</option>
+                        <option value="8">8 — Operaciones informadas en más de 1 anexo</option>
+                        <option value="9">9 — Excepciones</option>
+                        <option value="0">0 — Periodos anteriores a febrero de 2024</option>
+                    </select>
+                </div>
+                <div id="qrDoc_pn_tipoCostoWrap"><label class="f-label">Tipo de Costo/Gasto</label>
+                    <select id="qrDoc_pn_tipoCosto" class="f-input">
+                        <option value="1">1 — Gasto de Venta sin Donación</option>
+                        <option value="2">2 — Gasto de Administración sin Donación</option>
+                        <option value="3">3 — Gastos Financieros sin Donación</option>
+                        <option value="4">4 — Costo Art. Producidos/Comprados Imp./Intern.</option>
+                        <option value="5">5 — Costo Art. Producidos/Comprados Interno</option>
+                        <option value="6">6 — Costo Indirectos de Fabricación</option>
+                        <option value="7">7 — Mano de obra</option>
+                        <option value="8">8 — Operaciones informadas en más de 1 anexo</option>
+                        <option value="9">9 — Excepciones</option>
+                        <option value="0">0 — Periodos anteriores a febrero de 2024</option>
+                    </select>
+                </div>
+                <div id="qrDoc_pn_excluidoWrap" class="hidden md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    <div><label class="f-label">Tipo de Documento</label>
+                        <select id="qrDoc_pn_tipoDocEx" class="f-input">
+                            <option value="1">1 — NIT</option>
+                            <option value="2">2 — DUI</option>
+                            <option value="3">3 — Otro Documento</option>
+                        </select>
+                    </div>
+                    <div><label class="f-label">Tipo de Operación</label>
+                        <select id="qrDoc_pn_tipoOpEx" class="f-input">
+                            <option value="">— Sin clasificar —</option>
+                            <option value="1">1 — Gravada</option>
+                            <option value="2">2 — No gravada o exenta</option>
+                            <option value="3">3 — Excluido o no constituye Renta</option>
+                            <option value="4">4 — Mixta (Regímenes Especiales)</option>
+                            <option value="8">8 — Operaciones informadas en más de 1 anexo</option>
+                            <option value="9">9 — Excepciones</option>
+                            <option value="0">0 — Periodos anteriores a febrero de 2024</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="md:col-span-2 flex justify-end gap-3 mt-1">
+                    <button type="button" onclick="qrDocCancelarNuevoProveedor()" class="px-4 py-2 text-xs font-medium text-zinc-400 hover:text-white transition">Cancelar</button>
+                    <button type="button" onclick="qrDocUsarProveedorNuevo()" class="px-6 py-2 bg-white text-black text-xs font-bold rounded-lg hover:bg-zinc-200 transition">Usar este proveedor</button>
+                </div>
+            </div>
+
+            <div id="qrDoc_exentaWrap" class="hidden mt-8 pt-6" style="border-top:1px solid var(--rp-border);">
+                <p class="section-label">Opciones adicionales</p>
+                <div class="option-switch-card">
+                    <div>
+                        <p class="text-sm font-semibold text-white">Venta Exenta</p>
+                        <p class="text-xs text-zinc-500 mt-0.5">Márcalo si esta venta no genera IVA — el monto se registrará como exento</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="qrDoc_exenta">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <footer class="px-6 py-4 border-t border-[var(--rp-border)] flex justify-between items-center bg-zinc-950/60 flex-shrink-0">
+            <button onclick="closeQrDocModal()" class="px-6 py-2 text-xs font-medium text-zinc-400 hover:text-white transition">Cancelar</button>
+            <button onclick="qrDocEnviar()" class="px-8 py-2 bg-white text-black text-xs font-bold rounded-lg hover:bg-zinc-200 transition">Enviar</button>
+        </footer>
+    </div>
+</div>
+
 <div id="percibidoModalForm" class="fixed inset-0 modal-overlay z-50 hidden items-center justify-center p-4" style="display:none">
     <div class="bg-[var(--rp-surface)] border border-[var(--rp-border)] w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col" style="max-height:90vh;">
         <header class="px-8 pt-7 pb-0 border-b border-[var(--rp-border)] bg-zinc-950/60 flex-shrink-0">
@@ -7882,7 +8140,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         var ids = ['homeScreen','jsonScreen','csvScreen','debitoFiscalScreen','consumidorFinalScreen','comprasScreen',
          'percibidoScreen','retenidoScreen','anticipoScreen','excluidoScreen','exportScreen','librosLegalesScreen',
          'retencionesF14Screen','quincena25Screen','anuladosScreen','proveedoresScreen','clientesScreen','empleadosScreen','correosScreen',
-         'gestionCatalogosScreen'];
+         'gestionCatalogosScreen','escaneoDocumentosScreen'];
 
         function activarPantalla() {
             var el = document.getElementById(showId);
@@ -7902,6 +8160,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             if (showId === 'empleadosScreen') { renderEmpleadosTable(); }
             if (showId === 'csvScreen') { initCsvScreen(); }
             if (showId === 'correosScreen') { correosRenderTabla(); correosRenderHistorial(); _correosCheckAutoloadBanner(); }
+            if (showId === 'escaneoDocumentosScreen') {
+                // El QR solo se genera cuando el usuario presiona "Vincular
+                // teléfono" (abrirEscaneoDocumentosFisicos). Al entrar a la
+                // pantalla solo se redibuja el estado actual — si no hay
+                // sesión activa, se ve el botón de vincular sin QR todavía.
+                _renderEscaneoDocScreen();
+            }
         }
 
         var habiaVisible = false;
@@ -16253,6 +16518,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     // ══════════════════════════════════════════════════════════════════
     var _qrScanEstado = { activo: false, conectado: false, qrDataUrl: null };
     var _qrListenersRegistrados = false;
+    // Cambio 01 (Escaneo de Documentos — control desde la PC): último tipo
+    // de documento que el usuario eligió en la pantalla "Escaneo de
+    // Documentos" (solo para resaltar el botón activo en esa pantalla — la
+    // orden real que rige lo que hace el teléfono vive en qrPairingServer,
+    // vía window.qrScan.ordenarEscaneo).
+    var _libroSeleccionado = null;
 
     function _qrSetVal(id, value) {
         var el = document.getElementById(id);
@@ -16287,40 +16558,27 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         });
     }
 
-    function abrirEscaneoDocumentosFisicos(libro) {
-        if (libro !== 'compras') {
-            showToast('El escaneo por QR aún solo está disponible para el Libro de Compras.', 'error');
+    // Cambio 01 (Escaneo de Documentos — control desde la PC): levanta el
+    // servidor de emparejamiento (si no estaba ya corriendo) y genera el QR
+    // de vinculación. No abre ningún modal ni pantalla — eso lo decide quien
+    // llame a esta función (abrirEscaneoDocumentosFisicos usa el modal
+    // existente; la pantalla nueva de la barra lateral la muestra inline).
+    // callback(ok) se llama una vez resuelto (ok=true si quedó listo/ya
+    // estaba activo, ok=false si falló).
+    function _iniciarSesionEscaneoQR(callback) {
+        if (!window.qrScan) {
+            showToast('El módulo de escaneo QR no está disponible en este entorno', 'error');
+            if (callback) callback(false);
             return;
         }
-        // CAMBIO — Ya no se exige empresa activa para ABRIR el módulo: ahora
-        // vive en la pantalla principal (antes de entrar a una empresa), así
-        // que el usuario debe poder generar el QR y vincular el teléfono de
-        // una vez, sin tener que entrar primero a una empresa. Si en este
-        // momento no hay ninguna activa, se inicia igual pero con catálogos
-        // vacíos y sin nombre de empresa — en cuanto el usuario entre a una
-        // empresa, _sincronizarEmpresaActivaQR() (llamada desde
-        // ingresarEmpresa) actualiza el teléfono en caliente sin reabrir el
-        // módulo. El guardado de cualquier documento escaneado sigue
-        // protegido aparte por _rechazarEscaneoSinEmpresaActiva(), que
-        // vuelve a comprobar activeEmpresaId en el momento real del guardado
-        // — así que no hay riesgo de guardar un documento sin empresa.
-        if (!window.qrScan) { showToast('El módulo de escaneo QR no está disponible en este entorno', 'error'); return; }
-
         _registrarListenersQrScan();
 
-        var floatBtn = document.getElementById('qrScanFloatBtn');
-        floatBtn.style.display = 'none'; floatBtn.classList.add('hidden');
-        var modal = document.getElementById('qrScanModal');
-        modal.style.display = 'flex'; modal.classList.add('modal-open');
-
-        // Si ya había una sesión corriendo (el usuario la minimizó), solo se
-        // vuelve a mostrar el panel con el estado actual — no se reinicia el servidor.
+        // Si ya había una sesión corriendo (el usuario la minimizó, o ya se
+        // inició desde otra parte de la interfaz), no se reinicia el servidor.
         if (_qrScanEstado.activo) {
-            _renderQrScanBody(_qrScanEstado.conectado ? 'conectado' : 'esperando');
+            if (callback) callback(true);
             return;
         }
-
-        _renderQrScanBody('cargando');
 
         var emp = empresas.find(function(e) { return e.id === activeEmpresaId; });
         // Corrección: el campo real del nombre de la empresa en el objeto
@@ -16347,62 +16605,186 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             costoLabels: COSTO_LABELS
         }).then(function(res) {
             if (!res || !res.ok) {
-                _renderQrScanBody('error', (res && res.error) || 'No se pudo iniciar el módulo de escaneo.');
+                showToast((res && res.error) || 'No se pudo iniciar el módulo de escaneo.', 'error');
+                if (callback) callback(false);
                 return;
             }
             _qrScanEstado.activo = true;
             _qrScanEstado.qrDataUrl = res.qrDataUrl;
-            _renderQrScanBody('esperando');
+            if (callback) callback(true);
         }).catch(function(e) {
-            _renderQrScanBody('error', (e && e.message) || 'Error desconocido al iniciar el módulo.');
+            showToast((e && e.message) || 'Error desconocido al iniciar el módulo.', 'error');
+            if (callback) callback(false);
         });
     }
 
-    function _renderQrScanBody(estado, mensajeError) {
-        var body = document.getElementById('qrScanBody');
-        if (!body) return;
-        if (estado === 'cargando') {
-            body.innerHTML = '<div style="width:26px;height:26px;border-radius:50%;border:3px solid var(--rp-border-strong);border-top-color:var(--rp-cyan);animation:spin .8s linear infinite;"></div>' +
-                '<p style="color:var(--rp-text-secondary);font-size:12px;margin:8px 0 0;">Generando código de vinculación…</p>';
-        } else if (estado === 'error') {
-            body.innerHTML = '<p style="color:var(--rp-error);font-size:13px;margin:0;">' + (mensajeError || 'Ocurrió un error') + '</p>';
-        } else if (estado === 'esperando') {
-            body.innerHTML = '<img src="' + _qrScanEstado.qrDataUrl + '" style="width:200px;height:200px;border-radius:10px;border:1px solid var(--rp-border-strong);background:#fff;padding:6px;">' +
-                '<p style="color:var(--rp-text-secondary);font-size:12px;margin:0;">Escanea este código con la cámara de tu teléfono para vincularlo (misma red WiFi que esta computadora).</p>' +
-                '<p style="color:var(--rp-text-secondary);font-size:11px;margin:0;">Esperando conexión…</p>';
-        } else if (estado === 'conectado') {
-            body.innerHTML = '<div style="width:44px;height:44px;border-radius:50%;background:rgba(45,212,191,0.12);display:flex;align-items:center;justify-content:center;">' +
-                '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="var(--rp-cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>' +
-                '<p style="color:var(--rp-cyan);font-size:13px;font-weight:600;margin:0;">Teléfono conectado</p>' +
-                '<p style="color:var(--rp-text-secondary);font-size:12px;margin:0;">Escanea el QR del documento desde el teléfono. Puedes cerrar esta ventana y seguir trabajando — la sesión se mantiene activa hasta que presiones "Cerrar módulo".</p>';
-        }
-    }
+    // Cambio 02 — Se eliminó el modal "Escanear Documentos Físicos"
+    // (qrScanModal) por completo. abrirEscaneoDocumentosFisicos() ahora solo
+    // arranca la sesión de emparejamiento (si no estaba activa) — el QR y el
+    // estado de conexión siempre se muestran inline en esta misma pantalla,
+    // vía _renderEscaneoDocScreen()/escaneoDocPairingArea. No hay ventana ni
+    // overlay que abrir o cerrar.
+    function abrirEscaneoDocumentosFisicos() {
+        // CAMBIO — Ya no se exige empresa activa para ABRIR el módulo: ahora
+        // vive en la pantalla principal (antes de entrar a una empresa), así
+        // que el usuario debe poder generar el QR y vincular el teléfono de
+        // una vez, sin tener que entrar primero a una empresa. Si en este
+        // momento no hay ninguna activa, se inicia igual pero con catálogos
+        // vacíos y sin nombre de empresa — en cuanto el usuario entre a una
+        // empresa, _sincronizarEmpresaActivaQR() (llamada desde
+        // ingresarEmpresa) actualiza el teléfono en caliente sin reabrir el
+        // módulo. El guardado de cualquier documento escaneado sigue
+        // protegido aparte por _rechazarEscaneoSinEmpresaActiva(), que
+        // vuelve a comprobar activeEmpresaId en el momento real del guardado
+        // — así que no hay riesgo de guardar un documento sin empresa.
+        if (!window.qrScan) { showToast('El módulo de escaneo QR no está disponible en este entorno', 'error'); return; }
 
-    function _minimizarModuloEscaneo() {
-        var modal = document.getElementById('qrScanModal');
-        _cerrarModalAnimado(modal);
+        _registrarListenersQrScan();
+
         if (_qrScanEstado.activo) {
-            var floatBtn = document.getElementById('qrScanFloatBtn');
-            floatBtn.style.display = 'flex'; floatBtn.classList.remove('hidden');
+            _renderEscaneoDocScreen();
+            return;
         }
+
+        _renderEscaneoDocScreen();
+        _iniciarSesionEscaneoQR(function(ok) {
+            if (!ok) showToast('No se pudo generar el código de vinculación.', 'error');
+            _renderEscaneoDocScreen();
+        });
     }
 
-    function reabrirModuloEscaneo() {
-        if (!_qrScanEstado.activo) return;
-        var floatBtn = document.getElementById('qrScanFloatBtn');
-        floatBtn.style.display = 'none'; floatBtn.classList.add('hidden');
-        var modal = document.getElementById('qrScanModal');
-        modal.style.display = 'flex'; modal.classList.add('modal-open');
-        _renderQrScanBody(_qrScanEstado.conectado ? 'conectado' : 'esperando');
+    // ══════════════════════════════════════════════════════════════════
+    // Cambio 01 — Escaneo de Documentos (control desde la PC)
+    // Pantalla nueva de la barra lateral: vincula el teléfono (reutilizando
+    // _qrScanEstado / window.qrScan tal cual) y permite elegir, desde la
+    // computadora, qué tipo de documento debe escanear el teléfono a
+    // continuación. El teléfono nunca elige nada por su cuenta — solo
+    // recibe la orden y abre la cámara.
+    // ══════════════════════════════════════════════════════════════════
+    var LIBRO_ESCANEO_LABELS = {
+        compras: 'Compras',
+        cf: 'Venta Consumidor Final',
+        ccf: 'Venta Crédito Fiscal',
+        retencion: 'Retención IVA',
+        excluido: 'Sujeto Excluido'
+    };
+
+    function _actualizarBotonesEscaneoDoc() {
+        var botones = document.querySelectorAll('.escaneo-doc-btn');
+        botones.forEach(function(btn) {
+            btn.classList.toggle('activo', !!_libroSeleccionado && _libroSeleccionado === btn.getAttribute('data-libro'));
+        });
+    }
+
+    // Redibuja la pantalla "Escaneo de Documentos": estado de vinculación
+    // (sin vincular / esperando QR / conectado) + qué botón de tipo de
+    // documento está resaltado como activo. Se llama cada vez que cambia el
+    // estado de conexión del teléfono y al entrar a la pantalla — es segura
+    // de llamar aunque la pantalla no esté visible en este momento (getElementById
+    // simplemente no encuentra los nodos si el modal aún no se ha insertado,
+    // aunque en este caso siempre existen en el DOM, solo ocultos).
+    function _renderEscaneoDocScreen() {
+        var dot = document.getElementById('escaneoDocConnDot');
+        var txt = document.getElementById('escaneoDocConnTxt');
+        var area = document.getElementById('escaneoDocPairingArea');
+        if (!dot || !txt || !area) return;
+
+        if (_qrScanEstado.activo && _qrScanEstado.conectado) {
+            dot.style.background = 'var(--rp-cyan)';
+            dot.style.boxShadow = '0 0 8px var(--rp-cyan)';
+            txt.textContent = 'Teléfono conectado';
+            area.innerHTML =
+                '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">' +
+                '<div style="display:flex;align-items:center;gap:10px;">' +
+                '<div style="width:38px;height:38px;border-radius:50%;background:rgba(45,212,191,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+                '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="var(--rp-cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>' +
+                '<div><p style="margin:0;color:var(--rp-text-heading);font-weight:600;font-size:13px;">Teléfono vinculado</p>' +
+                '<p style="margin:0;color:var(--rp-text-secondary);font-size:11.5px;">Funciona como cámara/lector — elige un tipo de documento abajo para activarla.</p></div></div>' +
+                '<button onclick="cerrarModuloEscaneo()" style="padding:8px 14px;border-radius:8px;border:1px solid rgba(248,113,113,0.35);background:rgba(248,113,113,0.08);color:var(--rp-error);cursor:pointer;font-size:11.5px;font-weight:600;white-space:nowrap;">Desvincular</button>' +
+                '</div>';
+        } else if (_qrScanEstado.activo && _qrScanEstado.qrDataUrl) {
+            dot.style.background = 'var(--rp-warning, #e0a857)';
+            dot.style.boxShadow = 'none';
+            txt.textContent = 'Esperando conexión…';
+            // Cambio 02 — Sin modal: el QR de vinculación se muestra siempre
+            // aquí, inline, dentro de la propia pantalla "Escaneo de
+            // Documentos" (antes se ocultaba mientras el modal qrScanModal
+            // estaba abierto, para no duplicarlo — ese modal ya no existe).
+            area.innerHTML =
+                '<div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">' +
+                '<img src="' + _qrScanEstado.qrDataUrl + '" style="width:150px;height:150px;border-radius:10px;border:1px solid var(--rp-border-strong);background:#fff;padding:6px;flex-shrink:0;">' +
+                '<div style="flex:1;min-width:220px;"><p style="margin:0 0 6px;color:var(--rp-text-heading);font-weight:600;font-size:13px;">Escanea este código con la cámara de tu teléfono</p>' +
+                '<p style="margin:0;color:var(--rp-text-secondary);font-size:12px;line-height:1.5;">Debe estar en la misma red WiFi que esta computadora. En cuanto se vincule, el teléfono queda listo como cámara/lector — el tipo de documento que hayas elegido se le enviará automáticamente.</p></div></div>';
+        } else {
+            dot.style.background = 'var(--rp-text-secondary)';
+            dot.style.boxShadow = 'none';
+            txt.textContent = 'Teléfono no vinculado';
+            area.innerHTML =
+                '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">' +
+                '<p style="margin:0;color:var(--rp-text-secondary);font-size:12.5px;max-width:440px;line-height:1.5;">Vincula tu teléfono para usarlo como cámara de escaneo. La cámara y el tipo de documento a escanear siempre se controlan desde esta pantalla.</p>' +
+                '<button onclick="abrirEscaneoDocumentosFisicos()" style="padding:9px 16px;border-radius:8px;border:1px solid rgba(45,212,191,0.4);background:rgba(45,212,191,0.08);color:var(--rp-cyan);cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap;">Vincular teléfono</button>' +
+                '</div>';
+        }
+
+        _actualizarBotonesEscaneoDoc();
+    }
+
+    // El usuario elige, desde la computadora, qué tipo de documento debe
+    // escanear el teléfono a continuación. Si el teléfono todavía no se ha
+    // vinculado, se inicia el emparejamiento primero (mostrando el QR
+    // inline en esta misma pantalla) SIN perder la selección: la orden se
+    // guarda igual (ordenarEscaneo la deja pendiente en qrPairingServer) y
+    // se envía sola en cuanto el teléfono se conecte.
+    function seleccionarTipoEscaneo(libro) {
+        if (!window.qrScan) { showToast('El módulo de escaneo QR no está disponible en este entorno', 'error'); return; }
+        if (!activeEmpresaId) { showToast('Selecciona una empresa activa antes de escanear documentos.', 'error'); return; }
+
+        _libroSeleccionado = libro;
+        _actualizarBotonesEscaneoDoc();
+
+        function _enviarOrden() {
+            window.qrScan.ordenarEscaneo(libro).then(function(res) {
+                if (!res || !res.ok) {
+                    showToast((res && res.error) || 'No se pudo enviar la orden al teléfono.', 'error');
+                    return;
+                }
+                showToast(res.conectado
+                    ? ('Instrucción enviada: escanear ' + (LIBRO_ESCANEO_LABELS[libro] || libro))
+                    : 'Tipo de documento guardado — se enviará al teléfono en cuanto se vincule.', 'success');
+            }).catch(function() {
+                showToast('No se pudo enviar la orden al teléfono.', 'error');
+            });
+        }
+
+        if (!_qrScanEstado.activo) {
+            _renderEscaneoDocScreen();
+            _iniciarSesionEscaneoQR(function(ok) {
+                _renderEscaneoDocScreen();
+                if (ok) _enviarOrden();
+            });
+            return;
+        }
+
+        _enviarOrden();
+    }
+
+    // Corrección 01: se eliminó el icono/botón flotante — el único acceso al
+    // escaneo QR es ahora el módulo "Escaneo de Documentos" de la barra
+    // lateral. Cambio 02: también se eliminó el modal de vinculación
+    // (qrScanModal), así que "minimizar" ya no tiene ninguna ventana que
+    // cerrar — se mantiene como no-op (en vez de borrar sus llamadas, que
+    // aparecen en varios flujos de guardado/escaneo) para no tocar esa
+    // lógica existente. El estado de la sesión sigue reflejándose siempre
+    // en la pantalla "Escaneo de Documentos".
+    function _minimizarModuloEscaneo() {
+        // No-op: sin modal que cerrar.
     }
 
     function cerrarModuloEscaneo() {
         if (window.qrScan) window.qrScan.detener().catch(function() {});
         _qrScanEstado = { activo: false, conectado: false, qrDataUrl: null };
-        var modal = document.getElementById('qrScanModal');
-        _cerrarModalAnimado(modal);
-        var floatBtn = document.getElementById('qrScanFloatBtn');
-        floatBtn.style.display = 'none'; floatBtn.classList.add('hidden');
+        _libroSeleccionado = null;
+        _renderEscaneoDocScreen();
     }
 
     // Se registran una sola vez por sesión de la app (persisten aunque el
@@ -16414,23 +16796,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         window.qrScan.onEstadoConexion(function(data) {
             var estabaConectado = _qrScanEstado.conectado;
             _qrScanEstado.conectado = !!(data && data.conectado);
-            var modal = document.getElementById('qrScanModal');
-            var modalAbierto = _qrScanEstado.activo && modal && modal.style.display === 'flex';
 
-            // En cuanto el teléfono se conecta, el QR ya cumplió su función:
-            // se minimiza el módulo automáticamente (deja de mostrarse el modal
-            // grande y aparece el botón flotante). La sesión sigue activa igual
-            // — solo se corta si el usuario presiona "Cerrar módulo" o si se
-            // pierde la conexión con el teléfono.
+            // En cuanto el teléfono se conecta, se avisa con un toast. La
+            // sesión sigue activa igual — solo se corta si el usuario
+            // presiona "Desvincular"/"Cerrar módulo" o si se pierde la
+            // conexión con el teléfono. El estado se ve siempre en esta
+            // misma pantalla "Escaneo de Documentos" (sin modal, Cambio 02).
             if (_qrScanEstado.conectado && !estabaConectado) {
-                _minimizarModuloEscaneo();
                 showToast('Teléfono conectado — ya puedes escanear documentos', 'success');
-                return;
             }
-
-            if (modalAbierto) {
-                _renderQrScanBody(_qrScanEstado.conectado ? 'conectado' : 'esperando');
-            }
+            _renderEscaneoDocScreen();
         });
 
         // Proveedor nuevo creado desde el teléfono: se registra con la MISMA
@@ -16601,93 +16976,42 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         return true;
     }
 
+    // Cambio 03 (gestión trasladada a la computadora): ya NO se guarda el
+    // registro automáticamente. El teléfono solo mandó el QR — 'combinado'
+    // trae el resultado de la consulta pública (fecha, código de
+    // generación, montos, tipo de documento), sin proveedor ninguno (eso lo
+    // expone únicamente el Sello/QR del documento, no la consulta de
+    // Hacienda). Se abre el modal "Nuevo Registro — Compras" ya existente
+    // (mismo que usa el botón manual "+ Nuevo") con los campos del
+    // documento precargados, y se deja el NIT/proveedor en blanco para que
+    // el usuario lo busque/seleccione/agregue en esta misma pantalla —
+    // reutilizando tal cual el autocompletado (onComprasNitChange) y el
+    // guardado (saveComprasRecord, con su propio autoRegistrarProveedor y
+    // validación de duplicados) que ya tiene el modal manual. El usuario
+    // confirma con el mismo botón "Guardar" del modal.
+    // Corrección 01: ya no se abre el modal "Nuevo Registro — Compras" — se
+    // abre la pantalla independiente "Documentos Escaneados" (ver
+    // openQrDocModal), donde el usuario selecciona/agrega el proveedor y
+    // confirma con "Enviar". Esa pantalla es quien realmente arma y guarda
+    // el registro en comprasRecords (ver qrDocEnviar).
     function _autocompletarComprasDesdeQR(combinado) {
         if (!combinado) return;
         if (_rechazarEscaneoSinEmpresaActiva()) return;
-        var prov = combinado.proveedor || {};
 
-        var empSector = '1';
-        if (activeEmpresaId) {
-            var empActiva = empresas.find(function(e) { return e.id === activeEmpresaId; });
-            if (empActiva && empActiva.sector) empSector = empActiva.sector;
-        }
-
-        var tipoDoc = combinado.tipoDocMapeado || '03';
-        var intGravadas = combinado.montoTotal || 0;
-        var ivaPercibido = combinado.ivaPercibido || 0;
-        var credito = intGravadas * 0.13;
-        var total = intGravadas + credito;
-
-        // Si el proveedor ya existe en el catálogo con una clasificación asignada,
-        // se respeta esa clasificación en vez de forzar los valores por defecto.
-        var nitBuscado = (prov.nit || '').trim();
-        var nrcBuscado = (prov.nrc || '').trim();
-        var clasifFinal = '1', sectorFinal = empSector, tipoCostoFinal = '1';
-        if (nitBuscado || nrcBuscado) {
-            var catalogo = loadProveedores();
-            var pExistente = catalogo.find(function(p) {
-                var pNit = p.nit ? String(p.nit).trim() : '';
-                var pNrc = p.nrc ? String(p.nrc).trim() : '';
-                return (nitBuscado && pNit === nitBuscado) || (nrcBuscado && pNrc === nrcBuscado);
-            });
-            if (pExistente) {
-                if (pExistente.clasif) clasifFinal = pExistente.clasif;
-                if (pExistente.sector) sectorFinal = pExistente.sector;
-                if (pExistente.tipoCosto) tipoCostoFinal = pExistente.tipoCosto;
-            }
-        }
-
-        var r = {
-            fecha: combinado.fecha || '', clase: '4', tipoDoc: tipoDoc,
-            numDoc: combinado.codGen || '', nit: (prov.nit || '').trim(), nrc: (prov.nrc || prov.nit || '').trim(),
-            dui: (prov.dui || '').trim(), nombre: prov.nombre || '',
-            intExentas: 0, internExentas: 0, impExentas: 0,
-            intGravadas: intGravadas, internGrav: 0, impGrav: 0, impServ: 0,
-            credito: credito, total: total,
-            fovial: 0, cotrans: 0,
-            tipoOp: '1', clasif: clasifFinal, sector: sectorFinal, tipoCosto: tipoCostoFinal,
-            selloRecepcion: combinado.selloRecepcion || '', ivaPercibido: ivaPercibido,
-            _percLinkId: ''
-        };
-
-        // Corrección Bug 01: si el documento ya fue registrado en el Libro de
-        // Compras (manual, JSON, CSV o un escaneo previo), no se procesa de
-        // nuevo — se avisa al usuario tanto en la computadora como en el
-        // teléfono (que ya había recibido el mensaje genérico de "cargado")
-        // y se corta aquí sin tocar el resto de la lógica de escaneo. Se
-        // verifica por el Código de Generación del DTE (no por los montos),
-        // para que detecte el duplicado aunque el registro original tenga
-        // algún monto calculado distinto.
+        // Corrección Bug 01 (se mantiene): si el documento ya fue registrado
+        // en el Libro de Compras (manual, JSON, CSV o un escaneo previo), no
+        // se abre la pantalla de nuevo — se avisa al usuario y, si el
+        // teléfono sigue en pantalla, también ahí.
         var _dupPeriodoCp = _codigoGenYaExisteEnLibro('compras', normalizeUUID(combinado.codGen || ''), comprasRecords);
         if (_dupPeriodoCp) {
             showToast('Documento ya procesado.', 'error');
             if (window.qrScan && window.qrScan.reportarResultado) {
                 window.qrScan.reportarResultado({ ok: false, mensaje: 'Documento ya procesado.' });
             }
-            _minimizarModuloEscaneo();
             return;
         }
 
-        comprasRecords.push(r);
-        syncPercibidoFromCompra(r);
-        saveCurrentMonthData();
-        renderComprasTable();
-
-        var nitProv = (r.nit || r.nrc || '').trim();
-        if (nitProv) {
-            autoRegistrarProveedor(r.nit || '', r.nombre || '', r.dui || '', r.nrc || '', r.clasif || '', r.sector || '', r.tipoCosto || '');
-            renderProveedoresTable();
-        }
-
-        if (!combinado.tipoDocMapeado) {
-            showToast('Tipo de documento no soportado aún — se guardó como Factura (03), verifica el registro manualmente.', 'error');
-        } else if (combinado.estado && combinado.estado !== 'TRANSMITIDO') {
-            showToast('Documento guardado — pero su estado en el Ministerio es: ' + combinado.estado + '. Revísalo.', 'error');
-        } else {
-            showToast('Documento escaneado guardado automáticamente en Compras ✓', 'success');
-        }
-
-        _minimizarModuloEscaneo();
+        openQrDocModal('compras', combinado);
     }
 
     // Combina el resultado de la consulta pública + si la venta es exenta o
@@ -16702,60 +17026,30 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     //   Monto Total de la Operación            -> Ventas Gravadas Locales (o Ventas
     //                                              Exentas si el usuario marcó "exenta"
     //                                              en el teléfono antes de enviar)
+    // Cambio 03: ya no se guarda automáticamente ni se decide "exenta" en el
+    // teléfono. Se abre el modal "Nuevo Registro — Consumidor Final" con los
+    // datos del documento precargados (el monto se coloca por defecto en
+    // "Ventas Gravadas" — si la venta escaneada era exenta, el usuario mueve
+    // el monto al campo "Exentas" del propio modal antes de confirmar, tal
+    // como ya lo haría con un registro manual). El usuario confirma con el
+    // mismo botón "Guardar" del modal.
+    // Corrección 01: ya no se abre el modal "Nuevo Registro — Consumidor
+    // Final" — se abre la pantalla independiente "Documentos Escaneados".
     function _autocompletarVentaCFDesdeQR(combinado) {
         if (!combinado) return;
         if (_rechazarEscaneoSinEmpresaActiva()) return;
 
-        var empTipoIng = '1';
-        if (activeEmpresaId) {
-            var empActiva = empresas.find(function(e) { return e.id === activeEmpresaId; });
-            if (empActiva && empActiva.tipoIng) empTipoIng = empActiva.tipoIng;
-        }
-
-        var tipoDoc = combinado.tipoDocMapeado || '01';
-        var monto = combinado.montoTotal || 0;
-        var esExenta = !!combinado.exenta;
-        var exentasVal = esExenta ? monto : 0;
-        var gravadasVal = esExenta ? 0 : monto;
-        var subtotal = exentasVal + gravadasVal;
-
-        var r = {
-            fecha: combinado.fecha || '', clase: '4', tipoDoc: tipoDoc,
-            resolucion: combinado.numeroControl || '', serie: combinado.selloRecepcion || '', maquina: '',
-            ctrlDel: combinado.numeroControl || '', ctrlAl: combinado.numeroControl || '',
-            docDel: combinado.codGen || '', docAl: combinado.codGen || '',
-            exentas: exentasVal, exentaNosuj: 0, nosujetas: 0, gravadas: gravadasVal,
-            expCa: 0, expFuera: 0, expServ: 0, zonas: 0, terceros: 0,
-            total: subtotal, tipoOp: '1', tipoIng: empTipoIng
-        };
-
-        // Corrección Bug 01: mismo criterio que en Compras — si el documento
-        // ya existe en el Libro de Consumidor Final (por cualquier vía), no
-        // se procesa de nuevo y se corrige el mensaje en el teléfono. Se
-        // verifica por el Código de Generación del DTE, no por los montos.
+        // Corrección Bug 01 (se mantiene): mismo criterio que en Compras.
         var _dupPeriodoCf = _codigoGenYaExisteEnLibro('cf', normalizeUUID(combinado.codGen || ''), cfRecords);
         if (_dupPeriodoCf) {
             showToast('Documento ya procesado.', 'error');
             if (window.qrScan && window.qrScan.reportarResultado) {
                 window.qrScan.reportarResultado({ ok: false, mensaje: 'Documento ya procesado.' });
             }
-            _minimizarModuloEscaneo();
             return;
         }
 
-        cfRecords.push(r);
-        saveCurrentMonthData();
-        renderCfTable();
-
-        if (!combinado.tipoDocMapeado) {
-            showToast('Tipo de documento no soportado aún — se guardó como Factura (01), verifica el registro manualmente.', 'error');
-        } else if (combinado.estado && combinado.estado !== 'TRANSMITIDO') {
-            showToast('Documento guardado — pero su estado en el Ministerio es: ' + combinado.estado + '. Revísalo.', 'error');
-        } else {
-            showToast('Venta a Consumidor Final guardada automáticamente ✓', 'success');
-        }
-
-        _minimizarModuloEscaneo();
+        openQrDocModal('cf', combinado);
     }
 
     // Combina el resultado de la consulta pública (sin selección de proveedor/
@@ -16774,87 +17068,29 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     // usa el flujo de Compras (el registro de Retenciones solo guarda NIT y
     // DUI, pero se registra/actualiza igual el proveedor completo en el
     // catálogo para que quede disponible en futuros escaneos).
+    // Cambio 03: ya no se guarda automáticamente ni el proveedor/agente se
+    // elige en el teléfono. Se abre el modal "Nuevo Registro — Retenido" con
+    // los datos del documento precargados; el NIT/DUI del agente de
+    // retención se deja en blanco para que el usuario lo busque/seleccione/
+    // agregue en esta misma pantalla (mismo autocompletado y guardado que ya
+    // tiene el modal manual).
+    // Corrección 01: ya no se abre el modal "Nuevo Registro — Retenido" —
+    // se abre la pantalla independiente "Documentos Escaneados".
     function _autocompletarRetencionDesdeQR(combinado) {
         if (!combinado) return;
         if (_rechazarEscaneoSinEmpresaActiva()) return;
-        var prov = combinado.proveedor || {};
 
-        var empSector = '1';
-        if (activeEmpresaId) {
-            var empActiva = empresas.find(function(e) { return e.id === activeEmpresaId; });
-            if (empActiva && empActiva.sector) empSector = empActiva.sector;
-        }
-
-        var tipoDoc = combinado.tipoDocMapeado || '07';
-        var monto = combinado.montoTotal || 0;
-
-        // Si el proveedor ya existe en el catálogo con una clasificación
-        // asignada, se respeta (igual que en Compras) — Retenciones solo usa
-        // NIT/DUI, pero se conserva para no perder la clasificación al
-        // registrar el proveedor si hiciera falta crearlo.
-        // (mismo criterio que en Sujeto Excluido: también se busca por DUI,
-        // no solo NIT/NRC, para reconocer agentes sin NIT.)
-        var nitBuscado = (prov.nit || '').trim();
-        var nrcBuscado = (prov.nrc || '').trim();
-        var duiBuscado = (prov.dui || '').trim();
-        var clasifFinal = '1', sectorFinal = empSector, tipoCostoFinal = '1';
-        if (nitBuscado || nrcBuscado || duiBuscado) {
-            var catalogo = loadProveedores();
-            var pExistente = catalogo.find(function(p) {
-                var pNit = p.nit ? String(p.nit).trim() : '';
-                var pNrc = p.nrc ? String(p.nrc).trim() : '';
-                var pDui = p.dui ? String(p.dui).trim() : '';
-                return (nitBuscado && pNit === nitBuscado) || (nrcBuscado && pNrc === nrcBuscado) || (duiBuscado && pDui === duiBuscado);
-            });
-            if (pExistente) {
-                if (pExistente.clasif) clasifFinal = pExistente.clasif;
-                if (pExistente.sector) sectorFinal = pExistente.sector;
-                if (pExistente.tipoCosto) tipoCostoFinal = pExistente.tipoCosto;
-            }
-        }
-
-        var r = {
-            nit: nitBuscado, dui: (prov.dui || '').trim(), fecha: combinado.fecha || '',
-            tipoDoc: tipoDoc, serie: combinado.selloRecepcion || '', numDoc: combinado.codGen || '',
-            monto: monto, iva: monto * 0.01,
-            // Nombre del Agente: igual que en el modal manual (ret_nombre_agente),
-            // es únicamente informativo (no se incluye en el anexo), pero ayuda a
-            // identificar el registro sin tener que buscar el NIT en el catálogo.
-            _nombreAgente: prov.nombre || ''
-        };
-
-        // Corrección Bug 01: mismo criterio que en Compras/CF — si el documento
-        // ya existe en el Libro de Retenciones (por cualquier vía), no se
-        // procesa de nuevo y se corrige el mensaje en el teléfono. Se verifica
-        // por el Código de Generación del DTE, no por los montos.
+        // Corrección Bug 01 (se mantiene): mismo criterio que en Compras/CF.
         var _dupPeriodoRet = _codigoGenYaExisteEnLibro('retenido', normalizeUUID(combinado.codGen || ''), retenidoRecords);
         if (_dupPeriodoRet) {
             showToast('Documento ya procesado.', 'error');
             if (window.qrScan && window.qrScan.reportarResultado) {
                 window.qrScan.reportarResultado({ ok: false, mensaje: 'Documento ya procesado.' });
             }
-            _minimizarModuloEscaneo();
             return;
         }
 
-        retenidoRecords.push(r);
-        saveCurrentMonthData();
-        renderRetenidoTable();
-
-        if (nitBuscado || nrcBuscado || duiBuscado) {
-            autoRegistrarProveedor(prov.nit || '', prov.nombre || '', prov.dui || '', prov.nrc || '', clasifFinal, sectorFinal, tipoCostoFinal);
-            renderProveedoresTable();
-        }
-
-        if (!combinado.tipoDocMapeado) {
-            showToast('Tipo de documento no soportado aún — se guardó como Comprobante de Retención (07), verifica el registro manualmente.', 'error');
-        } else if (combinado.estado && combinado.estado !== 'TRANSMITIDO') {
-            showToast('Documento guardado — pero su estado en el Ministerio es: ' + combinado.estado + '. Revísalo.', 'error');
-        } else {
-            showToast('Retención escaneada guardada automáticamente en Anexo 7 ✓', 'success');
-        }
-
-        _minimizarModuloEscaneo();
+        openQrDocModal('retencion', combinado);
     }
 
     // Combina el resultado de la consulta pública (Factura de Sujeto
@@ -16875,95 +17111,31 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     // Sujeto Excluido (1-NIT / 2-DUI / 3-Otro, el select del modal) se
     // deduce del dato disponible en el proveedor elegido: NIT si lo tiene,
     // si no DUI, si no "Otro".
+    // Cambio 03: ya no se guarda automáticamente ni el Sujeto Excluido se
+    // elige/crea en el teléfono (Hacienda tampoco expone su NIT/DUI/nombre
+    // en la consulta pública). Se abre el modal "Nuevo Registro — Sujeto
+    // Excluido" con los datos del documento precargados; identificación,
+    // nombre y clasificación se dejan en blanco/por defecto para que el
+    // usuario los complete en esta misma pantalla (mismo guardado que ya
+    // tiene el modal manual, incluida su clasificación en el catálogo de
+    // Proveedores).
+    // Corrección 01: ya no se abre el modal "Nuevo Registro — Sujeto
+    // Excluido" — se abre la pantalla independiente "Documentos Escaneados".
     function _autocompletarExcluidoDesdeQR(combinado) {
         if (!combinado) return;
         if (_rechazarEscaneoSinEmpresaActiva()) return;
-        var prov = combinado.proveedor || {};
 
-        var empSector = '1';
-        if (activeEmpresaId) {
-            var empActiva = empresas.find(function(e) { return e.id === activeEmpresaId; });
-            if (empActiva && empActiva.sector) empSector = empActiva.sector;
-        }
-
-        var nit = (prov.nit || '').trim();
-        var dui = (prov.dui || '').trim();
-        var identificacion = nit || dui || (prov.nrc || '').trim();
-        var tipoDocSujeto = nit ? '1' : (dui ? '2' : '3');
-        var monto = combinado.montoTotal || 0;
-        var retencion = combinado.retencionRenta || 0;
-
-        // Si el proveedor ya existe en el catálogo con una clasificación
-        // asignada, se respeta (igual que en Compras) y se aplica también al
-        // registro que se guarda en el Libro de Sujeto Excluido — misma
-        // información y mismos campos que usa _applyProveedorToExcluidoModal
-        // para el modal manual, para no duplicar lógica.
-        // CORRECCIÓN: el Sujeto Excluido casi siempre se identifica solo por
-        // DUI (persona natural sin NIT/NRC) — antes la búsqueda en el
-        // catálogo solo comparaba por NIT/NRC, así que un Sujeto Excluido con
-        // solo DUI nunca encontraba su registro ni su clasificación guardada.
-        var nitBuscado = nit;
-        var nrcBuscado = (prov.nrc || '').trim();
-        var duiBuscado = dui;
-        var clasifFinal = '1', sectorFinal = empSector, tipoCostoFinal = '1';
-        var tipoDocFinal = tipoDocSujeto, tipoOpFinal = '1';
-        if (nitBuscado || nrcBuscado || duiBuscado) {
-            var catalogo = loadProveedores();
-            var pExistente = catalogo.find(function(p) {
-                var pNit = p.nit ? String(p.nit).trim() : '';
-                var pNrc = p.nrc ? String(p.nrc).trim() : '';
-                var pDui = p.dui ? String(p.dui).trim() : '';
-                return (nitBuscado && pNit === nitBuscado) || (nrcBuscado && pNrc === nrcBuscado) || (duiBuscado && pDui === duiBuscado);
-            });
-            if (pExistente) {
-                if (pExistente.clasif) clasifFinal = pExistente.clasif;
-                if (pExistente.sector) sectorFinal = pExistente.sector;
-                if (pExistente.tipoCosto) tipoCostoFinal = pExistente.tipoCosto;
-                if (pExistente.tipoDocEx) tipoDocFinal = pExistente.tipoDocEx;
-                if (pExistente.tipoOpEx) tipoOpFinal = pExistente.tipoOpEx;
-            }
-        }
-
-        var r = {
-            tipoDoc: tipoDocFinal, identificacion: identificacion, nombre: prov.nombre || '',
-            fecha: combinado.fecha || '', serie: combinado.selloRecepcion || '', numDoc: combinado.codGen || '',
-            monto: monto, retencion: retencion,
-            tipoOp: tipoOpFinal, clasif: clasifFinal, sector: sectorFinal, tipoCosto: tipoCostoFinal
-        };
-
-        // Corrección Bug 01: mismo criterio que en Compras/CF/Retenciones —
-        // si el documento ya existe en el Libro de Sujeto Excluido (por
-        // cualquier vía), no se procesa de nuevo y se corrige el mensaje en
-        // el teléfono. Se verifica por el Código de Generación del DTE, no
-        // por los montos.
+        // Corrección Bug 01 (se mantiene): mismo criterio que en los demás anexos.
         var _dupPeriodoEx = _codigoGenYaExisteEnLibro('excluido', normalizeUUID(combinado.codGen || ''), excluidoRecords);
         if (_dupPeriodoEx) {
             showToast('Documento ya procesado.', 'error');
             if (window.qrScan && window.qrScan.reportarResultado) {
                 window.qrScan.reportarResultado({ ok: false, mensaje: 'Documento ya procesado.' });
             }
-            _minimizarModuloEscaneo();
             return;
         }
 
-        excluidoRecords.push(r);
-        saveCurrentMonthData();
-        renderExcluidoTable();
-
-        if (nitBuscado || nrcBuscado || duiBuscado) {
-            autoRegistrarProveedor(prov.nit || '', prov.nombre || '', prov.dui || '', prov.nrc || '', clasifFinal, sectorFinal, tipoCostoFinal);
-            renderProveedoresTable();
-        }
-
-        if (!combinado.tipoDocMapeado) {
-            showToast('Tipo de documento no soportado aún — se guardó como Factura de Sujeto Excluido (14), verifica el registro manualmente.', 'error');
-        } else if (combinado.estado && combinado.estado !== 'TRANSMITIDO') {
-            showToast('Documento guardado — pero su estado en el Ministerio es: ' + combinado.estado + '. Revísalo.', 'error');
-        } else {
-            showToast('Compra a Sujeto Excluido guardada automáticamente en Anexo 5 ✓', 'success');
-        }
-
-        _minimizarModuloEscaneo();
+        openQrDocModal('excluido', combinado);
     }
 
     // Combina el resultado de la consulta pública + el cliente elegido/creado
@@ -17044,87 +17216,435 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         showToast('Cliente actualizado desde el teléfono', 'success');
     }
 
+    // Cambio 03: ya no se guarda automáticamente ni el cliente/"exenta" se
+    // eligen en el teléfono. Se abre el modal "Nuevo Registro — Crédito
+    // Fiscal" con los datos del documento precargados (monto por defecto en
+    // "Gravadas" — si la venta era exenta, el usuario mueve el monto al
+    // campo "Exentas"); el NIT del cliente se deja en blanco para que el
+    // usuario lo busque/seleccione/agregue en esta misma pantalla (mismo
+    // autocompletado y guardado que ya tiene el modal manual).
+    // Corrección 01: ya no se abre el modal "Nuevo Registro — Crédito
+    // Fiscal" — se abre la pantalla independiente "Documentos Escaneados".
     function _autocompletarVentaCCFDesdeQR(combinado) {
         if (!combinado) return;
         if (_rechazarEscaneoSinEmpresaActiva()) return;
-        var cli = combinado.cliente || {};
 
-        var empTipoIng = '1';
-        if (activeEmpresaId) {
-            var empActiva = empresas.find(function(e) { return e.id === activeEmpresaId; });
-            if (empActiva && empActiva.tipoIng) empTipoIng = empActiva.tipoIng;
-        }
-
-        var tipoDoc = combinado.tipoDocMapeado || '03';
-        var monto = combinado.montoTotal || 0;
-        var esExenta = !!combinado.exenta;
-        var exentasVal = esExenta ? monto : 0;
-        var gravadasVal = esExenta ? 0 : monto;
-        var iva = gravadasVal * 0.13;
-        var subtotal = gravadasVal + iva + exentasVal;
-
-        // Si el cliente ya existe en el catálogo con tipoOp/tipoIng asignados,
-        // se respetan esos valores en vez de forzar los valores por defecto
-        // (mismo criterio que ya usa aplicarCodificacionDebito()).
-        var nitBuscado = (cli.nit || '').trim();
-        var nrcBuscado = (cli.nrc || '').trim();
-        var tipoOpFinal = '1', tipoIngFinal = empTipoIng;
-        if (nitBuscado || nrcBuscado) {
-            var catalogoClientes = loadClientes();
-            var cExistente = catalogoClientes.find(function(c) {
-                var cNit = c.nit ? String(c.nit).trim() : '';
-                var cNrc = c.nrc ? String(c.nrc).trim() : '';
-                return (nitBuscado && cNit === nitBuscado) || (nrcBuscado && cNrc === nrcBuscado);
-            });
-            if (cExistente) {
-                if (cExistente.tipoOp) tipoOpFinal = cExistente.tipoOp;
-                if (cExistente.tipoIng) tipoIngFinal = cExistente.tipoIng;
-            }
-        }
-
-        var r = {
-            fecha: combinado.fecha || '', clase: '4', tipoDoc: tipoDoc,
-            resolucion: combinado.numeroControl || '', serie: combinado.selloRecepcion || '', numDoc: combinado.codGen || '',
-            nit: (cli.nit || '').trim(), nrc: (cli.nrc || cli.nit || '').trim(), dui: (cli.dui || '').trim(), nombre: cli.nombre || '',
-            ctrl: combinado.numeroControl || '',
-            exentas: exentasVal, nosujetas: 0, gravadas: gravadasVal,
-            iva: iva, tercero: 0, dfTercero: 0,
-            total: subtotal, tipoOp: tipoOpFinal, tipoIng: tipoIngFinal
-        };
-
-        // Corrección Bug 01: mismo criterio que en Compras — si el documento
-        // ya existe en el Libro de Crédito Fiscal (por cualquier vía), no se
-        // procesa de nuevo y se corrige el mensaje en el teléfono. Se
-        // verifica por el Código de Generación del DTE, no por los montos.
+        // Corrección Bug 01 (se mantiene): mismo criterio que en Compras.
         var _dupPeriodoD = _codigoGenYaExisteEnLibro('debito', normalizeUUID(combinado.codGen || ''), debitoRecords);
         if (_dupPeriodoD) {
             showToast('Documento ya procesado.', 'error');
             if (window.qrScan && window.qrScan.reportarResultado) {
                 window.qrScan.reportarResultado({ ok: false, mensaje: 'Documento ya procesado.' });
             }
-            _minimizarModuloEscaneo();
             return;
         }
 
-        debitoRecords.push(r);
-        saveCurrentMonthData();
-        renderDebitoTable();
+        openQrDocModal('ccf', combinado);
+    }
 
-        var nitCliente = (r.nit || r.nrc || '').trim();
-        if (nitCliente) {
-            var clienteAgregado = autoRegistrarCliente(nitCliente, r.nombre || '', r.nrc || '');
-            if (clienteAgregado) renderClientesTable();
+    // ══════════════════════════════════════════════════════════════════
+    // Corrección 01 — PANTALLA INDEPENDIENTE "Documentos Escaneados"
+    // Bandeja de recepción para los documentos que llegan desde el
+    // escaneo QR del teléfono. Es un modal propio (qrDocModalForm, ver
+    // HTML), separado de los modales "Nuevo Registro" de cada anexo —
+    // pero reutiliza el catálogo de Proveedores/Clientes y
+    // autoRegistrarProveedor/autoRegistrarCliente para no duplicar esa
+    // lógica. Un mismo modal atiende los 5 libros; qrDocState.libro decide
+    // qué mostrar y qué arma qrDocEnviar() al confirmar.
+    // ══════════════════════════════════════════════════════════════════
+    var qrDocState = {
+        libro: null,       // 'compras' | 'cf' | 'ccf' | 'retencion' | 'excluido'
+        combinado: null,   // resultado de la consulta pública + qr (fecha, codGen, estado, montoTotal, ...)
+        sel: null          // proveedor/cliente elegido o agregado en esta pantalla
+    };
+
+    var QRDOC_LIBRO_INFO = {
+        compras: {
+            anexo: 'Libro de Compras — Anexo 3', titulo: 'Compras — Documento Escaneado',
+            esCliente: false, sinTipoDoc: false, montoLabel: 'Monto (Compras Gravadas)',
+            tiposDoc: [['03','03 — Comprobante de Crédito Fiscal'],['05','05 — Nota de Crédito'],['06','06 — Nota de Débito'],['11','11 — Facturas de Exportación'],['12','12 — Declaración de Mercancías'],['13','13 — Mandamiento de Ingreso']],
+            tipoDocDefault: '03'
+        },
+        cf: {
+            anexo: 'Ventas — Consumidor Final — Anexo 2', titulo: 'Consumidor Final — Documento Escaneado',
+            esCliente: false, sinProveedor: true, sinTipoDoc: false, montoLabel: 'Monto (Ventas Gravadas)',
+            tiposDoc: [['01','01 — Factura Consumidor Final'],['02','02 — Factura de Venta Simplificada'],['10','10 — Tiquetes Máquinas Registradora'],['11','11 — Facturas de Exportación']],
+            tipoDocDefault: '01'
+        },
+        ccf: {
+            anexo: 'Ventas — Crédito Fiscal — Anexo 1', titulo: 'Crédito Fiscal — Documento Escaneado',
+            esCliente: true, sinTipoDoc: false, montoLabel: 'Monto (Ventas Gravadas)',
+            tiposDoc: [['03','03 — Comprobante de Crédito Fiscal'],['05','05 — Nota de Crédito'],['06','06 — Nota de Débito']],
+            tipoDocDefault: '03'
+        },
+        retencion: {
+            anexo: 'Comprobantes de Retención — Anexo 7', titulo: 'Retención IVA — Documento Escaneado',
+            esCliente: false, sinTipoDoc: false, montoLabel: 'Monto Sujeto a Retención',
+            tiposDoc: [['07','07 — Comprobante de Retención'],['05','05 — Nota de Crédito'],['06','06 — Nota de Débito']],
+            tipoDocDefault: '07'
+        },
+        excluido: {
+            anexo: 'Compras a Sujeto Excluido — Anexo 5', titulo: 'Sujeto Excluido — Documento Escaneado',
+            esCliente: false, sinTipoDoc: true, montoLabel: 'Monto de la Operación',
+            tiposDoc: [], tipoDocDefault: ''
         }
+    };
 
-        if (!combinado.tipoDocMapeado) {
-            showToast('Tipo de documento no soportado aún — se guardó como Comprobante de Crédito Fiscal (03), verifica el registro manualmente.', 'error');
-        } else if (combinado.estado && combinado.estado !== 'TRANSMITIDO') {
-            showToast('Documento guardado — pero su estado en el Ministerio es: ' + combinado.estado + '. Revísalo.', 'error');
+    // Corrección 02 — Llena los campos adicionales del documento escaneado
+    // (mismo estilo que "Sello de Recepción": label + input readonly,
+    // dentro del grid "Datos del Documento"). Es exclusivamente
+    // informativo: no toca qrDoc_monto, no participa en qrDocEnviar() ni
+    // en la lógica de ningún anexo. Cada campo se muestra únicamente si
+    // viene presente en el documento escaneado (combinado); si no viene,
+    // su wrapper queda oculto. $0.00 SÍ cuenta como presente y se muestra.
+    function poblarQrDocCamposAdicionales(combinado) {
+        var campos = [
+            { prop: 'ivaOperaciones', wrap: 'qrDoc_ivaOperacionesWrap',   input: 'qrDoc_ivaOperaciones' },
+            { prop: 'ivaPercibido',   wrap: 'qrDoc_ivaPercibidoWrap',     input: 'qrDoc_ivaPercibidoView' },
+            { prop: 'ivaRetenido',    wrap: 'qrDoc_ivaRetenidoWrap',      input: 'qrDoc_ivaRetenido' },
+            { prop: 'retencionRenta', wrap: 'qrDoc_retencionRentaWrap',   input: 'qrDoc_retencionRentaView' },
+            { prop: 'totalOperacion', wrap: 'qrDoc_totalOperacionWrap',  input: 'qrDoc_totalOperacion' }
+        ];
+        campos.forEach(function(c) {
+            var presente = combinado && combinado[c.prop] !== undefined && combinado[c.prop] !== null && combinado[c.prop] !== '';
+            var wrapEl = document.getElementById(c.wrap);
+            if (presente) {
+                document.getElementById(c.input).value = fMoney(parseFloat(combinado[c.prop]) || 0);
+                wrapEl.classList.remove('hidden');
+            } else {
+                wrapEl.classList.add('hidden');
+            }
+        });
+    }
+
+    function openQrDocModal(libro, combinado) {
+        var info = QRDOC_LIBRO_INFO[libro];
+        if (!info) return;
+        qrDocState.libro = libro;
+        qrDocState.combinado = combinado;
+        qrDocState.sel = null;
+
+        document.getElementById('qrDocAnexoLabel').innerText = info.anexo;
+        document.getElementById('qrDocModalTitle').innerText = info.titulo;
+
+        document.getElementById('qrDoc_fecha').value = combinado.fecha || '';
+        document.getElementById('qrDoc_codGenView').value = combinado.codGen || '';
+        document.getElementById('qrDoc_codGenView').title = combinado.codGen || '';
+        document.getElementById('qrDoc_estado').value = combinado.estado || 'Sin verificar';
+        document.getElementById('qrDoc_sello').value = combinado.selloRecepcion || '';
+        document.getElementById('qrDoc_monto').value = combinado.montoTotal || 0;
+        document.getElementById('qrDoc_montoLabel').innerText = info.montoLabel;
+
+        // Corrección 02 — Campos adicionales: solo visual, no altera
+        // qrDoc_monto ni ningún otro campo/lógica existente.
+        poblarQrDocCamposAdicionales(combinado);
+
+        // Tipo de Documento (Sujeto Excluido no lo usa — el 14 es fijo)
+        var tipoDocWrap = document.getElementById('qrDoc_tipoDoc').closest('div');
+        var tipoSel = document.getElementById('qrDoc_tipoDoc');
+        if (info.sinTipoDoc) {
+            if (tipoDocWrap) tipoDocWrap.classList.add('hidden');
         } else {
-            showToast('Venta a Crédito Fiscal guardada automáticamente ✓', 'success');
+            if (tipoDocWrap) tipoDocWrap.classList.remove('hidden');
+            tipoSel.innerHTML = info.tiposDoc.map(function(t) { return '<option value="'+t[0]+'">'+t[1]+'</option>'; }).join('');
+            tipoSel.value = combinado.tipoDocMapeado || info.tipoDocDefault;
         }
 
-        _minimizarModuloEscaneo();
+        var avisoEl = document.getElementById('qrDoc_avisoTipo');
+        if (!combinado.tipoDocMapeado && !info.sinTipoDoc) {
+            avisoEl.classList.remove('hidden');
+            avisoEl.innerText = 'Tipo no reconocido automáticamente — verifica "Tipo de Documento" antes de enviar.';
+        } else if (combinado.estado && combinado.estado !== 'TRANSMITIDO') {
+            avisoEl.classList.remove('hidden');
+            avisoEl.innerText = 'Estado en el Ministerio: ' + combinado.estado + '. Revísalo antes de enviar.';
+        } else {
+            avisoEl.classList.add('hidden');
+        }
+
+        // Sección Proveedor/Cliente
+        document.getElementById('qrDoc_provLabel').innerText = info.esCliente ? 'Cliente' : (info.sinProveedor ? '' : 'Proveedor');
+        var mostrarProv = !info.sinProveedor;
+        ['qrDoc_provLabel','qrDoc_provBuscar','qrDoc_provElegido','qrDoc_provNuevoForm'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (!mostrarProv) { el.classList.add('hidden'); return; }
+        });
+        if (mostrarProv) {
+            document.getElementById('qrDoc_provLabel').classList.remove('hidden');
+            document.getElementById('qrDoc_provBuscar').classList.remove('hidden');
+            document.getElementById('qrDoc_provElegido').classList.add('hidden');
+            document.getElementById('qrDoc_provNuevoForm').classList.add('hidden');
+            document.getElementById('qrDoc_provSearch').value = '';
+            document.getElementById('qrDoc_provResults').innerHTML = '';
+            document.getElementById('qrDoc_provBuscarLabel').innerText = info.esCliente
+                ? 'Buscar cliente por nombre, NIT o NRC'
+                : 'Buscar proveedor por nombre, NIT, NRC o DUI';
+            document.getElementById('qrDoc_pn_clasifWrap').classList.toggle('hidden', info.esCliente);
+            document.getElementById('qrDoc_pn_sectorWrap').classList.toggle('hidden', info.esCliente);
+            document.getElementById('qrDoc_pn_tipoCostoWrap').classList.toggle('hidden', info.esCliente);
+            document.getElementById('qrDoc_pn_excluidoWrap').classList.toggle('hidden', libro !== 'excluido');
+            document.getElementById('qrDoc_pn_dui').closest('div').classList.toggle('hidden', info.esCliente);
+        } else {
+            document.getElementById('qrDoc_provLabel').classList.add('hidden');
+        }
+
+        // "Venta Exenta" — solo aplica a CF y CCF (ambos usan "Gravadas" por
+        // defecto; si el usuario marca "exenta", qrDocEnviar mueve el monto
+        // al campo de exentas del anexo correspondiente).
+        var mostrarExenta = (libro === 'cf' || libro === 'ccf');
+        document.getElementById('qrDoc_exentaWrap').classList.toggle('hidden', !mostrarExenta);
+        document.getElementById('qrDoc_exenta').checked = false;
+
+        document.getElementById('qrDocModalForm').style.display = 'flex';
+        document.getElementById('qrDocModalForm').classList.add('modal-open');
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function closeQrDocModal() {
+        _cerrarModalAnimado('qrDocModalForm');
+    }
+
+    // ── Buscar proveedor/cliente por nombre, NIT, NRC o DUI ─────────────
+    // Corrección 04 — El catálogo de Proveedores está clasificado por
+    // anexo (`usos`: 'compras' | 'retenido' | 'excluido' — ver
+    // proveedorTieneUso/proveedorUsosEfectivos, ya usado por los modales
+    // manuales de Compras/Retención/Excluido). Esta búsqueda debe respetar
+    // esa misma clasificación: al escanear un documento de Retención solo
+    // deben aparecer proveedores marcados para 'retenido', y lo mismo para
+    // Compras/Excluido — nunca proveedores que solo pertenecen a otro
+    // anexo. QRDOC_LIBRO_INFO usa el código 'retencion' para ese libro,
+    // mientras que el catálogo usa 'retenido' — de ahí el mapeo.
+    var QRDOC_LIBRO_A_USO = { compras: 'compras', retencion: 'retenido', excluido: 'excluido' };
+
+    function qrDocBuscarProveedor() {
+        var info = QRDOC_LIBRO_INFO[qrDocState.libro];
+        if (!info) return;
+        var q = document.getElementById('qrDoc_provSearch').value.trim();
+        var listEl = document.getElementById('qrDoc_provResults');
+        if (!q) { acClose('qrDoc_provResults'); return; }
+
+        var qNorm = q.toLowerCase();
+        var catalogo = info.esCliente ? loadClientes() : loadProveedores();
+        // Corrección 04 — filtra por el `uso` del anexo actual antes de
+        // buscar por texto (los clientes de CCF no tienen este sistema de
+        // clasificación, así que el filtro solo aplica a proveedores).
+        var usoActual = QRDOC_LIBRO_A_USO[qrDocState.libro];
+        if (!info.esCliente && usoActual) {
+            catalogo = catalogo.filter(function(p) { return proveedorTieneUso(p, usoActual); });
+        }
+        var matches = catalogo.filter(function(p) {
+            return (p.nombre && p.nombre.toLowerCase().indexOf(qNorm) !== -1) ||
+                   (p.nit && p.nit.indexOf(q) !== -1) ||
+                   (p.nrc && p.nrc.indexOf(q) !== -1) ||
+                   (p.dui && p.dui.indexOf(q) !== -1);
+        });
+        if (!matches.length) { acClose('qrDoc_provResults'); return; }
+
+        listEl.innerHTML = '';
+        matches.slice(0, 8).forEach(function(p) {
+            var item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'autocomplete-item';
+            item.innerHTML = '<span class="ac-id">' + (p.nit || p.nrc || p.dui || '') + '</span><span class="ac-name">' + (p.nombre || '<em style="color:var(--rp-text-secondary)">Sin nombre</em>') + '</span>';
+            item.onclick = function() { qrDocSeleccionarProveedor(p); };
+            listEl.appendChild(item);
+        });
+        listEl.classList.add('open');
+    }
+
+    function qrDocSeleccionarProveedor(p) {
+        var info = QRDOC_LIBRO_INFO[qrDocState.libro];
+        qrDocState.sel = p;
+        acClose('qrDoc_provResults');
+        document.getElementById('qrDoc_provBuscar').classList.add('hidden');
+        document.getElementById('qrDoc_provNuevoForm').classList.add('hidden');
+        document.getElementById('qrDoc_provElegido').classList.remove('hidden');
+        document.getElementById('qrDoc_provElegidoK').innerText = info.esCliente ? 'Cliente seleccionado' : 'Proveedor seleccionado';
+        var idTxt = p.nit || p.nrc || p.dui || '';
+        document.getElementById('qrDoc_provElegidoTxt').innerText = (p.nombre || 'Sin nombre') + (idTxt ? ' — ' + idTxt : '');
+    }
+
+    function qrDocQuitarProveedor() {
+        qrDocState.sel = null;
+        document.getElementById('qrDoc_provElegido').classList.add('hidden');
+        document.getElementById('qrDoc_provBuscar').classList.remove('hidden');
+        document.getElementById('qrDoc_provSearch').value = '';
+        document.getElementById('qrDoc_provSearch').focus();
+    }
+
+    function qrDocMostrarFormNuevoProveedor() {
+        var info = QRDOC_LIBRO_INFO[qrDocState.libro];
+        acClose('qrDoc_provResults');
+        document.getElementById('qrDoc_provBuscar').classList.add('hidden');
+        document.getElementById('qrDoc_provElegido').classList.add('hidden');
+        document.getElementById('qrDoc_provNuevoForm').classList.remove('hidden');
+        ['qrDoc_pn_nombre','qrDoc_pn_nit','qrDoc_pn_nrc','qrDoc_pn_dui'].forEach(function(id) { document.getElementById(id).value = ''; });
+        var empSector = '1';
+        if (activeEmpresaId) {
+            var empActiva = empresas.find(function(e) { return e.id === activeEmpresaId; });
+            if (empActiva && empActiva.sector) empSector = empActiva.sector;
+        }
+        if (document.getElementById('qrDoc_pn_sector')) document.getElementById('qrDoc_pn_sector').value = empSector;
+        if (document.getElementById('qrDoc_pn_clasif')) document.getElementById('qrDoc_pn_clasif').value = '1';
+        if (document.getElementById('qrDoc_pn_tipoCosto')) document.getElementById('qrDoc_pn_tipoCosto').value = '1';
+        document.getElementById('qrDoc_pn_nombre').focus();
+    }
+
+    function qrDocCancelarNuevoProveedor() {
+        document.getElementById('qrDoc_provNuevoForm').classList.add('hidden');
+        document.getElementById('qrDoc_provBuscar').classList.remove('hidden');
+    }
+
+    function qrDocUsarProveedorNuevo() {
+        var info = QRDOC_LIBRO_INFO[qrDocState.libro];
+        var nombre = document.getElementById('qrDoc_pn_nombre').value.trim();
+        var nit = document.getElementById('qrDoc_pn_nit').value.trim();
+        var nrc = document.getElementById('qrDoc_pn_nrc').value.trim();
+        var dui = info.esCliente ? '' : document.getElementById('qrDoc_pn_dui').value.trim();
+
+        if (nit && !isValidNitOrNrc(nit)) { showToast('El NIT no tiene un formato válido (0000-000000-000-0)', 'error'); return; }
+        if (dui && !isValidDui(dui)) { showToast('El DUI no tiene un formato válido (00000000-0)', 'error'); return; }
+        if (!nit && !nrc && !dui) { showToast('Ingresa al menos NIT, NRC o DUI', 'error'); return; }
+
+        var p = { esNuevo: true, nombre: nombre, nit: nit, nrc: nrc };
+        if (info.esCliente) {
+            p.tipoOp = '1';
+            p.tipoIng = (function() {
+                var empActiva = activeEmpresaId ? empresas.find(function(e) { return e.id === activeEmpresaId; }) : null;
+                return (empActiva && empActiva.tipoIng) || '1';
+            })();
+        } else {
+            p.dui = dui;
+            p.clasif = document.getElementById('qrDoc_pn_clasif').value;
+            p.sector = document.getElementById('qrDoc_pn_sector').value;
+            p.tipoCosto = document.getElementById('qrDoc_pn_tipoCosto').value;
+            if (qrDocState.libro === 'excluido') {
+                p.tipoDocEx = document.getElementById('qrDoc_pn_tipoDocEx').value;
+                p.tipoOpEx = document.getElementById('qrDoc_pn_tipoOpEx').value;
+            }
+        }
+        qrDocSeleccionarProveedor(p);
+    }
+
+    // ── Enviar: valida, arma el registro del anexo correspondiente y lo
+    // guarda — exactamente el mismo esquema de registro que ya usa cada
+    // libro (comprasRecords/cfRecords/debitoRecords/retenidoRecords/
+    // excluidoRecords), y registra/actualiza el proveedor o cliente en su
+    // catálogo real (autoRegistrarProveedor/autoRegistrarCliente), igual
+    // que ya hacía el guardado manual de cada anexo. ──
+    function qrDocEnviar() {
+        var libro = qrDocState.libro;
+        var info = QRDOC_LIBRO_INFO[libro];
+        var combinado = qrDocState.combinado;
+        if (!info || !combinado) return;
+
+        if (!info.sinProveedor && !qrDocState.sel) {
+            showToast(info.esCliente ? 'Selecciona o agrega un cliente antes de enviar' : 'Selecciona o agrega un proveedor antes de enviar', 'error');
+            return;
+        }
+
+        var fecha = document.getElementById('qrDoc_fecha').value || '';
+        var tipoDoc = info.sinTipoDoc ? '' : document.getElementById('qrDoc_tipoDoc').value;
+        var monto = parseFloat(document.getElementById('qrDoc_monto').value) || 0;
+        var esExenta = document.getElementById('qrDoc_exenta').checked;
+        var sello = document.getElementById('qrDoc_sello').value || '';
+        var codGen = combinado.codGen || '';
+        var sel = qrDocState.sel || {};
+
+        var empSector = '1', empTipoIng = '1';
+        if (activeEmpresaId) {
+            var empActiva = empresas.find(function(e) { return e.id === activeEmpresaId; });
+            if (empActiva && empActiva.sector) empSector = empActiva.sector;
+            if (empActiva && empActiva.tipoIng) empTipoIng = empActiva.tipoIng;
+        }
+
+        if (libro === 'compras') {
+            var credito = monto * 0.13;
+            var r = {
+                fecha: fecha, clase: '4', tipoDoc: tipoDoc,
+                numDoc: codGen, nit: (sel.nit || '').trim(), nrc: (sel.nrc || sel.nit || '').trim(),
+                dui: (sel.dui || '').trim(), nombre: sel.nombre || '',
+                intExentas: 0, internExentas: 0, impExentas: 0,
+                intGravadas: monto, internGrav: 0, impGrav: 0, impServ: 0,
+                credito: credito, total: monto + credito,
+                fovial: 0, cotrans: 0,
+                tipoOp: '1', clasif: sel.clasif || '1', sector: sel.sector || empSector, tipoCosto: sel.tipoCosto || '1',
+                selloRecepcion: sello, ivaPercibido: combinado.ivaPercibido || 0, _percLinkId: ''
+            };
+            comprasRecords.push(r);
+            syncPercibidoFromCompra(r);
+            saveCurrentMonthData();
+            renderComprasTable();
+            if (r.nit || r.nrc) { autoRegistrarProveedor(r.nit, r.nombre, r.dui, r.nrc, r.clasif, r.sector, r.tipoCosto, ['compras']); renderProveedoresTable(); }
+            showToast('Documento agregado al Libro de Compras ✓', 'success');
+
+        } else if (libro === 'cf') {
+            var exentasVal = esExenta ? monto : 0;
+            var gravadasVal = esExenta ? 0 : monto;
+            var r = {
+                fecha: fecha, clase: '4', tipoDoc: tipoDoc,
+                resolucion: combinado.numeroControl || '', serie: sello, maquina: '',
+                ctrlDel: combinado.numeroControl || '', ctrlAl: combinado.numeroControl || '',
+                docDel: codGen, docAl: codGen,
+                exentas: exentasVal, exentaNosuj: 0, nosujetas: 0, gravadas: gravadasVal,
+                expCa: 0, expFuera: 0, expServ: 0, zonas: 0, terceros: 0,
+                total: exentasVal + gravadasVal, tipoOp: '1', tipoIng: empTipoIng
+            };
+            cfRecords.push(r);
+            saveCurrentMonthData();
+            renderCfTable();
+            showToast('Documento agregado a Consumidor Final ✓', 'success');
+
+        } else if (libro === 'ccf') {
+            var exentasValD = esExenta ? monto : 0;
+            var gravadasValD = esExenta ? 0 : monto;
+            var iva = gravadasValD * 0.13;
+            var r = {
+                fecha: fecha, clase: '4', tipoDoc: tipoDoc,
+                resolucion: combinado.numeroControl || '', serie: sello, numDoc: codGen,
+                nit: (sel.nit || '').trim(), nrc: (sel.nrc || sel.nit || '').trim(), dui: '', nombre: sel.nombre || '',
+                ctrl: combinado.numeroControl || '',
+                exentas: exentasValD, nosujetas: 0, gravadas: gravadasValD,
+                iva: iva, tercero: 0, dfTercero: 0,
+                total: gravadasValD + iva + exentasValD, tipoOp: sel.tipoOp || '1', tipoIng: sel.tipoIng || empTipoIng
+            };
+            debitoRecords.push(r);
+            saveCurrentMonthData();
+            renderDebitoTable();
+            var nitCliente = (r.nit || r.nrc || '').trim();
+            if (nitCliente) { var agregado = autoRegistrarCliente(nitCliente, r.nombre, r.nrc); if (agregado) renderClientesTable(); }
+            showToast('Documento agregado a Crédito Fiscal ✓', 'success');
+
+        } else if (libro === 'retencion') {
+            var r = {
+                nit: (sel.nit || '').trim(), dui: (sel.dui || '').trim(), fecha: fecha,
+                tipoDoc: tipoDoc, serie: sello, numDoc: codGen,
+                monto: monto, iva: monto * 0.01,
+                _nombreAgente: sel.nombre || ''
+            };
+            retenidoRecords.push(r);
+            saveCurrentMonthData();
+            renderRetenidoTable();
+            if (r.nit || sel.nrc || r.dui) { autoRegistrarProveedor(r.nit, sel.nombre, r.dui, sel.nrc, sel.clasif || '1', sel.sector || empSector, sel.tipoCosto || '1', ['retenido']); renderProveedoresTable(); }
+            showToast('Documento agregado a Retenciones (Anexo 7) ✓', 'success');
+
+        } else if (libro === 'excluido') {
+            var nit = (sel.nit || '').trim(), dui = (sel.dui || '').trim();
+            var identificacion = nit || dui || (sel.nrc || '').trim();
+            var tipoDocSujeto = sel.tipoDocEx || (nit ? '1' : (dui ? '2' : '3'));
+            var r = {
+                tipoDoc: tipoDocSujeto, identificacion: identificacion, nombre: sel.nombre || '',
+                fecha: fecha, serie: sello, numDoc: codGen,
+                monto: monto, retencion: combinado.retencionRenta || 0,
+                tipoOp: sel.tipoOpEx || '1', clasif: sel.clasif || '1', sector: sel.sector || empSector, tipoCosto: sel.tipoCosto || '1'
+            };
+            excluidoRecords.push(r);
+            saveCurrentMonthData();
+            renderExcluidoTable();
+            if (nit || dui || sel.nrc) { autoRegistrarProveedor(nit, sel.nombre, dui, sel.nrc, r.clasif, r.sector, r.tipoCosto, ['excluido'], tipoDocSujeto, r.tipoOp); renderProveedoresTable(); }
+            showToast('Documento agregado a Sujeto Excluido (Anexo 5) ✓', 'success');
+        }
+
+        closeQrDocModal();
     }
 
     // Guarda la clasificación actual del modal de compras en el catálogo de proveedores

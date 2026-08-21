@@ -370,41 +370,20 @@
       <p class="hint" id="connHint">Asegúrate de estar en la misma red WiFi que la computadora.</p>
     </div>
 
-    <!-- Pantalla: Listo para escanear -->
-    <div id="screenReady" class="hidden" style="display:flex; flex-direction:column; gap:16px;">
-
-      <div class="eyebrow">Compras</div>
-      <div class="scan-menu">
-        <button class="btn-teal action-row" id="btnEscanearCompra">
-          <span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
-          <span class="txt"><b>Escanear Compra</b><small>Libro de Compras</small></span>
-          <span class="tail"><span class="anexo-tag">Anexo 3</span><span class="chev"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></span>
-        </button>
-        <button class="btn-outline action-row" id="btnEscanearRetencion">
-          <span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"/></svg></span>
-          <span class="txt"><b>Escanear Retención</b><small>IVA Retenido</small></span>
-          <span class="tail"><span class="anexo-tag">Anexo 7</span><span class="chev"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></span>
-        </button>
-        <button class="btn-outline action-row" id="btnEscanearExcluido">
-          <span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="17" y1="8" x2="22" y2="13"/><line x1="22" y1="8" x2="17" y2="13"/></svg></span>
-          <span class="txt"><b>Compra a Sujeto Excluido</b><small>Compras a Sujeto Excluido</small></span>
-          <span class="tail"><span class="anexo-tag">Anexo 5</span><span class="chev"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></span>
-        </button>
+    <!-- Pantalla: Listo — esperando instrucciones desde la computadora ──
+         Cambio 01 (Escaneo de Documentos): el teléfono ya NO elige qué tipo
+         de documento escanear. Esa decisión se toma en FiscalSync (la
+         computadora), dentro del módulo "Escaneo de Documentos" de la barra
+         lateral. El teléfono solo espera esa orden y, en cuanto llega, abre
+         la cámara automáticamente — funciona únicamente como lector/cámara
+         sincronizado. -->
+    <div id="screenReady" class="hidden card center" style="padding:44px 20px;">
+      <div style="width:44px;height:44px;border-radius:50%;background:var(--celeste-dim);display:flex;align-items:center;justify-content:center;">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--celeste)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM14 20h7M20 14v3M17 20v.01M20 20v.01"/></svg>
       </div>
-
-      <div class="eyebrow">Ventas</div>
-      <div class="scan-menu">
-        <button class="btn-outline action-row" id="btnEscanearCF">
-          <span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="14" x2="15" y2="14"/><line x1="9" y1="17" x2="13" y2="17"/></svg></span>
-          <span class="txt"><b>Venta Consumidor Final</b><small>Sin identificar cliente</small></span>
-          <span class="tail"><span class="anexo-tag">Anexo 2</span><span class="chev"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></span>
-        </button>
-        <button class="btn-outline action-row" id="btnEscanearCCF">
-          <span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
-          <span class="txt"><b>Venta Crédito Fiscal</b><small>Con cliente identificado</small></span>
-          <span class="tail"><span class="anexo-tag">Anexo 4</span><span class="chev"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></span>
-        </button>
-      </div>
+      <h2>Teléfono listo</h2>
+      <p class="hint">Este teléfono funciona como cámara de FiscalSync. Elige el tipo de documento a escanear <b>desde la computadora</b>, en “Escaneo de Documentos” — la cámara se activará aquí automáticamente.</p>
+      <p class="hint" id="libroOrdenadoTxt" style="color:var(--celeste); font-weight:700;"></p>
     </div>
 
     <!-- Pantalla: Cámara activa -->
@@ -412,10 +391,13 @@
       <div class="steps" id="stepsCamara">
         <div class="step active"><div class="bead"></div><div class="lbl">Escaneo</div></div>
         <div class="bar"></div>
-        <div class="step"><div class="bead"></div><div class="lbl">Consultando</div></div>
+        <div class="step"><div class="bead"></div><div class="lbl">Enviando</div></div>
         <div class="bar"></div>
-        <div class="step"><div class="bead"></div><div class="lbl">Cargado</div></div>
+        <div class="step"><div class="bead"></div><div class="lbl">Enviado</div></div>
       </div>
+      <!-- Cambio 01: etiqueta informativa del tipo de documento que ordenó
+           la computadora — el teléfono solo la muestra, nunca la elige. -->
+      <p class="hint" id="camaraLibroLabel" style="text-align:center; color:var(--celeste); font-weight:700; margin:0;"></p>
       <div id="cameraWrap">
         <video id="video" playsinline autoplay muted></video>
         <div id="scanFrame">
@@ -427,211 +409,23 @@
       <button class="btn-outline" id="btnCancelarCamara">Cancelar</button>
     </div>
 
-    <!-- Pantalla: Documento detectado + Selección Proveedor -->
-    <div id="screenDocumento" class="hidden" style="display:flex; flex-direction:column; gap:14px;">
-      <div class="card">
-        <h2 id="docDetectadoTitulo">Documento detectado</h2>
-        <div class="doc-meta">
-          <div class="field"><div class="k">Código</div><div class="v" id="docCodGen"></div></div>
-          <div class="field"><div class="k">Fecha</div><div class="v" id="docFecha"></div></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <label>Buscar proveedor por nombre</label>
-        <input type="text" id="provSearch" placeholder="Escribe el nombre para buscar…" autocomplete="off">
-        <div id="provResults" style="margin-top:10px;"></div>
-        <button class="btn-outline" id="btnProvNuevo" style="margin-top:12px;">+ Agregar proveedor nuevo</button>
-      </div>
-
-      <div id="provNuevoForm" class="card hidden">
-        <h2>Proveedor nuevo</h2>
-        <label>Nombre / Razón social</label>
-        <input type="text" id="pnNombre">
-        <label>NIT</label>
-        <input type="text" id="pnNit" placeholder="0000-000000-000-0">
-        <label>NRC (opcional)</label>
-        <input type="text" id="pnNrc">
-        <label>DUI (opcional)</label>
-        <input type="text" id="pnDui">
-        
-        <div id="pnExcluidoFields" class="hidden">
-          <label>Tipo de Documento</label>
-          <select id="pnTipoDocEx">
-            <option value="1">1 — NIT</option>
-            <option value="2">2 — DUI</option>
-            <option value="3">3 — Otro Documento</option>
-          </select>
-          <label>Tipo de Operación</label>
-          <select id="pnTipoOpEx">
-            <option value="">— Sin clasificar —</option>
-            <option value="1">1 — Gravada</option>
-            <option value="2">2 — No gravada o exenta</option>
-            <option value="3">3 — Excluido o no constituye Renta</option>
-            <option value="4">4 — Mixta (Regímenes Especiales)</option>
-            <option value="8">8 — Operaciones informadas en más de 1 anexo</option>
-            <option value="9">9 — Excepciones</option>
-            <option value="0">0 — Periodos anteriores a febrero de 2024</option>
-          </select>
-        </div>
-
-        <div id="pnClasifSection">
-          <label>Clasificación</label>
-          <select id="pnClasif"></select>
-          <label>Sector</label>
-          <select id="pnSector"></select>
-          <label>Tipo de Costo/Gasto</label>
-          <select id="pnTipoCosto"></select>
-        </div>
-        <button class="btn-teal" id="btnPnConfirmar" style="margin-top:16px;">Usar este proveedor</button>
-      </div>
-
-      <div id="provElegido" class="card hidden">
-        <h2>Proveedor seleccionado</h2>
-        <p class="hint" id="provElegidoTxt"></p>
-        <div id="provElegidoClasif" style="margin-top:8px; display:flex; flex-direction:column; gap:4px;"></div>
-        <button class="btn-outline" id="btnEditarProveedor" style="margin-top:14px;">Editar proveedor</button>
-        <button class="btn-teal" id="btnConfirmarDocumento" style="margin-top:10px;">Confirmar y enviar a FiscalSync</button>
-      </div>
-
-      <div id="provEditarForm" class="card hidden">
-        <h2>Editar proveedor</h2>
-        <label>Nombre / Razón social</label>
-        <input type="text" id="peNombre">
-        <label>NIT</label>
-        <input type="text" id="peNit" placeholder="0000-000000-000-0">
-        <label>NRC (opcional)</label>
-        <input type="text" id="peNrc">
-        <label>DUI (opcional)</label>
-        <input type="text" id="peDui">
-        <label>Clasificación</label>
-        <select id="peClasif"></select>
-        <label>Sector</label>
-        <select id="peSector"></select>
-        <label>Tipo de Costo/Gasto</label>
-        <select id="peTipoCosto"></select>
-        <div class="btn-row" style="margin-top:16px;">
-          <button class="btn-outline" id="btnPeCancelar">Cancelar</button>
-          <button class="btn-teal" id="btnPeGuardar">Guardar cambios</button>
-        </div>
-      </div>
-
-      <button class="btn-danger" id="btnCancelarDocumento">Cancelar este documento</button>
-    </div>
-
-    <!-- Pantalla: Venta Consumidor Final -->
-    <div id="screenVentaCF" class="hidden" style="display:flex; flex-direction:column; gap:14px;">
-      <div class="card">
-        <h2>Venta a Consumidor Final detectada</h2>
-        <div class="doc-meta">
-          <div class="field"><div class="k">Código</div><div class="v" id="docCfCodGen"></div></div>
-          <div class="field"><div class="k">Fecha</div><div class="v" id="docCfFecha"></div></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="switch-row">
-          <div>
-            <div class="switch-label">Venta Exenta</div>
-            <div class="switch-sub">Actívalo si esta venta no genera IVA</div>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="swExentaCf">
-            <span class="switch-track"></span>
-          </label>
-        </div>
-      </div>
-
-      <button class="btn-teal" id="btnConfirmarVentaCF">Confirmar y enviar a FiscalSync</button>
-      <button class="btn-danger" id="btnCancelarVentaCF">Cancelar este documento</button>
-    </div>
-
-    <!-- Pantalla: Documento Venta Crédito Fiscal -->
-    <div id="screenDocumentoCCF" class="hidden" style="display:flex; flex-direction:column; gap:14px;">
-      <div class="card">
-        <h2>Documento detectado</h2>
-        <div class="doc-meta">
-          <div class="field"><div class="k">Código</div><div class="v" id="ccfDocCodGen"></div></div>
-          <div class="field"><div class="k">Fecha</div><div class="v" id="ccfDocFecha"></div></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <label>Buscar cliente por nombre</label>
-        <input type="text" id="clienteSearch" placeholder="Escribe el nombre para buscar…" autocomplete="off">
-        <div id="clienteResults" style="margin-top:10px;"></div>
-        <button class="btn-outline" id="btnClienteNuevo" style="margin-top:12px;">+ Agregar cliente nuevo</button>
-      </div>
-
-      <div id="clienteNuevoForm" class="card hidden">
-        <h2>Cliente nuevo</h2>
-        <label>Nombre / Razón social</label>
-        <input type="text" id="cnNombre">
-        <label>NIT</label>
-        <input type="text" id="cnNit" placeholder="0000-000000-000-0">
-        <label>NRC (opcional)</label>
-        <input type="text" id="cnNrc">
-        <label>Tipo de Operación</label>
-        <select id="cnTipoOp"></select>
-        <label>Tipo de Ingreso</label>
-        <select id="cnTipoIng"></select>
-        <button class="btn-teal" id="btnCnConfirmar" style="margin-top:16px;">Usar este cliente</button>
-      </div>
-
-      <div id="clienteElegido" class="card hidden">
-        <h2>Cliente seleccionado</h2>
-        <p class="hint" id="clienteElegidoTxt"></p>
-        <p class="hint" id="clienteElegidoClasif" style="margin-top:4px;"></p>
-        <button class="btn-outline" id="btnEditarCliente" style="margin-top:14px;">Editar cliente</button>
-      </div>
-
-      <div id="clienteEditarForm" class="card hidden">
-        <h2>Editar cliente</h2>
-        <label>Nombre / Razón social</label>
-        <input type="text" id="ceNombre">
-        <label>NIT</label>
-        <input type="text" id="ceNit" placeholder="0000-000000-000-0">
-        <label>NRC (opcional)</label>
-        <input type="text" id="ceNrc">
-        <label>Tipo de Operación</label>
-        <select id="ceTipoOp"></select>
-        <label>Tipo de Ingreso</label>
-        <select id="ceTipoIng"></select>
-        <div class="btn-row" style="margin-top:16px;">
-          <button class="btn-outline" id="btnCeCancelar">Cancelar</button>
-          <button class="btn-teal" id="btnCeGuardar">Guardar cambios</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="switch-row">
-          <div>
-            <div class="switch-label">Venta Exenta</div>
-            <div class="switch-sub">Actívalo si esta venta no genera IVA</div>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="swExentaCcf">
-            <span class="switch-track"></span>
-          </label>
-        </div>
-      </div>
-
-      <button class="btn-teal" id="btnConfirmarCCF">Confirmar y enviar a FiscalSync</button>
-      <button class="btn-danger" id="btnCancelarCCF">Cancelar este documento</button>
-    </div>
-
-    <!-- Pantalla: Procesando -->
-    <div id="screenProcesando" class="hidden card center" style="padding:48px 20px;">
+    <!-- Pantalla: Enviando —
+         Cambio 03 (gestión trasladada a la computadora): el teléfono ya no
+         muestra el documento ni pide proveedor/cliente/confirmación — en
+         cuanto lee el QR lo envía de inmediato y solo espera la
+         confirmación de recepción. Revisar, completar proveedor/cliente y
+         confirmar ahora ocurre en FiscalSync (la computadora). -->
+    <div id="screenEnviando" class="hidden card center" style="padding:48px 20px;">
       <div class="steps">
         <div class="step done"><div class="bead"></div><div class="lbl">Escaneo</div></div>
         <div class="bar"></div>
-        <div class="step active"><div class="bead"></div><div class="lbl">Consultando</div></div>
+        <div class="step active"><div class="bead"></div><div class="lbl">Enviando</div></div>
         <div class="bar"></div>
-        <div class="step"><div class="bead"></div><div class="lbl">Cargado</div></div>
+        <div class="step"><div class="bead"></div><div class="lbl">Enviado</div></div>
       </div>
       <div class="spinner" style="margin-top:12px;"></div>
-      <h2>Consultando en el Ministerio de Hacienda…</h2>
-      <p class="hint">Esto puede tardar unos segundos.</p>
+      <h2>Enviando a FiscalSync…</h2>
+      <p class="hint">Revisa y confirma el documento en tu computadora.</p>
     </div>
 
     <!-- Pantalla: Resultado -->
@@ -639,13 +433,12 @@
       <div class="steps" id="stepsResultado">
         <div class="step done"><div class="bead"></div><div class="lbl">Escaneo</div></div>
         <div class="bar"></div>
-        <div class="step done"><div class="bead"></div><div class="lbl">Consultando</div></div>
+        <div class="step done"><div class="bead"></div><div class="lbl">Enviando</div></div>
         <div class="bar"></div>
-        <div class="step done"><div class="bead"></div><div class="lbl">Cargado</div></div>
+        <div class="step done"><div class="bead"></div><div class="lbl">Enviado</div></div>
       </div>
       <h2 id="resTitulo"></h2>
       <p class="hint" id="resMensaje"></p>
-      <button class="btn-teal" id="btnOtroDocumento" style="margin-top:16px;">Escanear otro documento</button>
     </div>
 
   </main>

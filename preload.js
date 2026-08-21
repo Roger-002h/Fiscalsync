@@ -157,34 +157,44 @@ contextBridge.exposeInMainWorld('qrScan', {
     // params: { proveedores, clientes, empresaNombre, clasifLabels, sectorLabels, costoLabels }
     actualizarEmpresaActiva: (params) => ipcRenderer.invoke('qr-actualizar-empresa-activa', params),
 
+    // Cambio 01 (Escaneo de Documentos — control desde la PC): ordena al
+    // teléfono conectado qué tipo de documento escanear a continuación
+    // ('compras'|'cf'|'ccf'|'retencion'|'excluido'). El teléfono abre la
+    // cámara de inmediato al recibir la orden — ya no elige nada por su
+    // cuenta. Si el teléfono todavía no está conectado, la orden queda
+    // guardada en el proceso principal y se reenvía sola en cuanto se
+    // empareje. Devuelve { ok, conectado, error? }.
+    ordenarEscaneo: (libro) => ipcRenderer.invoke('qr-ordenar-escaneo', libro),
+
     // cb(data) — data: { conectado: true|false } — se dispara cuando el teléfono se conecta o se desconecta
     onEstadoConexion: (cb) => ipcRenderer.on('qr-estado-conexion', (event, data) => cb(data)),
 
-    // cb(combinado) — combinado: resultado de la consulta pública + proveedor elegido,
-    // listo para autocompletar "Nuevo Registro — Compras"
+    // Cambio 03 (gestión trasladada a la computadora): estos 5 eventos ya NO
+    // traen proveedor/cliente/"exenta" elegidos en el teléfono — solo el
+    // resultado de la consulta pública del Ministerio (fecha, código de
+    // generación, montos, estado, tipo de documento mapeado). Es tarea del
+    // renderer (index.html) mostrar el documento, dejar que el usuario
+    // seleccione o agregue el proveedor/cliente en la propia PC y confirmar
+    // antes de registrarlo en el anexo correspondiente.
+    // cb(combinado) — listo para revisar/completar en "Nuevo Registro — Compras"
     onDocumentoEscaneado: (cb) => ipcRenderer.on('qr-documento-escaneado', (event, data) => cb(data)),
 
-    // cb(combinado) — combinado: resultado de la consulta pública + si la venta
-    // es exenta o no, listo para guardar directo en el Libro de Ventas —
+    // cb(combinado) — listo para revisar/completar en el Libro de Ventas —
     // Consumidor Final (Anexo 2)
     onDocumentoEscaneadoCF: (cb) => ipcRenderer.on('qr-documento-escaneado-cf', (event, data) => cb(data)),
 
-    // cb(combinado) — combinado: resultado de la consulta pública + cliente elegido/nuevo +
-    // si la venta es exenta o no, listo para guardar directo en el Libro de Ventas —
-    // Crédito Fiscal (Anexo 1)
+    // cb(combinado) — listo para revisar/completar (incluyendo cliente) en el
+    // Libro de Ventas — Crédito Fiscal (Anexo 1)
     onDocumentoEscaneadoCCF: (cb) => ipcRenderer.on('qr-documento-escaneado-ccf', (event, data) => cb(data)),
 
-    // cb(combinado) — combinado: resultado de la consulta pública, listo para
-    // guardar directo en el Libro de Retenciones de IVA (Anexo 7). No requiere
-    // proveedor/cliente ni "exenta" — solo el QR del Comprobante de Retención,
-    // Nota de Crédito o Nota de Débito asociada.
+    // cb(combinado) — listo para revisar/completar en el Libro de Retenciones
+    // de IVA (Anexo 7).
     onDocumentoEscaneadoRetencion: (cb) => ipcRenderer.on('qr-documento-escaneado-retencion', (event, data) => cb(data)),
 
-    // cb(combinado) — combinado: resultado de la consulta pública (Factura de
-    // Sujeto Excluido) + proveedor elegido/nuevo (usado para identificar al
-    // Sujeto Excluido, ya que la consulta pública no expone su NIT/DUI ni
-    // nombre), listo para guardar directo en el Libro de Compras a Sujetos
-    // Excluidos (Anexo 5).
+    // cb(combinado) — listo para revisar/completar (incluyendo el Sujeto
+    // Excluido — NIT/DUI y nombre no vienen en la consulta pública, se
+    // eligen/agregan en la PC) en el Libro de Compras a Sujetos Excluidos
+    // (Anexo 5).
     onDocumentoEscaneadoExcluido: (cb) => ipcRenderer.on('qr-documento-escaneado-excluido', (event, data) => cb(data)),
 
     // cb(proveedor) — proveedor nuevo creado desde el teléfono, para registrar

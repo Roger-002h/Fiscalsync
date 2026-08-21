@@ -1,15 +1,20 @@
 // ══════════════════════════════════════════════════════════════════════
 // qrPairingServer.js — Cambio 01 (Escaneo de Documentos Físicos vía QR)
+//                       + Cambio 03 (gestión trasladada a la computadora)
 //
 // Levanta un servidor HTTPS local (solo en la IP de la red LAN, nunca en
 // 0.0.0.0) + un WebSocket sobre esa misma conexión, para que el teléfono:
 //   1) Se empareje escaneando el QR de vinculación (token de un solo uso,
 //      expira a los 10 minutos si no se usa).
-//   2) Reciba el catálogo de proveedores y de clientes de la empresa activa.
-//   3) Envíe de vuelta el documento escaneado (QR del DTE + proveedor/cliente
-//      elegido/nuevo + libro destino: 'compras', 'cf' o 'ccf') para que
-//      FiscalSync dispare la consulta pública y guarde el registro
-//      automáticamente en Compras, Consumidor Final o Crédito Fiscal.
+//   2) Reciba la orden de qué tipo de documento escanear (la decide la PC,
+//      ver ordenarEscaneo) y el nombre de la empresa activa (solo para
+//      mostrarlo en pantalla — el teléfono ya no gestiona catálogos).
+//   3) Envíe de vuelta ÚNICAMENTE el QR leído del documento físico — el
+//      teléfono ya no elige tipo de documento, ni gestiona proveedor/
+//      cliente, ni "exenta", ni confirma nada: solo abre la cámara, lee el
+//      QR y lo manda. Toda esa gestión (Cambio 03) vive ahora en la
+//      computadora (ver index.html — se muestra el documento, se
+//      selecciona/agrega proveedor o cliente, y se confirma ahí).
 //
 // Este módulo NO conoce nada de Electron, IPC, ni del catálogo real de
 // proveedores — solo orquesta la conexión y expone un EventEmitter para
@@ -56,6 +61,14 @@ let _clasifLabelsCache = {}; // mapa v->l de la clasificación de proveedores (c
 // el mismo texto que usa el programa), y mismo patrón de cacheo.
 let _sectorLabelsCache = {};
 let _costoLabelsCache = {};
+// Cambio 01 (Escaneo de Documentos — control desde la PC): tipo de documento
+// ('compras' | 'cf' | 'ccf' | 'retencion' | 'excluido') que la computadora
+// ordenó escanear. Es la PC quien decide esto ahora — el teléfono ya no
+// elige ningún tipo de documento por sí mismo, solo lo ejecuta. Se guarda
+// aquí (y no solo se envía) para poder reenviarlo automáticamente si el
+// teléfono se reconecta (p. ej. se le cayó el WiFi) mientras seguía
+// vigente la misma orden.
+let _libroOrdenado = null;
 
 function estaCorriendo() {
   return !!_httpsServer;
@@ -186,51 +199,37 @@ function manejarConexionWs(ws) {
         costoLabels: _costoLabelsCache
       });
       enviarAlTelefono({ tipo: 'catalogo-clientes', clientes: _clientesCache });
+      // Cambio 01 (Escaneo de Documentos — control desde la PC): si ya había
+      // una orden de escaneo vigente (el usuario ya había elegido el tipo de
+      // documento en la computadora antes de que el teléfono se conectara, o
+      // el teléfono se reconectó a mitad de una orden), se reenvía de
+      // inmediato para que el teléfono abra la cámara sin que el usuario
+      // tenga que volver a tocar nada en la computadora.
+      if (_libroOrdenado) {
+        enviarAlTelefono({ tipo: 'iniciar-escaneo', libro: _libroOrdenado });
+      }
       eventos.emit('conexion', { conectado: true });
       return;
     }
 
     if (!autenticado) return; // ignora cualquier otro mensaje antes de autenticarse
 
+    // Cambio 03 (Gestión del documento trasladada a la computadora): el
+    // teléfono ahora es ÚNICAMENTE un lector remoto de QR — envía solo el QR
+    // del documento físico, nada de proveedor/cliente/"exenta" (esa gestión
+    // ahora vive por completo en la computadora, ver index.html). El tipo de
+    // documento ('libro') tampoco lo decide el teléfono: se usa el que la
+    // computadora ya ordenó (_libroOrdenado) y que sigue vigente en este
+    // momento, ignorando cualquier valor que el teléfono pudiera enviar —
+    // así la PC sigue siendo la única fuente de verdad del tipo de documento,
+    // igual que ya lo es para decidir CUÁNDO escanear (ver ordenarEscaneo).
     if (msg.tipo === 'documento-escaneado') {
       if (!qrEsValido(msg.qr)) {
         enviarAlTelefono({ tipo: 'resultado-documento', ok: false, mensaje: 'El código QR no tiene el formato esperado de un DTE.' });
         return;
       }
       enviarAlTelefono({ tipo: 'recibido' });
-      const proveedor = msg.proveedor || null;
-      const cliente = msg.cliente || null;
-      // Si el proveedor/cliente viene marcado como nuevo, se emite también un
-      // evento aparte para que main.js lo reenvíe al renderer y lo registre en
-      // el catálogo real (autoRegistrarProveedor / autoRegistrarCliente) — el
-      // identificador es el NIT, NRC o DUI (no un id sintético), así que no
-      // hace falta ningún viaje de vuelta.
-      // CORRECCIÓN: antes se exigía proveedor.nit sí o sí, así que un
-      // Sujeto Excluido creado en el teléfono con solo DUI o solo NRC
-      // (permitido desde el cambio de validación de Sujeto Excluido) nunca
-      // emitía este evento — el proveedor quedaba elegido para el documento
-      // escaneado, pero jamás se registraba en el catálogo de la PC. Ahora
-      // basta con que tenga NIT, DUI o NRC, igual que la validación del
-      // formulario "Proveedor nuevo" del teléfono.
-      if (proveedor && proveedor.esNuevo && (proveedor.nit || proveedor.dui || proveedor.nrc)) {
-        eventos.emit('proveedor-nuevo', proveedor);
-      }
-      if (cliente && cliente.esNuevo && cliente.nit) {
-        eventos.emit('cliente-nuevo', cliente);
-      }
-      // 'compras' (default, requiere proveedor), 'cf' (Consumidor Final — no
-      // requiere cliente, pero sí si la venta es exenta o no), 'ccf' (Ventas
-      // — Crédito Fiscal — requiere cliente Y si la venta es exenta o no),
-      // 'retencion' (Comprobantes de Retención — Anexo 7, no requiere
-      // proveedor/cliente ni exenta, solo el QR del documento) o 'excluido'
-      // (Compras a Sujeto Excluido — Anexo 5, reutiliza el mismo catálogo de
-      // Proveedores que 'compras' para identificar al Sujeto Excluido, ya
-      // que la consulta pública de Hacienda no expone su NIT/DUI ni nombre).
-      let libro = 'compras';
-      if (msg.libro === 'cf') libro = 'cf';
-      else if (msg.libro === 'ccf') libro = 'ccf';
-      else if (msg.libro === 'retencion') libro = 'retencion';
-      else if (msg.libro === 'excluido') libro = 'excluido';
+      const libro = _libroOrdenado || 'compras';
 
       eventos.emit('documento-escaneado', {
         qr: {
@@ -238,54 +237,7 @@ function manejarConexionWs(ws) {
           codGen: String(msg.qr.codGen),
           fechaEmi: String(msg.qr.fechaEmi)
         },
-        proveedor: proveedor,
-        cliente: cliente,
-        libro: libro,
-        exenta: !!msg.exenta
-      });
-      return;
-    }
-
-    // Cambio 01 (ampliación): edición de un proveedor YA EXISTENTE en el catálogo,
-    // hecha desde el teléfono. No toca nada del flujo de escaneo — es un mensaje
-    // aparte que main.js reenvía al renderer para que actualice fiscaldata.json
-    // con la MISMA estructura que usa el catálogo de Proveedores del escritorio
-    // (ver autoRegistrarProveedor / saveProveedorRecord en index.html).
-    // 'nitOriginal' identifica al proveedor a modificar (puede diferir de 'nit'
-    // si el usuario también corrigió el NIT durante la edición).
-    if (msg.tipo === 'proveedor-editado') {
-      const prov = msg.proveedor || null;
-      const nitOriginal = prov && (prov.nitOriginal || prov.nit);
-      if (!prov || !nitOriginal) return; // datos insuficientes — se ignora en silencio
-      eventos.emit('proveedor-editado', {
-        nitOriginal: String(nitOriginal),
-        nit: String(prov.nit || ''),
-        nrc: String(prov.nrc || ''),
-        dui: String(prov.dui || ''),
-        nombre: String(prov.nombre || ''),
-        clasif: String(prov.clasif || ''),
-        sector: String(prov.sector || ''),
-        tipoCosto: String(prov.tipoCosto || '')
-      });
-      return;
-    }
-
-    // Cambio 01 (ampliación): edición de un cliente YA EXISTENTE en el catálogo
-    // (flujo Ventas — Crédito Fiscal), hecha desde el teléfono. Mismo patrón que
-    // 'proveedor-editado' — no toca nada del flujo de escaneo.
-    // 'nitOriginal' identifica al cliente a modificar (puede diferir de 'nit'
-    // si el usuario también corrigió el NIT durante la edición).
-    if (msg.tipo === 'cliente-editado') {
-      const cli = msg.cliente || null;
-      const nitOriginalCli = cli && (cli.nitOriginal || cli.nit);
-      if (!cli || !nitOriginalCli) return; // datos insuficientes — se ignora en silencio
-      eventos.emit('cliente-editado', {
-        nitOriginal: String(nitOriginalCli),
-        nit: String(cli.nit || ''),
-        nrc: String(cli.nrc || ''),
-        nombre: String(cli.nombre || ''),
-        tipoOp: String(cli.tipoOp || ''),
-        tipoIng: String(cli.tipoIng || '')
+        libro: libro
       });
       return;
     }
@@ -341,6 +293,7 @@ async function iniciar(params) {
   _pairingExpiresAt = Date.now() + PAIRING_TOKEN_TTL_MS;
   _pareado = false;
   _phoneSocket = null;
+  _libroOrdenado = null;
 
   return await new Promise(function (resolve) {
     const server = https.createServer({ cert: certData.cert, key: certData.key }, servirEstatico);
@@ -371,6 +324,27 @@ async function iniciar(params) {
 // Envía al teléfono el resultado final (ya combinado con la consulta DGII) de un documento
 function enviarResultadoDocumento(resultado) {
   enviarAlTelefono(Object.assign({ tipo: 'resultado-documento' }, resultado));
+}
+
+// Cambio 01 (Escaneo de Documentos — control desde la PC): la computadora es
+// quien decide qué tipo de documento se escanea a continuación. Se guarda la
+// orden (para reenviarla sola si el teléfono se reconecta) y, si hay un
+// teléfono conectado en este momento, se le manda de inmediato para que
+// abra la cámara — el teléfono ya no elige nada por su cuenta.
+// libro: 'compras' | 'cf' | 'ccf' | 'retencion' | 'excluido'
+// Devuelve { ok, conectado } — 'conectado' indica si había un teléfono
+// activo para recibir la orden en el momento (informativo para la UI de la
+// PC: si no hay teléfono aún, la orden queda guardada y se reenvía sola en
+// cuanto se empareje).
+function ordenarEscaneo(libro) {
+  const librosValidos = ['compras', 'cf', 'ccf', 'retencion', 'excluido'];
+  if (librosValidos.indexOf(libro) === -1) return { ok: false, error: 'Tipo de documento no reconocido' };
+  _libroOrdenado = libro;
+  const conectado = !!(_phoneSocket && _phoneSocket.readyState === 1);
+  if (conectado) {
+    enviarAlTelefono({ tipo: 'iniciar-escaneo', libro: libro });
+  }
+  return { ok: true, conectado: conectado };
 }
 
 // Refresca el catálogo de proveedores que se le manda al teléfono (ej. si el usuario
@@ -423,6 +397,7 @@ function actualizarEmpresaActiva(params) {
 }
 
 async function detener() {
+  _libroOrdenado = null;
   return await new Promise(function (resolve) {
     if (_phoneSocket) {
       try { _phoneSocket.close(1000, 'Módulo cerrado'); } catch (e) { /* noop */ }
@@ -453,5 +428,6 @@ module.exports = {
   enviarResultadoDocumento: enviarResultadoDocumento,
   actualizarCatalogo: actualizarCatalogo,
   actualizarClientes: actualizarClientes,
-  actualizarEmpresaActiva: actualizarEmpresaActiva
+  actualizarEmpresaActiva: actualizarEmpresaActiva,
+  ordenarEscaneo: ordenarEscaneo
 };
