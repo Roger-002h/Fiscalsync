@@ -36,6 +36,7 @@
     libroOrdenadoTxt: document.getElementById('libroOrdenadoTxt'),
     camaraLibroLabel: document.getElementById('camaraLibroLabel'),
     btnCancelarCamara: document.getElementById('btnCancelarCamara'),
+    btnSeguirEscaneando: document.getElementById('btnSeguirEscaneando'),
     video: document.getElementById('video'),
     resTitulo: document.getElementById('resTitulo'),
     resMensaje: document.getElementById('resMensaje'),
@@ -49,6 +50,10 @@
   var streamCamara = null;
   var loopId = null;
   var reconectando = false;
+  // El botón "Seguir Escaneando" solo debe aparecer una vez que la
+  // computadora ya ordenó al menos un escaneo (para saber qué tipo de
+  // documento reabrir) — no antes.
+  var escaneoIniciadoAlgunaVez = false;
 
   // Cambio 01: etiquetas de cada tipo de documento, solo para que el
   // teléfono MUESTRE (nunca elija) qué está escaneando por orden de la
@@ -68,6 +73,9 @@
     }
     if (els.camaraLibroLabel) {
       els.camaraLibroLabel.textContent = etiqueta ? ('Escaneando: ' + etiqueta) : '';
+    }
+    if (els.btnSeguirEscaneando) {
+      els.btnSeguirEscaneando.classList.toggle('hidden', !escaneoIniciadoAlgunaVez);
     }
   }
 
@@ -177,7 +185,11 @@
 
       if (esCambioDeEmpresa) {
         cerrarCamara();
-        if (els.libroOrdenadoTxt) els.libroOrdenadoTxt.textContent = '';
+        // Al cambiar de empresa se descarta el último tipo de documento
+        // ordenado: "Seguir Escaneando" vuelve a ocultarse hasta que la
+        // computadora ordene un nuevo escaneo para la empresa activa.
+        escaneoIniciadoAlgunaVez = false;
+        actualizarLibroActualUI();
         if (empresaNombre) {
           mostrarPantalla('screenReady');
           showToast('Empresa activa cambiada a: ' + empresaNombre, 'ok');
@@ -208,6 +220,7 @@
       var librosValidos = ['compras', 'cf', 'ccf', 'retencion', 'excluido'];
       if (librosValidos.indexOf(msg.libro) === -1) return;
       modoActual = msg.libro;
+      escaneoIniciadoAlgunaVez = true;
       actualizarLibroActualUI();
       abrirCamara();
       return;
@@ -419,6 +432,16 @@
     els.btnCancelarCamara.addEventListener('click', function () {
       cerrarCamara();
       mostrarPantalla('screenReady');
+    });
+  }
+
+  // "Seguir Escaneando": reabre la cámara desde el teléfono, sin esperar
+  // una nueva orden de la computadora — reutiliza el último tipo de
+  // documento ('modoActual') que ya había ordenado FiscalSync.
+  if (els.btnSeguirEscaneando) {
+    els.btnSeguirEscaneando.addEventListener('click', function () {
+      actualizarLibroActualUI();
+      abrirCamara();
     });
   }
 

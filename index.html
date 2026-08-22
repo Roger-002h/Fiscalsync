@@ -2821,32 +2821,41 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             </div>
         </div>
 
-        <!-- ═══ AGREGADO NUEVO (Cambio 03): PANEL ESCANEO QR — tipos de
-             documento permitidos por módulo/anexo al escanear. Misma
-             estructura de dos columnas que "Parámetros" (nav de módulos a
-             la izquierda, checklist a la derecha). Los 5 tipos que se
-             listan (QRSCAN_TIPOS_DTE) son siempre los mismos para
-             cualquier anexo — el valor real de texto que devuelve la
-             consulta pública del Ministerio en "Tipo de DTE" — y no
-             reemplaza la validación existente (aviso "Tipo no reconocido
-             automáticamente" del modal de Documento Escaneado): la
-             complementa — si el tipo SÍ se reconoce (uno de los 5) pero no
-             está marcado aquí para el anexo seleccionado, el escaneo se
-             bloquea antes de abrir ese modal (ver qrScanTipoPermitido() y
-             los 5 _autocompletar...DesdeQR). -->
-        <div id="adminEscaneoQRStep" style="display:none;flex:1;flex-direction:row;overflow:hidden;min-height:0;">
-            <div id="qrTiposModuloNav" style="width:200px;flex-shrink:0;border-right:1px solid var(--rp-border);overflow-y:auto;padding:12px 10px;display:flex;flex-direction:column;gap:3px;">
-                <!-- generado por JS -->
+        <!-- ═══ AGREGADO NUEVO (Cambio 04): PANEL ESCANEO QR — tipos de
+             documento permitidos por anexo al escanear, sobre el catálogo
+             oficial completo CAT-002 (13 tipos, ver cat002.js — fuente
+             única compartida con main.js). Misma estructura de dos
+             columnas que "Parámetros" (nav de anexos a la izquierda,
+             tabla del catálogo a la derecha). No reemplaza la validación
+             existente (aviso "Tipo no reconocido automáticamente" del
+             modal de Documento Escaneado, que sigue intacto): la
+             complementa — si el tipo SÍ corresponde a un código CAT-002
+             pero no está habilitado aquí para el anexo seleccionado, el
+             escaneo se bloquea antes de abrir ese modal (ver
+             qrScanTipoPermitido() y los 5 _autocompletar...DesdeQR). Un
+             tipo que no exista en CAT-002 se rechaza siempre, sin importar
+             esta configuración. -->
+        <div id="adminEscaneoQRStep" style="display:none;flex:1;flex-direction:column;overflow:hidden;min-height:0;">
+            <div style="padding:18px 20px 4px;flex-shrink:0;">
+                <p style="font-size:13px;font-weight:600;color:var(--rp-text-primary);margin-bottom:3px;">Tipos de Documento Permitidos</p>
+                <p style="font-size:11.5px;color:var(--rp-text-secondary);line-height:1.5;">Configure qué tipos de documentos pueden procesarse mediante Escaneo QR para cada anexo. La identificación del documento se obtiene desde la consulta de Hacienda ("Tipo de DTE") y se normaliza internamente utilizando el catálogo oficial CAT-002. Un tipo no marcado como Habilitado se considera NO permitido, incluso si nunca se ha configurado.</p>
             </div>
-            <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;min-height:0;">
-                <div style="padding:16px 20px 4px;flex-shrink:0;">
-                    <span id="qrTiposModuloLabel" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--rp-text-secondary);"></span>
-                    <p style="font-size:11px;color:var(--rp-text-secondary);margin-top:6px;line-height:1.5;">Marca los tipos de DTE que pueden procesarse al escanear un QR para este anexo. Un documento cuyo Tipo de DTE se identifique automáticamente pero no esté marcado aquí será rechazado antes de abrir la pantalla de revisión, sin importar que el QR y la consulta a Hacienda hayan sido exitosos.</p>
+            <div style="flex:1;display:flex;flex-direction:row;overflow:hidden;min-height:0;margin-top:8px;">
+                <div style="width:200px;flex-shrink:0;border-right:1px solid var(--rp-border);overflow-y:auto;padding:0 10px 12px;display:flex;flex-direction:column;gap:3px;">
+                    <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--rp-text-secondary);padding:8px 6px 6px;">Anexo</span>
+                    <div id="qrTiposModuloNav" style="display:flex;flex-direction:column;gap:3px;">
+                        <!-- generado por JS -->
+                    </div>
                 </div>
-                <div id="qrTiposEditorBody" style="flex:1;overflow-y:auto;padding:8px 20px 12px;"></div>
-                <div style="padding:12px 20px;border-top:1px solid var(--rp-border);display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-shrink:0;">
-                    <button onclick="qrTiposResetModulo()" style="padding:7px 14px;background:transparent;color:var(--rp-error);font-size:11px;font-weight:600;border:1px solid rgba(248,113,113,0.3);border-radius:7px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;" onmouseover="this.style.borderColor='rgba(248,113,113,0.7)'" onmouseout="this.style.borderColor='rgba(248,113,113,0.3)'">Permitir todos</button>
-                    <button id="qrTiposSaveBtn" onclick="qrTiposSaveModulo()" style="padding:7px 18px;background:#fff;color:#000;font-size:11px;font-weight:700;border:none;border-radius:7px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;" onmouseover="this.style.background='var(--rp-text-primary)'" onmouseout="if(!this._saving)this.style.background='#fff'">Guardar cambios</button>
+                <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;min-height:0;">
+                    <div style="padding:14px 20px 4px;flex-shrink:0;">
+                        <span id="qrTiposModuloLabel" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--rp-text-secondary);"></span>
+                    </div>
+                    <div id="qrTiposEditorBody" style="flex:1;overflow-y:auto;padding:8px 20px 12px;"></div>
+                    <div style="padding:12px 20px;border-top:1px solid var(--rp-border);display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-shrink:0;">
+                        <button onclick="qrTiposResetModulo()" style="padding:7px 14px;background:transparent;color:var(--rp-error);font-size:11px;font-weight:600;border:1px solid rgba(248,113,113,0.3);border-radius:7px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;" onmouseover="this.style.borderColor='rgba(248,113,113,0.7)'" onmouseout="this.style.borderColor='rgba(248,113,113,0.3)'">Permitir todos</button>
+                        <button id="qrTiposSaveBtn" onclick="qrTiposSaveModulo()" style="padding:7px 18px;background:#fff;color:#000;font-size:11px;font-weight:700;border:none;border-radius:7px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;" onmouseover="this.style.background='var(--rp-text-primary)'" onmouseout="if(!this._saving)this.style.background='#fff'">Guardar cambios</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -5434,148 +5443,381 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
      autoRegistrarCliente para no duplicar esa lógica. Un mismo modal sirve
      para los 5 libros (Compras, Consumidor Final, Crédito Fiscal,
      Retención, Sujeto Excluido) — qrDocState.libro decide qué secciones
-     mostrar y qué construye qrDocEnviar() al confirmar. -->
+     mostrar y qué construye qrDocEnviar() al confirmar.
+
+     Cambio 05 — Rediseño visual "ticket digital": este bloque conserva
+     EXACTAMENTE los mismos ids, name/onclick/oninput/onchange handlers y
+     estructura de wraps ocultables (.hidden) que ya usaba el modal
+     anterior — openQrDocModal(), poblarQrDocCamposAdicionales(),
+     _qrDocActualizarVisibilidadExportacion(), qrDocBuscarProveedor(),
+     qrDocEnviar(), etc. NO se tocó ninguna función de negocio; solo se
+     reorganizó el marcado/CSS en tres secciones tipo recibo (Datos del
+     Documento → Resumen de la Operación → Información Adicional) y se
+     agregaron 3 elementos puramente visuales, poblados de forma aditiva
+     desde openQrDocModal():
+       - qrDoc_estadoPill / qrDoc_estadoPillTxt (pastilla de estado)
+       - qrDoc_numControl (ya existía combinado.numeroControl, pero no se
+         mostraba en el modal — Corrección 02 solo mostraba los otros 5
+         campos adicionales)
+     Los estilos ".qrticket-*" están scopeados bajo #qrDocModalForm para
+     no afectar ningún otro modal de la aplicación. -->
+<style>
+    #qrDocModalForm .qrticket-card {
+        background: var(--rp-surface); border: 1px solid var(--rp-border);
+        border-radius: 20px; width: 100%; max-width: 480px; max-height: 88vh;
+        display: flex; flex-direction: column; overflow: hidden;
+        box-shadow: 0 24px 60px rgba(0,0,0,0.35); position: relative;
+    }
+    #qrDocModalForm .qrticket-head {
+        position: relative; padding: 22px 50px 18px 26px; text-align: center;
+        background: radial-gradient(120% 100% at 50% -20%, color-mix(in srgb, var(--rp-accent) 14%, transparent), transparent 60%), var(--rp-inset);
+        border-bottom: 1px dashed var(--rp-border-strong); flex-shrink: 0;
+    }
+    #qrDocModalForm .qrticket-close {
+        position: absolute; top: 14px; right: 14px; color: var(--rp-text-secondary);
+        background: transparent; border: none; cursor: pointer; padding: 7px;
+        border-radius: 8px; transition: all .15s; line-height: 0;
+    }
+    #qrDocModalForm .qrticket-close:hover { color: var(--rp-text-heading); background: var(--rp-border); }
+    #qrDocModalForm .qrticket-eyebrow {
+        font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+        color: var(--rp-text-secondary); margin: 0 0 2px;
+    }
+    #qrDocModalForm .qrticket-title {
+        font-size: 16px; font-weight: 800; letter-spacing: .01em; color: var(--rp-text-heading);
+        margin: 0 0 12px; line-height: 1.3;
+    }
+    #qrDocModalForm .qrticket-pill {
+        display: inline-flex; align-items: center; gap: 7px;
+        font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+        padding: 6px 14px 6px 11px; border-radius: 999px;
+        background: color-mix(in srgb, var(--rp-success) 14%, transparent); color: var(--rp-success);
+        border: 1px solid color-mix(in srgb, var(--rp-success) 30%, transparent);
+    }
+    #qrDocModalForm .qrticket-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--rp-success); box-shadow: 0 0 0 3px color-mix(in srgb, var(--rp-success) 20%, transparent); }
+    #qrDocModalForm .qrticket-pill.warn { background: color-mix(in srgb, var(--rp-warning) 16%, transparent); color: var(--rp-warning); border-color: color-mix(in srgb, var(--rp-warning) 32%, transparent); }
+    #qrDocModalForm .qrticket-pill.warn .dot { background: var(--rp-warning); box-shadow: 0 0 0 3px color-mix(in srgb, var(--rp-warning) 20%, transparent); }
+    #qrDocModalForm .qrticket-pill.error { background: color-mix(in srgb, var(--rp-error) 16%, transparent); color: var(--rp-error); border-color: color-mix(in srgb, var(--rp-error) 32%, transparent); }
+    #qrDocModalForm .qrticket-pill.error .dot { background: var(--rp-error); box-shadow: 0 0 0 3px color-mix(in srgb, var(--rp-error) 20%, transparent); }
+
+    #qrDocModalForm .qrticket-scroll { overflow-y: auto; flex: 1; }
+    #qrDocModalForm .qrticket-section { padding: 18px 26px; position: relative; }
+    #qrDocModalForm .qrticket-section + .qrticket-section { border-top: 1px dashed var(--rp-border-strong); }
+    #qrDocModalForm .qrticket-section + .qrticket-section::before,
+    #qrDocModalForm .qrticket-section + .qrticket-section::after {
+        content: ""; position: absolute; top: -9px; width: 18px; height: 18px;
+        border-radius: 50%; background: rgba(0,0,0,0.8);
+    }
+    #qrDocModalForm .qrticket-section + .qrticket-section::before { left: -9px; }
+    #qrDocModalForm .qrticket-section + .qrticket-section::after { right: -9px; }
+
+    #qrDocModalForm .qrticket-section-title {
+        font-size: 10.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+        color: var(--rp-text-secondary); margin: 0 0 12px; display: flex; align-items: center; gap: 8px;
+    }
+    #qrDocModalForm .qrticket-section-title.accent { color: var(--rp-accent); }
+    #qrDocModalForm .qrticket-section-title::after { content: ""; flex: 1; height: 1px; background: var(--rp-border); }
+
+    /* Filas de solo lectura: se ven como líneas de un recibo, no como
+       inputs — así se diferencian visualmente de los campos editables
+       (regla del brief: "los datos del DTE deben sentirse como
+       información de consulta, no como campos editables").
+       Corrección 01 — se pasa de flex a grid de 2 columnas fijas para que
+       la etiqueta y el valor de TODAS las filas (incluido el <select> de
+       Tipo de Documento) queden perfectamente alineados entre sí, y para
+       que valores largos (Código de Generación, Sello de Recepción) hagan
+       salto de línea dentro de su propia columna en vez de recortarse. */
+    #qrDocModalForm .qrticket-row {
+        display: grid; grid-template-columns: minmax(92px, 34%) minmax(0, 1fr);
+        align-items: start; column-gap: 14px; padding: 7px 0;
+    }
+    #qrDocModalForm .qrticket-row .k {
+        font-size: 11px; color: var(--rp-text-secondary); padding-top: 2px; line-height: 1.4; min-width: 0;
+    }
+    #qrDocModalForm .qrticket-row .qrticket-readout,
+    #qrDocModalForm .qrticket-row .qrticket-select-inline { min-width: 0; }
+    #qrDocModalForm .qrticket-readout {
+        border: none; background: transparent; padding: 0; margin: 0; outline: none;
+        font-size: 12px; font-weight: 600; color: var(--rp-text-heading);
+        text-align: right; width: 100%; cursor: default;
+        white-space: normal; overflow-wrap: break-word; line-height: 1.4;
+        -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+    }
+    #qrDocModalForm .qrticket-readout.mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 10.5px; letter-spacing: 0; word-break: break-all; line-height: 1.5;
+    }
+    /* Select de Tipo de Documento: mismo look "chip" limpio y consistente,
+       con flecha propia (no la del navegador) para que se vea prolijo en
+       todos los sistemas operativos, manteniendo la misma alineación de
+       columna que el resto de las filas. */
+    #qrDocModalForm .qrticket-select-inline {
+        justify-self: end; width: 100%; max-width: 100%; box-sizing: border-box;
+        -webkit-appearance: none; appearance: none;
+        border: 1px solid var(--rp-border-strong); background-color: var(--rp-inset);
+        border-radius: 8px; padding: 6px 26px 6px 10px; margin: 0; outline: none;
+        font-size: 12px; font-weight: 600; color: var(--rp-text-heading); text-align: left;
+        cursor: pointer; line-height: 1.4;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 7.5 10 12.5 15 7.5'/></svg>");
+        background-repeat: no-repeat; background-position: right 8px center; background-size: 12px;
+        transition: border-color .15s, box-shadow .15s;
+    }
+    #qrDocModalForm .qrticket-select-inline:hover { border-color: color-mix(in srgb, var(--rp-accent) 45%, var(--rp-border-strong)); }
+    #qrDocModalForm .qrticket-select-inline:focus {
+        border-color: var(--rp-accent);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--rp-accent) 18%, transparent);
+    }
+    #qrDocModalForm .qrticket-select-inline option { color: initial; }
+    /* Estado en el Ministerio comparte exactamente la misma tipografía que
+       el resto de las filas de solo lectura (antes se veía desproporcionado
+       en móvil por el auto-ajuste de tamaño de texto del navegador). */
+    #qrDocModalForm #qrDoc_estado { font-size: 12px; font-weight: 600; }
+
+    /* Resumen de la operación: filas monetarias + total destacado */
+    #qrDocModalForm .qrticket-money-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; }
+    #qrDocModalForm .qrticket-money-row .k { font-size: 11.5px; color: var(--rp-text-secondary); }
+    #qrDocModalForm .qrticket-money-row .v { border: none; background: transparent; padding: 0; margin: 0; outline: none; text-align: right; cursor: default; font-size: 12.5px; font-weight: 700; color: var(--rp-text-primary); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    #qrDocModalForm .qrticket-money-edit { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 7px 0; }
+    #qrDocModalForm .qrticket-money-edit .k { font-size: 11.5px; font-weight: 700; color: var(--rp-text-secondary); }
+    #qrDocModalForm .qrticket-money-edit-input {
+        text-align: right; width: 130px; background: var(--rp-inset); border: 1px solid var(--rp-border-strong);
+        border-radius: 8px; padding: 7px 10px; font-size: 13px; font-weight: 700; color: var(--rp-text-heading);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace; outline: none; transition: border-color .15s;
+    }
+    #qrDocModalForm .qrticket-money-edit-input:focus { border-color: var(--rp-accent); }
+    #qrDocModalForm .qrticket-total {
+        margin-top: 10px; display: flex; justify-content: space-between; align-items: center;
+        padding: 13px 16px; border-radius: 12px;
+        background: color-mix(in srgb, var(--rp-accent) 10%, transparent);
+        border: 1px solid color-mix(in srgb, var(--rp-accent) 26%, transparent);
+    }
+    #qrDocModalForm .qrticket-total .k { font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--rp-accent); }
+    #qrDocModalForm .qrticket-total .v { border: none; background: transparent; padding: 0; margin: 0; outline: none; font-size: 17px; font-weight: 800; color: var(--rp-accent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-align: right; }
+
+    #qrDocModalForm .qrticket-aviso {
+        margin: 0 26px 18px; background: rgba(224,168,87,.12); border: 1px solid rgba(224,168,87,.3);
+        border-radius: 10px; padding: 10px 14px; font-size: 11.5px; color: #e0a857;
+    }
+
+    /* Información adicional — bloques con look claramente "editable" */
+    #qrDocModalForm .qrticket-field-label {
+        font-size: 10.5px; font-weight: 700; color: var(--rp-text-secondary); text-transform: uppercase;
+        letter-spacing: .05em; margin: 0 0 8px; display: block;
+    }
+    #qrDocModalForm .qrticket-panel { background: var(--rp-inset); border: 1px solid var(--rp-border); border-radius: 12px; padding: 16px; }
+    #qrDocModalForm .qrticket-panel + .qrticket-panel { margin-top: 12px; }
+
+    #qrDocModalForm .qrticket-foot {
+        display: flex; gap: 10px; padding: 16px 26px 22px; border-top: 1px dashed var(--rp-border-strong); flex-shrink: 0;
+    }
+    #qrDocModalForm .qrticket-btn { flex: 1; padding: 12px 0; font-size: 12.5px; font-weight: 700; border-radius: 10px; cursor: pointer; border: none; font-family: inherit; transition: all .15s; }
+    #qrDocModalForm .qrticket-btn.ghost { background: var(--rp-inset); color: var(--rp-text-secondary); border: 1px solid var(--rp-border-strong); }
+    #qrDocModalForm .qrticket-btn.ghost:hover { color: var(--rp-text-heading); }
+    #qrDocModalForm .qrticket-btn.primary { background: var(--rp-accent); color: #fff; }
+    #qrDocModalForm .qrticket-btn.primary:hover { background: var(--rp-accent-hover); }
+
+    /* Corrección 02 — espacio moderado entre el buscador de proveedor y el
+       botón de "Agregar proveedor nuevo" (la clase mt-4 del botón no existe
+       en este build purgado de Tailwind, por eso no se aplicaba). */
+    #qrDocModalForm #qrDoc_btnProvNuevo { margin-top: 12px; }
+</style>
 <div id="qrDocModalForm" class="fixed inset-0 modal-overlay z-50 hidden items-center justify-center p-4" style="display:none">
-    <div class="bg-[var(--rp-surface)] border border-[var(--rp-border)] w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col" style="max-height:80vh;">
-        <header class="px-6 pt-5 pb-4 border-b border-[var(--rp-border)] bg-zinc-950/60 flex-shrink-0">
-            <div class="flex justify-between items-start">
-                <div>
-                    <p id="qrDocAnexoLabel" class="text-[10px] font-bold uppercase tracking-widest text-zinc-600 mb-1">Escaneo de Documentos</p>
-                    <h2 id="qrDocModalTitle" class="text-white font-semibold text-lg tracking-tight">Documento Escaneado</h2>
-                </div>
-                <button onclick="closeQrDocModal()" class="text-zinc-600 hover:text-white transition mt-1"><i data-lucide="x" class="w-5 h-5"></i></button>
-            </div>
+    <div class="qrticket-card">
+        <header class="qrticket-head">
+            <p id="qrDocAnexoLabel" class="qrticket-eyebrow">Escaneo de Documentos</p>
+            <h2 id="qrDocModalTitle" class="qrticket-title">Documento Escaneado</h2>
+            <span class="qrticket-pill" id="qrDoc_estadoPill"><span class="dot"></span><span id="qrDoc_estadoPillTxt">Sin verificar</span></span>
+            <button onclick="closeQrDocModal()" class="qrticket-close" aria-label="Cerrar"><i data-lucide="x" class="w-4 h-4"></i></button>
         </header>
-        <div class="overflow-y-auto flex-1 px-6 py-5">
-            <p class="section-label">Datos del Documento</p>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-x-5 gap-y-4 mb-5 qrdoc-datos-grid">
-                <div><label class="f-label">Fecha de Emisión</label><input type="text" id="qrDoc_fecha" class="f-input" readonly></div>
-                <div><label class="f-label">Código de Generación</label><input type="text" id="qrDoc_codGenView" class="f-input" readonly style="font-family:ui-monospace,monospace;font-size:11px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;"></div>
-                <div><label class="f-label">Estado en el Ministerio</label><input type="text" id="qrDoc_estado" class="f-input" readonly></div>
-                <div><label class="f-label">Tipo de Documento</label><select id="qrDoc_tipoDoc" class="f-input"></select></div>
-                <div><label class="f-label">Sello de Recepción</label><input type="text" id="qrDoc_sello" class="f-input" readonly></div>
-                <div><label class="f-label" id="qrDoc_montoLabel">Monto</label>
+
+        <div class="qrticket-scroll">
+
+            <!-- SECCIÓN 1 — Datos del documento (solo lectura, salvo Tipo
+                 de Documento que sigue siendo editable vía <select>). -->
+            <div class="qrticket-section">
+                <p class="qrticket-section-title">Datos del documento</p>
+                <div class="qrticket-row">
+                    <span class="k">Estado en el Ministerio</span>
+                    <div id="qrDoc_estado" class="qrticket-readout"></div>
+                </div>
+                <div class="qrticket-row" id="qrDoc_tipoDocRow">
+                    <span class="k">Tipo de Documento</span>
+                    <select id="qrDoc_tipoDoc" class="qrticket-select-inline" onchange="qrDocOnTipoDocChange()"></select>
+                </div>
+                <div class="qrticket-row">
+                    <span class="k">Fecha de Emisión</span>
+                    <div id="qrDoc_fecha" class="qrticket-readout"></div>
+                </div>
+                <div class="qrticket-row">
+                    <span class="k">Código de Generación</span>
+                    <div id="qrDoc_codGenView" class="qrticket-readout mono"></div>
+                </div>
+                <div class="qrticket-row">
+                    <span class="k">Sello de Recepción</span>
+                    <div id="qrDoc_sello" class="qrticket-readout mono"></div>
+                </div>
+                <div class="qrticket-row">
+                    <span class="k">Número de Control</span>
+                    <div id="qrDoc_numControl" class="qrticket-readout mono"></div>
+                </div>
+            </div>
+
+            <div id="qrDoc_avisoTipo" class="hidden qrticket-aviso"></div>
+
+            <!-- SECCIÓN 2 — Resumen de la operación. qrDoc_monto sigue
+                 siendo el único campo editable de esta sección (igual que
+                 antes); los demás son de solo lectura y solo se muestran
+                 si vienen presentes en el documento escaneado (misma
+                 lógica de poblarQrDocCamposAdicionales, sin cambios). -->
+            <div class="qrticket-section">
+                <p class="qrticket-section-title accent">Resumen de la operación</p>
+                <div class="qrticket-money-edit">
+                    <span class="k" id="qrDoc_montoLabel">Monto</span>
                     <div style="position:relative;">
-                        <span style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--rp-text-secondary); font-size:14px; pointer-events:none;">$</span>
-                        <input type="number" step="0.01" id="qrDoc_monto" class="f-input" style="padding-left:28px;">
+                        <span style="position:absolute; left:9px; top:50%; transform:translateY(-50%); color:var(--rp-text-secondary); font-size:12px; pointer-events:none;">$</span>
+                        <input type="number" step="0.01" id="qrDoc_monto" class="qrticket-money-edit-input" style="padding-left:20px;">
                     </div>
                 </div>
-                <!-- Corrección 02 — Campos adicionales del documento escaneado.
-                     Mismo estilo que "Sello de Recepción" (label + input
-                     readonly, dentro del mismo grid). Cada wrapper se oculta
-                     con la clase "hidden" cuando el documento escaneado no
-                     trae ese dato — ver poblarQrDocCamposAdicionales(). No
-                     se modificó ningún campo existente de este grid. -->
-                <div id="qrDoc_ivaOperacionesWrap" class="hidden"><label class="f-label">IVA de las operaciones</label><input type="text" id="qrDoc_ivaOperaciones" class="f-input" readonly></div>
-                <div id="qrDoc_ivaPercibidoWrap" class="hidden"><label class="f-label">IVA percibido</label><input type="text" id="qrDoc_ivaPercibidoView" class="f-input" readonly></div>
-                <div id="qrDoc_ivaRetenidoWrap" class="hidden"><label class="f-label">IVA retenido</label><input type="text" id="qrDoc_ivaRetenido" class="f-input" readonly></div>
-                <div id="qrDoc_retencionRentaWrap" class="hidden"><label class="f-label">Retención renta</label><input type="text" id="qrDoc_retencionRentaView" class="f-input" readonly></div>
-                <div id="qrDoc_totalOperacionWrap" class="hidden"><label class="f-label">Total de Operación</label><input type="text" id="qrDoc_totalOperacion" class="f-input" readonly></div>
-            </div>
-            <div id="qrDoc_avisoTipo" class="hidden" style="background:rgba(224,168,87,.12); border:1px solid rgba(224,168,87,.3); border-radius:10px; padding:10px 14px; font-size:11.5px; color:#e0a857; margin-bottom:18px;"></div>
-
-            <p class="section-label" id="qrDoc_provLabel">Proveedor</p>
-            <div id="qrDoc_provBuscar" class="bg-zinc-950 border border-zinc-900 rounded-xl p-5">
-                <div class="autocomplete-wrap">
-                    <label class="f-label" id="qrDoc_provBuscarLabel">Buscar por nombre, NIT, NRC o DUI</label>
-                    <input type="text" id="qrDoc_provSearch" class="f-input" placeholder="Escribe para buscar…" autocomplete="off" oninput="qrDocBuscarProveedor()" onkeydown="acKeyDown(event,'qrDoc_provResults')" onblur="setTimeout(function(){acClose('qrDoc_provResults')},180)">
-                    <div id="qrDoc_provResults" class="autocomplete-list"></div>
-                </div>
-                <button type="button" onclick="qrDocMostrarFormNuevoProveedor()" class="mt-5 px-4 py-2 text-xs font-medium text-zinc-300 border border-zinc-700 hover:border-zinc-500 rounded-lg transition" id="qrDoc_btnProvNuevo">+ Agregar proveedor nuevo</button>
+                <div id="qrDoc_ivaOperacionesWrap" class="hidden qrticket-money-row"><span class="k">IVA de las operaciones</span><input type="text" id="qrDoc_ivaOperaciones" class="v" readonly></div>
+                <div id="qrDoc_ivaPercibidoWrap" class="hidden qrticket-money-row"><span class="k">IVA percibido</span><input type="text" id="qrDoc_ivaPercibidoView" class="v" readonly></div>
+                <div id="qrDoc_ivaRetenidoWrap" class="hidden qrticket-money-row"><span class="k">IVA retenido</span><input type="text" id="qrDoc_ivaRetenido" class="v" readonly></div>
+                <div id="qrDoc_retencionRentaWrap" class="hidden qrticket-money-row"><span class="k">Retención renta</span><input type="text" id="qrDoc_retencionRentaView" class="v" readonly></div>
+                <div id="qrDoc_totalOperacionWrap" class="hidden qrticket-total"><span class="k">Total de Operación</span><input type="text" id="qrDoc_totalOperacion" class="v" readonly></div>
             </div>
 
-            <div id="qrDoc_provElegido" class="hidden" style="background:rgba(139,92,246,0.07);border:1px solid rgba(139,92,246,0.25);border-radius:10px;padding:14px 16px;margin-top:16px;">
-                <p class="text-xs text-zinc-500 mb-1" id="qrDoc_provElegidoK">Seleccionado</p>
-                <p id="qrDoc_provElegidoTxt" class="text-sm text-white font-medium"></p>
-                <button type="button" onclick="qrDocQuitarProveedor()" class="mt-2 text-[11px] text-zinc-400 hover:text-white underline">Cambiar</button>
-            </div>
+            <!-- SECCIÓN 3 — Información adicional (Proveedor/Cliente,
+                 Venta Exenta, Bien/Servicio). Misma estructura de wraps y
+                 mismos ids/onclick que antes — solo cambia el contenedor
+                 visual (qrticket-panel en vez de bg-zinc-950). -->
+            <div class="qrticket-section">
+                <p class="qrticket-section-title">Información adicional</p>
 
-            <div id="qrDoc_provNuevoForm" class="hidden grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 mt-4 bg-zinc-950 rounded-xl border border-zinc-900 p-6">
-                <div class="md:col-span-2"><label class="f-label">Nombre / Razón social</label><input type="text" id="qrDoc_pn_nombre" class="f-input"></div>
-                <div><label class="f-label">NIT</label><input type="text" id="qrDoc_pn_nit" class="f-input" placeholder="0000-000000-000-0"></div>
-                <div><label class="f-label">NRC (opcional)</label><input type="text" id="qrDoc_pn_nrc" class="f-input"></div>
-                <div><label class="f-label">DUI (opcional)</label><input type="text" id="qrDoc_pn_dui" class="f-input"></div>
-                <div id="qrDoc_pn_clasifWrap"><label class="f-label">Clasificación</label>
-                    <select id="qrDoc_pn_clasif" class="f-input">
-                        <option value="1">1 — Costo</option>
-                        <option value="2">2 — Gasto</option>
-                        <option value="8">8 — Operaciones informadas en más de 1 anexo</option>
-                        <option value="9">9 — Excepciones</option>
-                        <option value="0">0 — Periodos anteriores a febrero de 2024</option>
-                    </select>
-                </div>
-                <div id="qrDoc_pn_sectorWrap"><label class="f-label">Sector</label>
-                    <select id="qrDoc_pn_sector" class="f-input">
-                        <option value="1">1 — Industria</option>
-                        <option value="2">2 — Comercio</option>
-                        <option value="3">3 — Agropecuaria</option>
-                        <option value="4">4 — Servicios, Profesiones, Artes y Oficios</option>
-                        <option value="8">8 — Operaciones informadas en más de 1 anexo</option>
-                        <option value="9">9 — Excepciones</option>
-                        <option value="0">0 — Periodos anteriores a febrero de 2024</option>
-                    </select>
-                </div>
-                <div id="qrDoc_pn_tipoCostoWrap"><label class="f-label">Tipo de Costo/Gasto</label>
-                    <select id="qrDoc_pn_tipoCosto" class="f-input">
-                        <option value="1">1 — Gasto de Venta sin Donación</option>
-                        <option value="2">2 — Gasto de Administración sin Donación</option>
-                        <option value="3">3 — Gastos Financieros sin Donación</option>
-                        <option value="4">4 — Costo Art. Producidos/Comprados Imp./Intern.</option>
-                        <option value="5">5 — Costo Art. Producidos/Comprados Interno</option>
-                        <option value="6">6 — Costo Indirectos de Fabricación</option>
-                        <option value="7">7 — Mano de obra</option>
-                        <option value="8">8 — Operaciones informadas en más de 1 anexo</option>
-                        <option value="9">9 — Excepciones</option>
-                        <option value="0">0 — Periodos anteriores a febrero de 2024</option>
-                    </select>
-                </div>
-                <div id="qrDoc_pn_excluidoWrap" class="hidden md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                    <div><label class="f-label">Tipo de Documento</label>
-                        <select id="qrDoc_pn_tipoDocEx" class="f-input">
-                            <option value="1">1 — NIT</option>
-                            <option value="2">2 — DUI</option>
-                            <option value="3">3 — Otro Documento</option>
-                        </select>
+                <p class="qrticket-field-label" id="qrDoc_provLabel">Proveedor</p>
+                <div id="qrDoc_provBuscar" class="qrticket-panel">
+                    <div class="autocomplete-wrap">
+                        <label class="f-label" id="qrDoc_provBuscarLabel">Buscar por nombre, NIT, NRC o DUI</label>
+                        <input type="text" id="qrDoc_provSearch" class="f-input" placeholder="Escribe para buscar…" autocomplete="off" oninput="qrDocBuscarProveedor()" onkeydown="acKeyDown(event,'qrDoc_provResults')" onblur="setTimeout(function(){acClose('qrDoc_provResults')},180)">
+                        <div id="qrDoc_provResults" class="autocomplete-list"></div>
                     </div>
-                    <div><label class="f-label">Tipo de Operación</label>
-                        <select id="qrDoc_pn_tipoOpEx" class="f-input">
-                            <option value="">— Sin clasificar —</option>
-                            <option value="1">1 — Gravada</option>
-                            <option value="2">2 — No gravada o exenta</option>
-                            <option value="3">3 — Excluido o no constituye Renta</option>
-                            <option value="4">4 — Mixta (Regímenes Especiales)</option>
+                    <button type="button" onclick="qrDocMostrarFormNuevoProveedor()" class="mt-4 px-4 py-2 text-xs font-medium text-zinc-300 border border-zinc-700 hover:border-zinc-500 rounded-lg transition" id="qrDoc_btnProvNuevo">+ Agregar proveedor nuevo</button>
+                </div>
+
+                <div id="qrDoc_provElegido" class="hidden qrticket-panel" style="border-color:color-mix(in srgb, var(--rp-violet) 30%, var(--rp-border)); background:color-mix(in srgb, var(--rp-violet) 7%, var(--rp-inset)); margin-top:12px;">
+                    <p class="text-xs text-zinc-500 mb-1" id="qrDoc_provElegidoK">Seleccionado</p>
+                    <p id="qrDoc_provElegidoTxt" class="text-sm font-medium" style="color:var(--rp-text-heading);"></p>
+                    <button type="button" onclick="qrDocQuitarProveedor()" class="mt-2 text-[11px] text-zinc-400 hover:text-white underline">Cambiar</button>
+                </div>
+
+                <div id="qrDoc_provNuevoForm" class="hidden grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4 qrticket-panel" style="margin-top:12px;">
+                    <div class="md:col-span-2"><label class="f-label">Nombre / Razón social</label><input type="text" id="qrDoc_pn_nombre" class="f-input"></div>
+                    <div><label class="f-label">NIT</label><input type="text" id="qrDoc_pn_nit" class="f-input" placeholder="0000-000000-000-0"></div>
+                    <div><label class="f-label">NRC (opcional)</label><input type="text" id="qrDoc_pn_nrc" class="f-input"></div>
+                    <div><label class="f-label">DUI (opcional)</label><input type="text" id="qrDoc_pn_dui" class="f-input"></div>
+                    <div id="qrDoc_pn_clasifWrap"><label class="f-label">Clasificación</label>
+                        <select id="qrDoc_pn_clasif" class="f-input">
+                            <option value="1">1 — Costo</option>
+                            <option value="2">2 — Gasto</option>
                             <option value="8">8 — Operaciones informadas en más de 1 anexo</option>
                             <option value="9">9 — Excepciones</option>
                             <option value="0">0 — Periodos anteriores a febrero de 2024</option>
                         </select>
                     </div>
-                </div>
-                <div class="md:col-span-2 flex justify-end gap-3 mt-1">
-                    <button type="button" onclick="qrDocCancelarNuevoProveedor()" class="px-4 py-2 text-xs font-medium text-zinc-400 hover:text-white transition">Cancelar</button>
-                    <button type="button" onclick="qrDocUsarProveedorNuevo()" class="px-6 py-2 bg-white text-black text-xs font-bold rounded-lg hover:bg-zinc-200 transition">Usar este proveedor</button>
-                </div>
-            </div>
-
-            <div id="qrDoc_exentaWrap" class="hidden mt-8 pt-6" style="border-top:1px solid var(--rp-border);">
-                <p class="section-label">Opciones adicionales</p>
-                <div class="option-switch-card">
-                    <div>
-                        <p class="text-sm font-semibold text-white">Venta Exenta</p>
-                        <p class="text-xs text-zinc-500 mt-0.5">Márcalo si esta venta no genera IVA — el monto se registrará como exento</p>
+                    <div id="qrDoc_pn_sectorWrap"><label class="f-label">Sector</label>
+                        <select id="qrDoc_pn_sector" class="f-input">
+                            <option value="1">1 — Industria</option>
+                            <option value="2">2 — Comercio</option>
+                            <option value="3">3 — Agropecuaria</option>
+                            <option value="4">4 — Servicios, Profesiones, Artes y Oficios</option>
+                            <option value="8">8 — Operaciones informadas en más de 1 anexo</option>
+                            <option value="9">9 — Excepciones</option>
+                            <option value="0">0 — Periodos anteriores a febrero de 2024</option>
+                        </select>
                     </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="qrDoc_exenta">
-                        <span class="toggle-slider"></span>
-                    </label>
+                    <div id="qrDoc_pn_tipoCostoWrap"><label class="f-label">Tipo de Costo/Gasto</label>
+                        <select id="qrDoc_pn_tipoCosto" class="f-input">
+                            <option value="1">1 — Gasto de Venta sin Donación</option>
+                            <option value="2">2 — Gasto de Administración sin Donación</option>
+                            <option value="3">3 — Gastos Financieros sin Donación</option>
+                            <option value="4">4 — Costo Art. Producidos/Comprados Imp./Intern.</option>
+                            <option value="5">5 — Costo Art. Producidos/Comprados Interno</option>
+                            <option value="6">6 — Costo Indirectos de Fabricación</option>
+                            <option value="7">7 — Mano de obra</option>
+                            <option value="8">8 — Operaciones informadas en más de 1 anexo</option>
+                            <option value="9">9 — Excepciones</option>
+                            <option value="0">0 — Periodos anteriores a febrero de 2024</option>
+                        </select>
+                    </div>
+                    <div id="qrDoc_pn_excluidoWrap" class="hidden md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
+                        <div><label class="f-label">Tipo de Documento</label>
+                            <select id="qrDoc_pn_tipoDocEx" class="f-input">
+                                <option value="1">1 — NIT</option>
+                                <option value="2">2 — DUI</option>
+                                <option value="3">3 — Otro Documento</option>
+                            </select>
+                        </div>
+                        <div><label class="f-label">Tipo de Operación</label>
+                            <select id="qrDoc_pn_tipoOpEx" class="f-input">
+                                <option value="">— Sin clasificar —</option>
+                                <option value="1">1 — Gravada</option>
+                                <option value="2">2 — No gravada o exenta</option>
+                                <option value="3">3 — Excluido o no constituye Renta</option>
+                                <option value="4">4 — Mixta (Regímenes Especiales)</option>
+                                <option value="8">8 — Operaciones informadas en más de 1 anexo</option>
+                                <option value="9">9 — Excepciones</option>
+                                <option value="0">0 — Periodos anteriores a febrero de 2024</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="md:col-span-2 flex justify-end gap-3 mt-1">
+                        <button type="button" onclick="qrDocCancelarNuevoProveedor()" class="px-4 py-2 text-xs font-medium text-zinc-400 hover:text-white transition">Cancelar</button>
+                        <button type="button" onclick="qrDocUsarProveedorNuevo()" class="px-6 py-2 bg-white text-black text-xs font-bold rounded-lg hover:bg-zinc-200 transition">Usar este proveedor</button>
+                    </div>
+                </div>
+
+                <div id="qrDoc_exentaWrap" class="hidden" style="margin-top:16px;">
+                    <div class="option-switch-card">
+                        <div>
+                            <p class="text-sm font-semibold" style="color:var(--rp-text-heading);">Venta Exenta</p>
+                            <p class="text-xs mt-0.5" style="color:var(--rp-text-secondary);">Márcalo si esta venta no genera IVA — el monto se registrará como exento</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="qrDoc_exenta">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Cambio 01 — Selector Bien/Servicio, exclusivo de FACTURA DE
+                     EXPORTACIÓN (código 11) en Compras (Anexo 3) y Consumidor
+                     Final (Anexo 2). Oculto para cualquier otro tipo de
+                     documento — ver _qrDocActualizarVisibilidadExportacion(). -->
+                <div id="qrDoc_bienServicioWrap" class="hidden qrticket-panel" style="margin-top:16px;">
+                    <p class="qrticket-field-label" id="qrDoc_bienServicioLabel" style="margin-bottom:4px;">Factura de Exportación — Bien / Servicio</p>
+                    <p class="text-xs" style="color:var(--rp-text-secondary);margin-top:4px;margin-bottom:12px;">No lleva IVA. Indica si la operación corresponde a un bien o a un servicio.</p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <button type="button" id="qrDoc_bsBtn_bien" onclick="qrDocSelectBienServicio('bien')"
+                            style="padding:10px 0;font-size:12px;font-weight:600;border-radius:8px;border:1px solid var(--rp-accent);background:rgba(59,130,246,0.12);color:var(--rp-accent);cursor:pointer;transition:all 0.15s;letter-spacing:0.03em;">
+                            Bien
+                        </button>
+                        <button type="button" id="qrDoc_bsBtn_servicio" onclick="qrDocSelectBienServicio('servicio')"
+                            style="padding:10px 0;font-size:12px;font-weight:600;border-radius:8px;border:1px solid var(--rp-border-strong);background:transparent;color:var(--rp-text-secondary);cursor:pointer;transition:all 0.15s;letter-spacing:0.03em;">
+                            Servicio
+                        </button>
+                    </div>
+                    <input type="hidden" id="qrDoc_bienServicio" value="bien">
                 </div>
             </div>
         </div>
-        <footer class="px-6 py-4 border-t border-[var(--rp-border)] flex justify-between items-center bg-zinc-950/60 flex-shrink-0">
-            <button onclick="closeQrDocModal()" class="px-6 py-2 text-xs font-medium text-zinc-400 hover:text-white transition">Cancelar</button>
-            <button onclick="qrDocEnviar()" class="px-8 py-2 bg-white text-black text-xs font-bold rounded-lg hover:bg-zinc-200 transition">Enviar</button>
+
+        <footer class="qrticket-foot">
+            <button onclick="closeQrDocModal()" class="qrticket-btn ghost">Cancelar</button>
+            <button onclick="qrDocEnviar()" class="qrticket-btn primary">Enviar</button>
         </footer>
     </div>
 </div>
+
 
 <div id="percibidoModalForm" class="fixed inset-0 modal-overlay z-50 hidden items-center justify-center p-4" style="display:none">
     <div class="bg-[var(--rp-surface)] border border-[var(--rp-border)] w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col" style="max-height:90vh;">
@@ -6501,6 +6743,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         </footer>
     </div>
 </div>
+
+<!-- Cambio 04 — Catálogo CAT-002 centralizado (fuente única, compartida
+     con main.js vía require('./cat002.js')). Debe cargarse ANTES del
+     script principal, porque QRSCAN_TIPOS_DTE y _cat002CodigoDesdeTexto
+     dependen de window.FiscalSyncCat002 definido aquí. -->
+<script src="cat002.js"></script>
 
 <script>
 
@@ -17408,65 +17656,61 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         },
         excluido: {
             anexo: 'Compras a Sujeto Excluido — Anexo 5', titulo: 'Sujeto Excluido — Documento Escaneado',
-            esCliente: false, sinTipoDoc: true, montoLabel: 'Monto de la Operación',
-            tiposDoc: [], tipoDocDefault: ''
+            esCliente: false, sinTipoDoc: false, montoLabel: 'Monto de la Operación',
+            tiposDoc: [['14','14 — Factura de Sujeto Excluido'],['05','05 — Nota de Crédito'],['06','06 — Nota de Débito']],
+            tipoDocDefault: '14'
         }
     };
 
     // ══════════════════════════════════════════════════════════════════
-    // CAMBIO 03 — CONTROL DE TIPOS DE DOCUMENTO PERMITIDOS POR MÓDULO DE
-    // ESCANEO QR (configurable desde Modo Admin, pestaña "Escaneo QR").
+    // CAMBIO 04 — CONTROL DE TIPOS DE DOCUMENTO PERMITIDOS POR MÓDULO DE
+    // ESCANEO QR (configurable desde Modo Admin, pestaña "Escaneo QR"),
+    // ahora sobre el catálogo oficial completo CAT-002 (13 tipos).
     //
     // Esta capa NO sustituye la validación existente: el mapeo automático
     // del Tipo de Documento (_mapearTipoDteQr* en main.js -> combinado.
     // tipoDocMapeado) sigue intacto y se usa igual que antes para
     // autocompletar el registro. El aviso "Tipo no reconocido
     // automáticamente" del modal de Documento Escaneado (openQrDocModal)
-    // también sigue intacto.
+    // también sigue intacto — es un aviso distinto, sobre el mapeo
+    // anexo-específico usado para autocompletar, no sobre el control de
+    // permisos de esta sección.
     //
-    // Lo que agrega/valida esta capa es independiente de ese mapeo: usa el
-    // TEXTO REAL de "Tipo de DTE" (combinado.tipoDteTexto, tal como lo
-    // devuelve la consulta pública) traducido con _canonTipoDteQR a uno de
-    // los 5 valores de QRSCAN_TIPOS_DTE. Si ese texto no corresponde a
-    // ninguno de los 5 tipos contemplados, esta capa NO bloquea — sigue el
-    // comportamiento existente (el usuario verifica manualmente, como ya
-    // hacía el sistema).
+    // Fuente del tipo: el TEXTO REAL de "Tipo de DTE" (combinado.
+    // tipoDteTexto, tal como lo devuelve la consulta pública de Hacienda —
+    // esa extracción no se toca). Ese texto se traduce a un código CAT-002
+    // usando el catálogo CENTRALIZADO en cat002.js (cargado más abajo con
+    // <script src="cat002.js">, compartido con main.js vía require) —
+    // nunca se repite el catálogo a mano en dos lugares.
     //
-    // Cuando el texto SÍ corresponde a uno de los 5 tipos, se consulta la
-    // lista de tipos permitidos para ese módulo/anexo configurada en Admin.
-    // Si no está en esa lista, el escaneo se rechaza ANTES de abrir el
-    // modal de Documento Escaneado — el documento no se agrega ni se envía
-    // a ningún anexo (ver los 5 _autocompletar...DesdeQR más abajo, que
-    // llaman a qrScanTipoPermitido justo antes de openQrDocModal).
+    // Cambio 04 — Denegación por defecto: a diferencia de Cambio 03 (donde
+    // un tipo no reconocido simplemente no se bloqueaba), ahora:
+    //   - Tipo DESCONOCIDO para CAT-002 (no está en el catálogo) -> SIEMPRE
+    //     se rechaza. Nunca se asume válido solo porque no se identificó.
+    //   - Tipo CONOCIDO pero no habilitado para el anexo (incluye "nunca
+    //     configurado") -> se rechaza igual, con mensaje distinto.
+    //   - Tipo CONOCIDO y habilitado para el anexo -> se permite.
+    // "No configurado" nunca equivale a "permitido".
     //
-    // Por defecto (mientras el admin no guarde ninguna configuración) se
-    // permiten TODOS los tipos en TODOS los anexos — es decir, el
-    // comportamiento actual del sistema no cambia hasta que el admin
-    // decida restringir algo.
+    // Los tipos que ya funcionaban antes de este cambio (01-FACTURA,
+    // 03-CCF, 05-NC, 07-RETENCIÓN, 14-EXCLUIDO) parten HABILITADOS por
+    // defecto en todos los anexos, para no romper el comportamiento actual
+    // (restricción explícita del Cambio 04). Los 8 tipos nuevos del
+    // catálogo (04, 06, 08, 09, 11, 15, 17, 18) parten DESHABILITADOS — un
+    // administrador debe habilitarlos explícitamente antes de que puedan
+    // procesarse.
     //
-    // Cambio 03 (revisión): esta capa se independiza por completo de
-    // QRDOC_LIBRO_INFO.tiposDoc (esa lista sigue existiendo tal cual, sin
-    // tocarse, para el selector manual de "Tipo de Documento" dentro del
-    // modal de cada registro — es un campo distinto). El catálogo y los
-    // identificadores que usa la configuración de Admin ahora son
-    // EXCLUSIVAMENTE los 5 valores reales de "Tipo de DTE" que devuelve la
-    // consulta pública del Ministerio (ver QRSCAN_TIPOS_DTE), nunca los
-    // códigos internos (01/03/05/06/07/14) ni atributos HTML dinámicos
-    // (_ngcontent-...), que pueden cambiar entre consultas. Esto además
-    // corrige un caso que antes NO se bloqueaba: un tipo de DTE que se
-    // detecta correctamente pero que ese anexo nunca esperaba (ej. una
-    // FACTURA escaneada en Compras) — antes el mapeo de códigos de Compras
-    // no reconocía "FACTURA" y el documento pasaba sin control; ahora se
-    // compara siempre el texto real contra los 5 tipos, sin importar el
-    // anexo.
+    // Se mantiene: una única configuración (fuente única de verdad),
+    // independiente por anexo, y el mismo mecanismo de rechazo ya probado
+    // (nada se agrega al anexo, no queda estado temporal, el siguiente
+    // escaneo funciona de inmediato) — ver los 5 _autocompletar...DesdeQR
+    // más abajo y la validación espejo en main.js.
     // ══════════════════════════════════════════════════════════════════
-    var QRSCAN_TIPOS_STORAGE_KEY = 'fs_qrscan_tipos_v2';
+    var QRSCAN_TIPOS_STORAGE_KEY = 'fs_qrscan_tipos_v3';
 
     // Módulos configurables desde Admin — mismo módulo/anexo que usa
-    // QRDOC_LIBRO_INFO. Cambio 03: "excluido" ya participa de este control
-    // igual que los demás (antes quedaba exento por tener un tipo fijo en
-    // el mapeo interno de códigos; ahora se valida contra el texto real
-    // igual que cualquier otro anexo).
+    // QRDOC_LIBRO_INFO. "excluido" participa de este control igual que los
+    // demás.
     var QRSCAN_MODULOS = [
         { id: 'compras',   label: 'Compras',                  anexo: 'Anexo 3', color: 'var(--rp-violet-soft)' },
         { id: 'cf',        label: 'Venta Consumidor Final',   anexo: 'Anexo 2', color: 'var(--rp-success)' },
@@ -17475,41 +17719,53 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         { id: 'excluido',  label: 'Sujeto Excluido',          anexo: 'Anexo 5', color: 'var(--rp-text-secondary)' }
     ];
 
-    // Cambio 03 — Catálogo único de Tipos de DTE reales (fuente única de
-    // verdad, igual para los 5 anexos). El "id" de cada uno es el
-    // identificador usado en toda la lógica de permisos; el "label" es
-    // exactamente el valor de texto que devuelve la consulta pública del
-    // Ministerio en el campo "Tipo de DTE".
-    var QRSCAN_TIPOS_DTE = [
-        { id: 'FACTURA',   label: 'FACTURA' },
-        { id: 'CCF',       label: 'COMPROBANTE DE CRÉDITO FISCAL' },
-        { id: 'NC',        label: 'NOTA DE CRÉDITO' },
-        { id: 'RETENCION', label: 'COMPROBANTE DE RETENCIÓN' },
-        { id: 'EXCLUIDO',  label: 'FACTURA DE SUJETO EXCLUIDO' }
-    ];
+    // Catálogo CAT-002 completo (13 tipos) — proviene de cat002.js, fuente
+    // única compartida con main.js. { id: código oficial, label: nombre }.
+    var QRSCAN_TIPOS_DTE = window.FiscalSyncCat002.CAT_002.map(function(t) {
+        return { id: t.codigo, label: t.nombre };
+    });
 
-    // Traduce el texto real de "Tipo de DTE" (tal como lo devuelve la
-    // consulta pública, en combinado.tipoDteTexto) a uno de los 5
-    // identificadores de QRSCAN_TIPOS_DTE. Debe mantenerse igual que
-    // _canonTipoDteQR en main.js. Devuelve null si el texto no corresponde
-    // a ninguno de los 5 tipos contemplados — en ese caso esta capa no
-    // bloquea, sigue el aviso existente de "tipo no reconocido
-    // automáticamente" del modal de Documento Escaneado.
-    function _canonTipoDteQR(textoTipoDte) {
-        var n = String(textoTipoDte || '').toUpperCase();
-        if (n.indexOf('COMPROBANTE DE CRÉDITO FISCAL') !== -1 || n.indexOf('COMPROBANTE DE CREDITO FISCAL') !== -1) return 'CCF';
-        if (n.indexOf('COMPROBANTE DE RETENCIÓN') !== -1 || n.indexOf('COMPROBANTE DE RETENCION') !== -1) return 'RETENCION';
-        if (n.indexOf('NOTA DE CRÉDITO') !== -1 || n.indexOf('NOTA DE CREDITO') !== -1) return 'NC';
-        if (n.indexOf('FACTURA DE SUJETO EXCLUIDO') !== -1) return 'EXCLUIDO';
-        if (n.indexOf('FACTURA') !== -1) return 'FACTURA';
-        return null;
+    // Traduce el texto real de "Tipo de DTE" a un código CAT-002. Delegado
+    // por completo en cat002.js (misma función que usa main.js) — ya no
+    // hay una copia local de esta lógica en index.html.
+    function _cat002CodigoDesdeTexto(textoTipoDte) {
+        return window.FiscalSyncCat002.cat002CodigoDesdeTexto(textoTipoDte);
     }
 
     function qrScanTiposDefaults() {
+        var HABILITADOS_POR_DEFECTO = ['01', '03', '05', '07', '14'];
         var out = {};
-        var todos = QRSCAN_TIPOS_DTE.map(function(t) { return t.id; });
         QRSCAN_MODULOS.forEach(function(m) {
-            out[m.id] = todos.slice();
+            out[m.id] = HABILITADOS_POR_DEFECTO.slice();
+        });
+        // Sujeto Excluido admite Factura de Sujeto Excluido (14), Nota de
+        // Crédito (05) y Nota de Débito (06) — el selector "Tipo de
+        // Documento" de ese anexo ahora ofrece exactamente esas 3 opciones
+        // (ver QRDOC_LIBRO_INFO.excluido), así que 06 debe quedar habilitado
+        // también por defecto (antes solo 14/05 quedaban habilitados).
+        if (out.excluido) out.excluido = ['14', '05', '06'];
+        return out;
+    }
+
+    // Trae la configuración previa del Cambio 03 (guardada por los 5
+    // identificadores de texto FACTURA/CCF/NC/RETENCION/EXCLUIDO) y la
+    // traduce a códigos CAT-002, para que un admin que ya había
+    // configurado algo no tenga que rehacerlo. Si nunca hubo nada guardado
+    // (instalación nueva o recién actualizada sin uso previo de Cambio
+    // 03), se usan los defaults.
+    var _QR_TIPOS_V2_A_CODIGO = { FACTURA: '01', CCF: '03', NC: '05', RETENCION: '07', EXCLUIDO: '14' };
+    function _migrarTiposPermitidosV2() {
+        var defaults = qrScanTiposDefaults();
+        var raw = fsStore.getItem('fs_qrscan_tipos_v2');
+        if (!raw) return defaults;
+        var saved;
+        try { saved = JSON.parse(raw); } catch (e) { return defaults; }
+        if (!saved || typeof saved !== 'object') return defaults;
+        var out = {};
+        QRSCAN_MODULOS.forEach(function(m) {
+            var previos = Array.isArray(saved[m.id]) ? saved[m.id] : null;
+            if (!previos) { out[m.id] = defaults[m.id]; return; }
+            out[m.id] = previos.map(function(idTexto) { return _QR_TIPOS_V2_A_CODIGO[idTexto]; }).filter(Boolean);
         });
         return out;
     }
@@ -17517,7 +17773,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     function qrScanTiposLoad() {
         var defaults = qrScanTiposDefaults();
         var raw = fsStore.getItem(QRSCAN_TIPOS_STORAGE_KEY);
-        if (!raw) return defaults;
+        if (!raw) return _migrarTiposPermitidosV2();
         var saved;
         try { saved = JSON.parse(raw); } catch (e) { return defaults; }
         if (!saved || typeof saved !== 'object') return defaults;
@@ -17549,19 +17805,23 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
     // Punto único de validación — llamado desde los 5 _autocompletar...
     // DesdeQR justo antes de abrir el modal de Documento Escaneado. Recibe
-    // el TEXTO REAL de "Tipo de DTE" (combinado.tipoDteTexto), no el código
-    // interno anexo-específico — así la validación es la misma para los 5
-    // anexos, incluido Sujeto Excluido.
+    // el TEXTO REAL de "Tipo de DTE" (combinado.tipoDteTexto). Cambio 04:
+    // un tipo desconocido para CAT-002 ahora también se rechaza aquí (antes
+    // se dejaba pasar) — esta es la segunda capa, de respaldo, por si un
+    // documento llegara a colarse antes de que main.js sincronizara la
+    // configuración vigente; el rechazo principal y sus dos mensajes
+    // distintos (desconocido / no habilitado) ocurren en main.js.
     function qrScanTipoPermitido(libro, tipoDteTexto) {
-        var canon = _canonTipoDteQR(tipoDteTexto);
-        if (!canon) return true; // no identificado -> lo maneja el aviso existente, no esta capa
+        var codigo = _cat002CodigoDesdeTexto(tipoDteTexto);
+        if (!codigo) return false; // tipo desconocido para CAT-002 -> rechazar
         var permitidos = qrScanTiposLoad()[libro] || [];
-        return permitidos.indexOf(canon) !== -1;
+        return permitidos.indexOf(codigo) !== -1;
     }
 
     // ── Editor en Modo Admin (pestaña "Escaneo QR") ──────────────────
     var _qrTiposActivoModulo = 'compras';
     var _qrTiposEditorData = {}; // copia editable en memoria mientras el admin marca/desmarca, hasta Guardar
+
 
     function _renderQrTiposModuloNav() {
         var nav = document.getElementById('qrTiposModuloNav');
@@ -17606,18 +17866,32 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         if (labelEl && m) labelEl.textContent = m.label + ' › ' + m.anexo;
         body.innerHTML = '';
 
-        // Cambio 03: se muestran siempre los mismos 5 tipos reales de DTE
-        // (QRSCAN_TIPOS_DTE) para CUALQUIER anexo, incluido Sujeto
-        // Excluido — ya no depende de QRDOC_LIBRO_INFO[libro].tiposDoc.
+        // Cambio 04: catálogo CAT-002 completo (13 tipos), igual para
+        // cualquier anexo — tabla con columnas Código / Documento / Estado
+        // / Interruptor, para que el admin identifique de un vistazo qué
+        // está autorizado sin tener que entrar a otra pantalla.
         var seleccionados = _qrTiposEditorData[_qrTiposActivoModulo] || [];
+        var COLS = '58px 1fr 128px 46px';
         var wrap = document.createElement('div');
-        wrap.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
-        QRSCAN_TIPOS_DTE.forEach(function(t) {
+        wrap.style.cssText = 'display:flex;flex-direction:column;border:1px solid var(--rp-border-strong);border-radius:10px;overflow:hidden;';
+
+        var head = document.createElement('div');
+        head.style.cssText = 'display:grid;grid-template-columns:' + COLS + ';align-items:center;gap:10px;padding:8px 14px;background:var(--rp-inset);border-bottom:1px solid var(--rp-border-strong);';
+        head.innerHTML =
+            '<span style="font-size:10px;font-weight:700;letter-spacing:0.06em;color:var(--rp-text-secondary);">CÓDIGO</span>' +
+            '<span style="font-size:10px;font-weight:700;letter-spacing:0.06em;color:var(--rp-text-secondary);">DOCUMENTO — CAT-002</span>' +
+            '<span style="font-size:10px;font-weight:700;letter-spacing:0.06em;color:var(--rp-text-secondary);">ESTADO</span>' +
+            '<span></span>';
+        wrap.appendChild(head);
+
+        QRSCAN_TIPOS_DTE.forEach(function(t, i) {
             var marcado = seleccionados.indexOf(t.id) !== -1;
             var row = document.createElement('div');
-            row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--rp-inset);border:1px solid var(--rp-border-strong);border-radius:8px;padding:10px 12px;';
+            row.style.cssText = 'display:grid;grid-template-columns:' + COLS + ';align-items:center;gap:10px;padding:9px 14px;' + (i < QRSCAN_TIPOS_DTE.length - 1 ? 'border-bottom:1px solid var(--rp-border);' : '');
             row.innerHTML =
+                '<span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;font-weight:700;color:var(--rp-text-secondary);background:var(--rp-inset);border:1px solid var(--rp-border-strong);border-radius:6px;padding:2px 7px;display:inline-block;width:fit-content;">' + _esc(t.id) + '</span>' +
                 '<span style="font-size:12.5px;color:var(--rp-text-primary);">' + _esc(t.label) + '</span>' +
+                '<span style="font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:6px;color:' + (marcado ? 'var(--rp-success)' : 'var(--rp-text-secondary)') + ';"><span style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block;flex-shrink:0;"></span>' + (marcado ? 'Habilitado' : 'Deshabilitado') + '</span>' +
                 '<label class="toggle-switch">' +
                 '<input type="checkbox" ' + (marcado ? 'checked' : '') + ' onchange="qrTiposToggle(\'' + t.id + '\',this.checked)">' +
                 '<span class="toggle-slider"></span>' +
@@ -17633,6 +17907,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         if (marcado && idx === -1) lista.push(codigo);
         if (!marcado && idx !== -1) lista.splice(idx, 1);
         _qrTiposEditorData[_qrTiposActivoModulo] = lista;
+        // Vuelve a pintar para que la columna "Estado" (texto + punto de
+        // color) refleje el cambio de inmediato, sin esperar a Guardar.
+        _renderQrTiposRows();
     }
 
     function qrTiposResetModulo() {
@@ -17655,6 +17932,25 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             }, 1100);
         }
         showToast('Configuración de Escaneo QR guardada', 'success');
+    }
+
+    // Corrección 03 — Limpieza específica de "Retención renta": el valor
+    // quedaba en el DOM (input oculto por CSS) después de enviar un
+    // documento, así que si el siguiente documento escaneado NO traía este
+    // dato, el campo seguía oculto pero con el valor viejo dentro. Si por
+    // cualquier motivo el wrap volvía a mostrarse, el usuario veía el dato
+    // del documento anterior. Este helper limpia el valor Y lo oculta, y se
+    // llama tanto al preparar el modal para un nuevo escaneo (antes de
+    // pintar los datos del documento entrante) como justo después de un
+    // envío exitoso — así el campo nunca arrastra información entre
+    // documentos. No modifica ningún otro campo del Resumen de la
+    // operación ni su lógica de cálculo (ver poblarQrDocCamposAdicionales,
+    // que sigue intacta para el resto de campos).
+    function qrDocLimpiarRetencionRenta() {
+        var wrap = document.getElementById('qrDoc_retencionRentaWrap');
+        var input = document.getElementById('qrDoc_retencionRentaView');
+        if (input) input.value = '';
+        if (wrap) wrap.classList.add('hidden');
     }
 
     // Corrección 02 — Llena los campos adicionales del documento escaneado
@@ -17684,6 +17980,84 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         });
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // Cambio 01 — FACTURA DE EXPORTACIÓN (código CAT-002 '11') en Compras
+    // (Anexo 3) y Ventas Consumidor Final (Anexo 2): no lleva IVA, y
+    // requiere indicar si la operación es un Bien o un Servicio para saber
+    // a qué campo del anexo se envía el monto (ver detalle en qrDocEnviar).
+    // Este bloque solo controla la UI del selector; el envío/guardado real
+    // sigue viviendo en qrDocEnviar(), sin tocar el resto de tipos de
+    // documento ni de anexos (Retención, Sujeto Excluido, Crédito Fiscal).
+    // ══════════════════════════════════════════════════════════════════
+
+    // true únicamente si el anexo activo es Compras o Consumidor Final Y el
+    // "Tipo de Documento" elegido en el modal (automático o manual) es 11.
+    function _qrDocEsFacturaExportacionActiva() {
+        var libro = qrDocState.libro;
+        if (libro !== 'compras' && libro !== 'cf') return false;
+        var sel = document.getElementById('qrDoc_tipoDoc');
+        return !!sel && sel.value === '11';
+    }
+
+    function _qrDocRenderBienServicioBotones() {
+        var val = document.getElementById('qrDoc_bienServicio').value;
+        var activoCss = 'padding:10px 0;font-size:12px;font-weight:600;border-radius:8px;border:1px solid var(--rp-accent);background:rgba(59,130,246,0.12);color:var(--rp-accent);cursor:pointer;transition:all 0.15s;letter-spacing:0.03em;';
+        var inactivoCss = 'padding:10px 0;font-size:12px;font-weight:600;border-radius:8px;border:1px solid var(--rp-border-strong);background:transparent;color:var(--rp-text-secondary);cursor:pointer;transition:all 0.15s;letter-spacing:0.03em;';
+        document.getElementById('qrDoc_bsBtn_bien').style.cssText = (val === 'bien') ? activoCss : inactivoCss;
+        document.getElementById('qrDoc_bsBtn_servicio').style.cssText = (val === 'servicio') ? activoCss : inactivoCss;
+    }
+
+    // Única opción seleccionada a la vez (regla 7 del Cambio 01) — elegir
+    // una desmarca automáticamente la otra, porque ambas comparten el mismo
+    // input oculto qrDoc_bienServicio.
+    function qrDocSelectBienServicio(val) {
+        document.getElementById('qrDoc_bienServicio').value = val;
+        _qrDocRenderBienServicioBotones();
+    }
+
+    // Punto único que decide si se muestra el selector Bien/Servicio y si se
+    // oculta "Venta Exenta" (que no aplica a una Factura de Exportación).
+    // Llamado desde openQrDocModal() al abrir el modal y desde
+    // qrDocOnTipoDocChange() cada vez que el usuario cambia manualmente el
+    // "Tipo de Documento" — cubre tanto el reconocimiento automático como
+    // el caso "Tipo no reconocido automáticamente" en el que el usuario
+    // elige 11 a mano.
+    function _qrDocActualizarVisibilidadExportacion() {
+        var libro = qrDocState.libro;
+        var esExportacion = _qrDocEsFacturaExportacionActiva();
+
+        var bsWrap = document.getElementById('qrDoc_bienServicioWrap');
+        bsWrap.classList.toggle('hidden', !esExportacion);
+        if (esExportacion) {
+            document.getElementById('qrDoc_bienServicio').value = 'bien';
+            _qrDocRenderBienServicioBotones();
+        }
+
+        // "Venta Exenta" solo existía para cf/ccf; ahora además se oculta
+        // en cf mientras el documento sea Factura de Exportación (no se
+        // deben llenar Exentas/Gravadas y Bien/Servicio a la vez).
+        if (libro === 'cf' || libro === 'ccf') {
+            var mostrarExenta = !esExportacion;
+            document.getElementById('qrDoc_exentaWrap').classList.toggle('hidden', !mostrarExenta);
+            if (!mostrarExenta) document.getElementById('qrDoc_exenta').checked = false;
+        }
+
+        // El label del monto se deja igual que para cualquier otro tipo de
+        // documento (info.montoLabel) — el aviso de "no lleva IVA" queda
+        // solo en el texto descriptivo del selector Bien/Servicio.
+        var info = QRDOC_LIBRO_INFO[libro];
+        if (info) {
+            document.getElementById('qrDoc_montoLabel').innerText = info.montoLabel;
+        }
+    }
+
+    // onchange del select "Tipo de Documento" — permite reaccionar cuando
+    // el usuario lo cambia a mano (ej. tipo no reconocido automáticamente,
+    // o corrige el tipo detectado) después de que el modal ya está abierto.
+    function qrDocOnTipoDocChange() {
+        _qrDocActualizarVisibilidadExportacion();
+    }
+
     function openQrDocModal(libro, combinado) {
         var info = QRDOC_LIBRO_INFO[libro];
         if (!info) return;
@@ -17691,14 +18065,45 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         qrDocState.combinado = combinado;
         qrDocState.sel = null;
 
+        // Corrección 03 — limpieza defensiva antes de pintar el documento
+        // entrante: si el documento anterior tenía "Retención renta" y este
+        // no, el campo no debe arrastrar el valor previo.
+        qrDocLimpiarRetencionRenta();
+
         document.getElementById('qrDocAnexoLabel').innerText = info.anexo;
         document.getElementById('qrDocModalTitle').innerText = info.titulo;
 
-        document.getElementById('qrDoc_fecha').value = combinado.fecha || '';
-        document.getElementById('qrDoc_codGenView').value = combinado.codGen || '';
+        document.getElementById('qrDoc_fecha').textContent = combinado.fecha || '';
+        document.getElementById('qrDoc_codGenView').textContent = combinado.codGen || '';
         document.getElementById('qrDoc_codGenView').title = combinado.codGen || '';
-        document.getElementById('qrDoc_estado').value = combinado.estado || 'Sin verificar';
-        document.getElementById('qrDoc_sello').value = combinado.selloRecepcion || '';
+        document.getElementById('qrDoc_estado').textContent = combinado.estado || 'Sin verificar';
+
+        // Cambio 05 (visual) — pastilla de estado del encabezado del ticket.
+        // Puramente decorativa: reutiliza dgiiEstadoLabel() (ya existente) para
+        // el texto y el propio código de estado (combinado.estado) para el color.
+        // No sustituye ni toca qrDoc_estado (que sigue mostrando el valor crudo
+        // igual que antes); no participa en ninguna validación ni en qrDocEnviar().
+        (function() {
+            var codigo = combinado.estado || 'SIN_VERIFICAR';
+            var pill = document.getElementById('qrDoc_estadoPill');
+            var txt = document.getElementById('qrDoc_estadoPillTxt');
+            if (!pill || !txt) return;
+            txt.innerText = (window.dgiiEstadoLabel ? dgiiEstadoLabel(codigo) : codigo);
+            pill.classList.remove('warn', 'error');
+            if (codigo === 'RECHAZADO' || codigo === 'ERROR' || codigo === 'INVALIDADO') {
+                pill.classList.add('error');
+            } else if (codigo !== 'TRANSMITIDO') {
+                pill.classList.add('warn');
+            }
+        })();
+
+        document.getElementById('qrDoc_sello').textContent = combinado.selloRecepcion || '';
+        // Corrección 02 (Cambio 05) — Número de Control: el dato ya llegaba en
+        // combinado.numeroControl (usado desde antes en qrDocEnviar más abajo para
+        // armar los registros de Compras/Retención/Excluido) pero nunca se mostraba
+        // en el modal. Se agrega aquí solo su despliegue, sin tocar de dónde viene
+        // el dato ni cómo se usa en qrDocEnviar().
+        document.getElementById('qrDoc_numControl').textContent = combinado.numeroControl || '';
         document.getElementById('qrDoc_monto').value = combinado.montoTotal || 0;
         document.getElementById('qrDoc_montoLabel').innerText = info.montoLabel;
 
@@ -17706,11 +18111,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         // qrDoc_monto ni ningún otro campo/lógica existente.
         poblarQrDocCamposAdicionales(combinado);
 
-        // Tipo de Documento (Sujeto Excluido no lo usa — el 14 es fijo)
+        // Tipo de Documento — se repinta siempre con las opciones de este
+        // anexo (info.tiposDoc), para que nunca arrastre las opciones de un
+        // documento anterior de otro anexo/libro (ese arrastre era el bug
+        // original). Sujeto Excluido admite: Factura de Sujeto Excluido,
+        // Nota de Crédito y Nota de Débito.
         var tipoDocWrap = document.getElementById('qrDoc_tipoDoc').closest('div');
         var tipoSel = document.getElementById('qrDoc_tipoDoc');
         if (info.sinTipoDoc) {
             if (tipoDocWrap) tipoDocWrap.classList.add('hidden');
+            tipoSel.innerHTML = '';
         } else {
             if (tipoDocWrap) tipoDocWrap.classList.remove('hidden');
             tipoSel.innerHTML = info.tiposDoc.map(function(t) { return '<option value="'+t[0]+'">'+t[1]+'</option>'; }).join('');
@@ -17767,10 +18177,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
         // "Venta Exenta" — solo aplica a CF y CCF (ambos usan "Gravadas" por
         // defecto; si el usuario marca "exenta", qrDocEnviar mueve el monto
-        // al campo de exentas del anexo correspondiente).
-        var mostrarExenta = (libro === 'cf' || libro === 'ccf');
-        document.getElementById('qrDoc_exentaWrap').classList.toggle('hidden', !mostrarExenta);
+        // al campo de exentas del anexo correspondiente). Cambio 01: esta
+        // visibilidad ahora se calcula junto con la del selector Bien/
+        // Servicio en _qrDocActualizarVisibilidadExportacion(), porque
+        // ambas dependen del mismo criterio (tipo de documento actual).
         document.getElementById('qrDoc_exenta').checked = false;
+        _qrDocActualizarVisibilidadExportacion();
 
         document.getElementById('qrDocModalForm').style.display = 'flex';
         document.getElementById('qrDocModalForm').classList.add('modal-open');
@@ -17778,6 +18190,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     }
 
     function closeQrDocModal() {
+        // Corrección 03 — se limpia también al cerrar (cubre el cierre que
+        // ocurre justo después de un envío exitoso, ya que qrDocEnviar()
+        // siempre termina llamando a closeQrDocModal()).
+        qrDocLimpiarRetencionRenta();
         _cerrarModalAnimado('qrDocModalForm');
     }
 
@@ -17920,11 +18336,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             return;
         }
 
-        var fecha = document.getElementById('qrDoc_fecha').value || '';
+        var fecha = document.getElementById('qrDoc_fecha').textContent || '';
         var tipoDoc = info.sinTipoDoc ? '' : document.getElementById('qrDoc_tipoDoc').value;
         var monto = parseFloat(document.getElementById('qrDoc_monto').value) || 0;
         var esExenta = document.getElementById('qrDoc_exenta').checked;
-        var sello = document.getElementById('qrDoc_sello').value || '';
+        var sello = document.getElementById('qrDoc_sello').textContent || '';
         var codGen = combinado.codGen || '';
         var sel = qrDocState.sel || {};
 
@@ -17936,14 +18352,25 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         }
 
         if (libro === 'compras') {
-            var credito = monto * 0.13;
+            // Cambio 01 — FACTURA DE EXPORTACIÓN (tipoDoc '11'): no lleva
+            // IVA, así que no se calcula crédito fiscal ni se envía a
+            // "C. Internas Gravadas"; el monto va a "Importaciones Grav.
+            // Bienes" o "Importaciones Grav. Servicios" según el selector
+            // Bien/Servicio del modal. Cualquier otro tipo de documento
+            // conserva exactamente el cálculo previo (rama else).
+            var esExportacionCp = (tipoDoc === '11');
+            var bienServicioCp = (document.getElementById('qrDoc_bienServicio') || {}).value || 'bien';
+            var credito = esExportacionCp ? 0 : monto * 0.13;
             var r = {
                 fecha: fecha, clase: '4', tipoDoc: tipoDoc,
                 numDoc: codGen, nit: (sel.nit || '').trim(), nrc: (sel.nrc || sel.nit || '').trim(),
                 dui: (sel.dui || '').trim(), nombre: sel.nombre || '',
                 intExentas: 0, internExentas: 0, impExentas: 0,
-                intGravadas: monto, internGrav: 0, impGrav: 0, impServ: 0,
-                credito: credito, total: monto + credito,
+                intGravadas: esExportacionCp ? 0 : monto,
+                internGrav: 0,
+                impGrav: (esExportacionCp && bienServicioCp === 'bien') ? monto : 0,
+                impServ: (esExportacionCp && bienServicioCp === 'servicio') ? monto : 0,
+                credito: credito, total: esExportacionCp ? monto : (monto + credito),
                 fovial: 0, cotrans: 0,
                 tipoOp: '1', clasif: sel.clasif || '1', sector: sel.sector || empSector, tipoCosto: sel.tipoCosto || '1',
                 selloRecepcion: sello, ivaPercibido: combinado.ivaPercibido || 0, _percLinkId: ''
@@ -17956,16 +18383,25 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             showToast('Documento agregado al Libro de Compras ✓', 'success');
 
         } else if (libro === 'cf') {
-            var exentasVal = esExenta ? monto : 0;
-            var gravadasVal = esExenta ? 0 : monto;
+            // Cambio 01 — FACTURA DE EXPORTACIÓN (tipoDoc '11'): no lleva
+            // IVA; el monto va a "Exp. Fuera del Área C.A." (Bien) o
+            // "Exportaciones de Servicios" (Servicio) según el selector,
+            // en vez de Exentas/Gravadas. Cualquier otro tipo de documento
+            // conserva exactamente el cálculo previo de exenta/gravada.
+            var esExportacionCf = (tipoDoc === '11');
+            var bienServicioCf = (document.getElementById('qrDoc_bienServicio') || {}).value || 'bien';
+            var exentasVal = (!esExportacionCf && esExenta) ? monto : 0;
+            var gravadasVal = (!esExportacionCf && !esExenta) ? monto : 0;
+            var expFueraVal = (esExportacionCf && bienServicioCf === 'bien') ? monto : 0;
+            var expServVal = (esExportacionCf && bienServicioCf === 'servicio') ? monto : 0;
             var r = {
                 fecha: fecha, clase: '4', tipoDoc: tipoDoc,
                 resolucion: combinado.numeroControl || '', serie: sello, maquina: '',
                 ctrlDel: combinado.numeroControl || '', ctrlAl: combinado.numeroControl || '',
                 docDel: codGen, docAl: codGen,
                 exentas: exentasVal, exentaNosuj: 0, nosujetas: 0, gravadas: gravadasVal,
-                expCa: 0, expFuera: 0, expServ: 0, zonas: 0, terceros: 0,
-                total: exentasVal + gravadasVal, tipoOp: '1', tipoIng: empTipoIng
+                expCa: 0, expFuera: expFueraVal, expServ: expServVal, zonas: 0, terceros: 0,
+                total: exentasVal + gravadasVal + expFueraVal + expServVal, tipoOp: '1', tipoIng: empTipoIng
             };
             cfRecords.push(r);
             saveCurrentMonthData();

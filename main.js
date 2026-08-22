@@ -2,6 +2,10 @@ const { app, BrowserWindow, Menu, session, ipcMain, dialog, shell } = require('e
 const path = require('path');
 const fs   = require('fs');
 const { autoUpdater } = require('electron-updater'); // 👈 NUEVO
+// Cambio 04 — Catálogo CAT-002 centralizado (fuente única, compartida con
+// index.html). Ver cat002.js para el catálogo completo y la equivalencia
+// texto de Hacienda -> código CAT-002.
+const { cat002CodigoDesdeTexto, nombrePorCodigo } = require('./cat002.js');
 
 let mainWindowRef = null; // 👈 NUEVO: referencia para enviar el estado del updater al renderer
 
@@ -1082,12 +1086,22 @@ function _parseMontoQr(texto) {
   return isNaN(n) ? 0 : n;
 }
 
-// Deriva el código de Tipo de Documento (03/05) a partir del texto exacto
-// que muestra la consulta pública. Cualquier otro valor -> null (no soportado aún).
+// Deriva el código de Tipo de Documento (03/05/06/11) a partir del texto
+// exacto que muestra la consulta pública. Compartida entre Compras (Anexo
+// 3) y Venta Crédito Fiscal. Cualquier otro valor -> null (no soportado aún).
 function _mapearTipoDteQr(textoTipoDte) {
   const n = String(textoTipoDte || '').toUpperCase();
   if (n.indexOf('COMPROBANTE DE CRÉDITO FISCAL') !== -1 || n.indexOf('COMPROBANTE DE CREDITO FISCAL') !== -1) return '03';
   if (n.indexOf('NOTA DE CRÉDITO') !== -1 || n.indexOf('NOTA DE CREDITO') !== -1) return '05';
+  // Cambio 04 — NOTA DE DÉBITO (código 06) agregada como documento
+  // permitido en Compras — Anexo 3 y en Venta Crédito Fiscal (esta función
+  // se comparte entre ambos módulos). Reutiliza el mismo reconocimiento de
+  // texto que ya usa _mapearTipoDteQrRetencion para este mismo tipo.
+  if (n.indexOf('NOTA DE DÉBITO') !== -1 || n.indexOf('NOTA DE DEBITO') !== -1) return '06';
+  // Cambio 01 — FACTURA(S) DE EXPORTACIÓN (código 11) agregada como
+  // documento permitido en Compras — Anexo 3.
+  if (n.indexOf('FACTURA DE EXPORTACIÓN') !== -1 || n.indexOf('FACTURA DE EXPORTACION') !== -1 ||
+      n.indexOf('FACTURAS DE EXPORTACIÓN') !== -1 || n.indexOf('FACTURAS DE EXPORTACION') !== -1) return '11';
   return null;
 }
 
@@ -1096,6 +1110,13 @@ function _mapearTipoDteQr(textoTipoDte) {
 function _mapearTipoDteQrCF(textoTipoDte) {
   const n = String(textoTipoDte || '').toUpperCase();
   if (n.indexOf('NOTA DE CRÉDITO') !== -1 || n.indexOf('NOTA DE CREDITO') !== -1) return '05';
+  // Cambio 01 — FACTURA(S) DE EXPORTACIÓN (código 11) agregada como
+  // documento permitido en Ventas Consumidor Final — Anexo 2. Debe
+  // revisarse ANTES del chequeo genérico de 'FACTURA' de abajo: si no,
+  // toda Factura de Exportación se identificaría por error como 01
+  // (Factura Consumidor Final), porque su texto también contiene "FACTURA".
+  if (n.indexOf('FACTURA DE EXPORTACIÓN') !== -1 || n.indexOf('FACTURA DE EXPORTACION') !== -1 ||
+      n.indexOf('FACTURAS DE EXPORTACIÓN') !== -1 || n.indexOf('FACTURAS DE EXPORTACION') !== -1) return '11';
   if (n.indexOf('FACTURA') !== -1) return '01';
   return null;
 }
@@ -1121,31 +1142,15 @@ function _mapearTipoDteQrSujetoExcluido(textoTipoDte) {
   return null;
 }
 
-// Cambio 03 — Traduce el valor REAL de texto de "Tipo de DTE" (tal como lo
-// devuelve la consulta pública del Ministerio, ej. "FACTURA",
-// "COMPROBANTE DE CRÉDITO FISCAL") a uno de los 5 identificadores que usa
-// la configuración de "Admin → Escaneo QR → Tipos de Documento Permitidos"
-// (ver misma lista en QRSCAN_TIPOS_DTE dentro de index.html — debe
-// mantenerse igual en ambos lados). A diferencia de los _mapearTipoDteQr*
-// de arriba (que devuelven códigos 01/03/05/06/07/14 SEGÚN EL ANEXO donde
-// se está escaneando, y por eso un mismo texto puede no reconocerse en un
-// anexo donde no se esperaba), esta función es la MISMA para los 5 anexos:
-// siempre traduce el texto tal cual vino, sin importar en qué anexo se
-// escaneó. Esto es lo que permite bloquear, por ejemplo, una FACTURA
-// escaneada en Compras — antes esa combinación no se detectaba porque
-// _mapearTipoDteQr (el de Compras) no reconocía el texto "FACTURA".
-// Devuelve null si el texto no corresponde a ninguno de los 5 tipos
-// contemplados — en ese caso esta capa no bloquea (igual que con un tipo
-// no reconocido automáticamente, sigue el aviso existente en la pantalla).
-function _canonTipoDteQR(textoTipoDte) {
-  const n = String(textoTipoDte || '').toUpperCase();
-  if (n.indexOf('COMPROBANTE DE CRÉDITO FISCAL') !== -1 || n.indexOf('COMPROBANTE DE CREDITO FISCAL') !== -1) return 'CCF';
-  if (n.indexOf('COMPROBANTE DE RETENCIÓN') !== -1 || n.indexOf('COMPROBANTE DE RETENCION') !== -1) return 'RETENCION';
-  if (n.indexOf('NOTA DE CRÉDITO') !== -1 || n.indexOf('NOTA DE CREDITO') !== -1) return 'NC';
-  if (n.indexOf('FACTURA DE SUJETO EXCLUIDO') !== -1) return 'EXCLUIDO';
-  if (n.indexOf('FACTURA') !== -1) return 'FACTURA';
-  return null;
-}
+// Cambio 04 — La traducción de texto real de "Tipo de DTE" a identificador
+// interno ahora vive centralizada en cat002.js (catálogo oficial CAT-002,
+// 13 tipos) y se usa mediante cat002CodigoDesdeTexto(texto), requerido más
+// arriba en este archivo. Antes existía aquí una función local
+// (_canonTipoDteQR) limitada a 5 tipos con identificadores propios
+// ('FACTURA','CCF','NC','RETENCION','EXCLUIDO') — se retira porque
+// cat002CodigoDesdeTexto la reemplaza con el catálogo completo (13 tipos,
+// códigos oficiales '01'..'18') sin cambiar el comportamiento para los 5
+// tipos que ya funcionaban.
 
 // Ejecuta la consulta pública igual que _dgiiConsultarUno (misma URL, mismo
 // llenado de formulario, mismo botón "Realizar Búsqueda"), pero usando el
@@ -1236,7 +1241,7 @@ async function _dgiiConsultarParaCompras(fechaGeneracion, codigoGeneracion) {
   return {
     estado: estadoCode,
     estadoTexto: estadoTexto,
-    tipoDocMapeado: tipoDocMapeado,       // '03' | '05' | null (no soportado aún)
+    tipoDocMapeado: tipoDocMapeado,       // '03' | '05' | '06' | '11' | null (no soportado aún)
     tipoDteTexto: campos.tipoDte || '',
     fecha: fechaSolo,
     selloRecepcion: campos.sello || '',
@@ -1343,7 +1348,7 @@ async function _dgiiConsultarParaCF(fechaGeneracion, codigoGeneracion) {
   return {
     estado: estadoCode,
     estadoTexto: estadoTexto,
-    tipoDocMapeado: tipoDocMapeado,       // '01' | '05' | null (no soportado aún)
+    tipoDocMapeado: tipoDocMapeado,       // '01' | '05' | '11' | null (no soportado aún)
     tipoDteTexto: campos.tipoDte || '',
     fecha: fechaSolo,
     selloRecepcion: campos.sello || '',
@@ -1470,9 +1475,9 @@ async function _dgiiConsultarParaRetencion(fechaGeneracion, codigoGeneracion) {
 // botón "Realizar Búsqueda"), pero usando su propio carril de ventana oculta
 // (QR_SLOT_CCF) para no pisar una consulta de Compras o de Consumidor Final
 // que esté corriendo al mismo tiempo, y mapeando el Tipo de DTE con
-// _mapearTipoDteQr (03 Comprobante de Crédito Fiscal / 05 Nota de Crédito —
-// los mismos códigos que ya usa Compras) en vez de _mapearTipoDteQrCF
-// (01/05), que es el mapeo que usa Consumidor Final.
+// _mapearTipoDteQr (03 Comprobante de Crédito Fiscal / 05 Nota de Crédito /
+// 06 Nota de Débito — los mismos códigos que ya usa Compras) en vez de
+// _mapearTipoDteQrCF (01/05), que es el mapeo que usa Consumidor Final.
 const QR_SLOT_CCF = 'qr-ccf';
 
 async function _dgiiConsultarParaCCF(fechaGeneracion, codigoGeneracion) {
@@ -1557,7 +1562,7 @@ async function _dgiiConsultarParaCCF(fechaGeneracion, codigoGeneracion) {
   return {
     estado: estadoCode,
     estadoTexto: estadoTexto,
-    tipoDocMapeado: tipoDocMapeado,       // '03' | '05' | null (no soportado aún)
+    tipoDocMapeado: tipoDocMapeado,       // '03' | '05' | '06' | '11' | null (no soportado aún)
     tipoDteTexto: campos.tipoDte || '',
     fecha: fechaSolo,
     selloRecepcion: campos.sello || '',
@@ -1701,14 +1706,16 @@ let _qrEventosEnganchados = false;
 // 'qr-actualizar-tipos-permitidos' más abajo) cada vez que cambia o cada
 // vez que se abre el módulo, para que main.js pueda bloquear un documento
 // no permitido ANTES de reenviarlo a la pantalla de la PC.
-// Cambio 03: las listas ya NO usan códigos internos (01/03/05/...) sino los
-// mismos 5 identificadores de texto real de "Tipo de DTE" que usa
-// QRSCAN_TIPOS_DTE en index.html: 'FACTURA' | 'CCF' | 'NC' | 'RETENCION' |
-// 'EXCLUIDO'. Forma: { compras: ['FACTURA','CCF',...], cf: [...], ccf: [...],
-// retencion: [...], excluido: [...] }
+// Cambio 04: las listas usan los códigos oficiales del catálogo CAT-002
+// centralizado en cat002.js — '01' | '03' | '04' | '05' | '06' | '07' |
+// '08' | '09' | '11' | '14' | '15' | '17' | '18'. Forma: { compras:
+// ['01','03',...], cf: [...], ccf: [...], retencion: [...], excluido: [...] }
+// Un código que NO aparece en la lista de un anexo se trata como NO
+// PERMITIDO (denegación por defecto — "no configurado" nunca equivale a
+// "permitido").
 // null = todavía no se ha recibido ninguna copia desde el renderer (recién
-// abierta la app) -> se permite todo, igual que hace qrScanTiposLoad() por
-// defecto en el renderer mientras el admin no haya guardado nada.
+// abierta la app) -> no se bloquea por falta de configuración, igual que
+// hace qrScanTiposLoad() en el renderer mientras no ha llegado nada.
 let _tiposPermitidosPorLibroQR = null;
 
 // Mismo catálogo de anexos que QRSCAN_MODULOS en index.html, solo para
@@ -1724,21 +1731,39 @@ const _QR_ANEXO_LABEL = {
 // Punto único de validación en el proceso principal — se llama justo
 // después de consultar el Ministerio y antes de reenviar el documento al
 // renderer (ver el listener de 'documento-escaneado' más abajo).
-// Cambio 03: recibe el TEXTO REAL de "Tipo de DTE" (no el código
-// anexo-específico) y lo traduce aquí mismo con _canonTipoDteQR, para que
-// la validación sea la MISMA para los 5 anexos — incluido 'excluido', que
-// antes quedaba totalmente exento de este control. Si el texto no
-// corresponde a ninguno de los 5 tipos contemplados, o si aún no ha
-// llegado ninguna copia de la configuración desde el renderer, no se
-// bloquea aquí — sigue el aviso existente de "tipo no reconocido" en la
-// pantalla de la PC.
+//
+// Cambio 04: recibe el TEXTO REAL de "Tipo de DTE" y lo traduce a un código
+// CAT-002 (cat002CodigoDesdeTexto, catálogo centralizado en cat002.js — 13
+// tipos oficiales). Devuelve siempre un resultado con dos posibles motivos
+// de rechazo, que ya NO se tratan igual (antes, un tipo no reconocido
+// simplemente no se bloqueaba; ahora sí se rechaza, pero con un mensaje
+// distinto al de "no permitido para el anexo"):
+//
+//   - { permitido: true }                      → procesar normalmente
+//   - { permitido: false, motivo: 'desconocido' }  → el texto de Hacienda no
+//     corresponde a ningún tipo del catálogo CAT-002 (posible tipo de
+//     documento nuevo o inconsistencia). Se rechaza SIEMPRE — nunca se
+//     asume válido solo porque "no se pudo identificar".
+//   - { permitido: false, motivo: 'no_habilitado', codigo, nombre } → el
+//     tipo SÍ es un código CAT-002 conocido, pero no está habilitado para
+//     el anexo seleccionado (o directamente no ha sido configurado —
+//     "no configurado" se trata igual que "deshabilitado", nunca como
+//     "permitido por defecto").
+//
+// Si _tiposPermitidosPorLibroQR todavía no se ha sincronizado desde el
+// renderer (app recién abierta), no se bloquea por falta de configuración
+// — se deja pasar, igual que hacía la versión anterior.
 function _qrTipoDocumentoPermitidoEnMain(libro, tipoDteTexto) {
-  const canon = _canonTipoDteQR(tipoDteTexto);
-  if (!canon) return true;
-  if (!_tiposPermitidosPorLibroQR) return true; // aún no sincronizado — no bloquear
+  const codigo = cat002CodigoDesdeTexto(tipoDteTexto);
+  if (!codigo) return { permitido: false, motivo: 'desconocido' };
+  if (!_tiposPermitidosPorLibroQR) return { permitido: true }; // aún no sincronizado — no bloquear
   const permitidos = _tiposPermitidosPorLibroQR[libro];
-  if (!Array.isArray(permitidos)) return true; // libro sin config recibida — no bloquear
-  return permitidos.indexOf(canon) !== -1;
+  if (!Array.isArray(permitidos)) return { permitido: true }; // libro sin config recibida — no bloquear
+  const nombre = nombrePorCodigo(codigo);
+  if (permitidos.indexOf(codigo) === -1) {
+    return { permitido: false, motivo: 'no_habilitado', codigo: codigo, nombre: nombre };
+  }
+  return { permitido: true, codigo: codigo, nombre: nombre };
 }
 
 function _obtenerQrServerModule() {
@@ -1831,13 +1856,24 @@ function _obtenerQrServerModule() {
         // (qrScanTipoPermitido) como segunda capa, por si un documento
         // llegara a colarse antes de que este proceso sincronizara la
         // configuración vigente.
-        if (!_qrTipoDocumentoPermitidoEnMain(libro, resultado.tipoDteTexto)) {
+        // Cambio 04 — Ahora se distinguen dos motivos de rechazo (ver
+        // _qrTipoDocumentoPermitidoEnMain): tipo desconocido para el
+        // catálogo CAT-002, o tipo conocido pero no habilitado para este
+        // anexo. En ambos casos el documento se descarta igual (no se
+        // envía al renderer, no llega nada al modal, no queda estado
+        // temporal — la consulta al Ministerio ya se hizo pero su
+        // resultado se descarta aquí mismo) y se avisa al teléfono, solo
+        // que con un mensaje distinto según el motivo. El renderer
+        // conserva su propia validación (qrScanTipoPermitido) como segunda
+        // capa, por si un documento llegara a colarse antes de que este
+        // proceso sincronizara la configuración vigente.
+        const validacionTipo = _qrTipoDocumentoPermitidoEnMain(libro, resultado.tipoDteTexto);
+        if (!validacionTipo.permitido) {
           const anexoLabel = _QR_ANEXO_LABEL[libro] || libro;
-          const tipoTexto = resultado.tipoDteTexto || resultado.tipoDocMapeado;
-          _qrServerModule.enviarResultadoDocumento({
-            ok: false,
-            mensaje: 'Documento no permitido. Este tipo de documento (' + tipoTexto + ') no es válido para el anexo de ' + anexoLabel + '. Verifique el tipo de documento permitido en la configuración de Escaneo QR.'
-          });
+          const mensaje = validacionTipo.motivo === 'desconocido'
+            ? 'Tipo de documento no reconocido. El documento no puede ser procesado.'
+            : 'Documento no permitido. Este tipo de documento (' + validacionTipo.nombre + ') no es válido para el anexo de ' + anexoLabel + '. Verifique el tipo de documento permitido en la configuración de Escaneo QR.';
+          _qrServerModule.enviarResultadoDocumento({ ok: false, mensaje: mensaje });
           return;
         }
 
