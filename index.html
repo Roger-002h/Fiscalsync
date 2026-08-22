@@ -2836,27 +2836,63 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
              tipo que no exista en CAT-002 se rechaza siempre, sin importar
              esta configuración. -->
         <div id="adminEscaneoQRStep" style="display:none;flex:1;flex-direction:column;overflow:hidden;min-height:0;">
-            <div style="padding:18px 20px 4px;flex-shrink:0;">
-                <p style="font-size:13px;font-weight:600;color:var(--rp-text-primary);margin-bottom:3px;">Tipos de Documento Permitidos</p>
-                <p style="font-size:11.5px;color:var(--rp-text-secondary);line-height:1.5;">Configure qué tipos de documentos pueden procesarse mediante Escaneo QR para cada anexo. La identificación del documento se obtiene desde la consulta de Hacienda ("Tipo de DTE") y se normaliza internamente utilizando el catálogo oficial CAT-002. Un tipo no marcado como Habilitado se considera NO permitido, incluso si nunca se ha configurado.</p>
+
+            <!-- Corrección 01 — el problema real: antes había DOS zonas con
+                 scroll propio y muy pequeñas (el nav de "Anexo" y la lista de
+                 tipos de documento), cada una recortada a lo poco que
+                 sobraba de alto después de la descripción y de "Resumen de
+                 Escaneo". Ahora todo ese contenido (descripción, selector de
+                 Resumen, nav de Anexos y lista de tipos) va DENTRO de un
+                 único contenedor con scroll (#adminEscaneoQRScroll), así el
+                 usuario se desplaza una sola vez y ve todo — nav y lista
+                 incluidos — en vez de pelear con dos barras diminutas.
+                 "Permitir todos"/"Guardar cambios" quedan FUERA de esa zona
+                 de scroll, siempre visibles abajo. No cambia estructura,
+                 diseño ni lógica de ningún campo — solo dónde ocurre el
+                 desplazamiento. -->
+            <div id="adminEscaneoQRScroll" style="flex:1;overflow-y:auto;min-height:0;">
+                <div style="padding:18px 20px 4px;">
+                    <p style="font-size:13px;font-weight:600;color:var(--rp-text-primary);margin-bottom:3px;">Tipos de Documento Permitidos</p>
+                    <p style="font-size:11.5px;color:var(--rp-text-secondary);line-height:1.5;">Configure qué tipos de documentos pueden procesarse mediante Escaneo QR para cada anexo. La identificación del documento se obtiene desde la consulta de Hacienda ("Tipo de DTE") y se normaliza internamente utilizando el catálogo oficial CAT-002. Un tipo no marcado como Habilitado se considera NO permitido, incluso si nunca se ha configurado.</p>
+                </div>
+
+                <!-- ═══════════════════════════════════════════════════════════
+                     Cambio 05 — RESUMEN DE ESCANEO: dónde se muestra y completa.
+                     La computadora sigue siendo SIEMPRE el punto de conexión/control
+                     (vinculación, selección de módulo, documentos permitidos) — esta
+                     configuración solo decide dónde se completa el Resumen del
+                     documento ya escaneado: en la propia PC (como hasta ahora) o en
+                     el teléfono vinculado. No crea un sistema de resumen distinto:
+                     el registro se sigue armando y guardando con exactamente la
+                     misma lógica en ambos casos (ver _guardarRegistroEscaneo).
+                     ═══════════════════════════════════════════════════════════ -->
+                <div style="padding:14px 20px;border-top:1px solid var(--rp-border);border-bottom:1px solid var(--rp-border);">
+                    <p style="font-size:13px;font-weight:600;color:var(--rp-text-primary);margin-bottom:3px;">Resumen de Escaneo — dónde se completa</p>
+                    <p style="font-size:11.5px;color:var(--rp-text-secondary);line-height:1.5;margin-bottom:12px;">La vinculación y el control del escaneo siempre ocurren desde esta computadora. Esto solo decide dónde se muestra y completa el resumen del documento (proveedor/cliente, tipo de documento, monto) una vez escaneado.</p>
+                    <div id="resumenModoSelector" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <!-- generado por JS: renderResumenModoSelector() -->
+                    </div>
+                </div>
+
+                <div style="display:flex;flex-direction:row;margin-top:8px;">
+                    <div style="width:200px;flex-shrink:0;border-right:1px solid var(--rp-border);padding:0 10px 12px;display:flex;flex-direction:column;gap:3px;">
+                        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--rp-text-secondary);padding:8px 6px 6px;">Anexo</span>
+                        <div id="qrTiposModuloNav" style="display:flex;flex-direction:column;gap:3px;">
+                            <!-- generado por JS -->
+                        </div>
+                    </div>
+                    <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+                        <div style="padding:14px 20px 4px;">
+                            <span id="qrTiposModuloLabel" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--rp-text-secondary);"></span>
+                        </div>
+                        <div id="qrTiposEditorBody" style="padding:8px 20px 12px;"></div>
+                    </div>
+                </div>
             </div>
-            <div style="flex:1;display:flex;flex-direction:row;overflow:hidden;min-height:0;margin-top:8px;">
-                <div style="width:200px;flex-shrink:0;border-right:1px solid var(--rp-border);overflow-y:auto;padding:0 10px 12px;display:flex;flex-direction:column;gap:3px;">
-                    <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--rp-text-secondary);padding:8px 6px 6px;">Anexo</span>
-                    <div id="qrTiposModuloNav" style="display:flex;flex-direction:column;gap:3px;">
-                        <!-- generado por JS -->
-                    </div>
-                </div>
-                <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;min-height:0;">
-                    <div style="padding:14px 20px 4px;flex-shrink:0;">
-                        <span id="qrTiposModuloLabel" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--rp-text-secondary);"></span>
-                    </div>
-                    <div id="qrTiposEditorBody" style="flex:1;overflow-y:auto;padding:8px 20px 12px;"></div>
-                    <div style="padding:12px 20px;border-top:1px solid var(--rp-border);display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-shrink:0;">
-                        <button onclick="qrTiposResetModulo()" style="padding:7px 14px;background:transparent;color:var(--rp-error);font-size:11px;font-weight:600;border:1px solid rgba(248,113,113,0.3);border-radius:7px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;" onmouseover="this.style.borderColor='rgba(248,113,113,0.7)'" onmouseout="this.style.borderColor='rgba(248,113,113,0.3)'">Permitir todos</button>
-                        <button id="qrTiposSaveBtn" onclick="qrTiposSaveModulo()" style="padding:7px 18px;background:#fff;color:#000;font-size:11px;font-weight:700;border:none;border-radius:7px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;" onmouseover="this.style.background='var(--rp-text-primary)'" onmouseout="if(!this._saving)this.style.background='#fff'">Guardar cambios</button>
-                    </div>
-                </div>
+
+            <div style="padding:12px 20px;border-top:1px solid var(--rp-border);display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-shrink:0;">
+                <button onclick="qrTiposResetModulo()" style="padding:7px 14px;background:transparent;color:var(--rp-error);font-size:11px;font-weight:600;border:1px solid rgba(248,113,113,0.3);border-radius:7px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;" onmouseover="this.style.borderColor='rgba(248,113,113,0.7)'" onmouseout="this.style.borderColor='rgba(248,113,113,0.3)'">Permitir todos</button>
+                <button id="qrTiposSaveBtn" onclick="qrTiposSaveModulo()" style="padding:7px 18px;background:#fff;color:#000;font-size:11px;font-weight:700;border:none;border-radius:7px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;" onmouseover="this.style.background='var(--rp-text-primary)'" onmouseout="if(!this._saving)this.style.background='#fff'">Guardar cambios</button>
             </div>
         </div>
 
@@ -5569,7 +5605,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         border-color: var(--rp-accent);
         box-shadow: 0 0 0 3px color-mix(in srgb, var(--rp-accent) 18%, transparent);
     }
-    #qrDocModalForm .qrticket-select-inline option { color: initial; }
+    /* Corrección 02 — en Modo Oscuro, las opciones de este <select> (el
+       menú desplegable nativo, no el chip cerrado) se veían con texto
+       negro sobre fondo oscuro porque "color: initial" fuerza el negro por
+       defecto del navegador, sin importar el tema — solo se distinguían al
+       pasar el mouse porque el resaltado nativo de selección sí pone texto
+       blanco. Se fija explícitamente el mismo color/fondo que usa el resto
+       de la app (var(--rp-text-heading) / var(--rp-inset)), que ya cambian
+       solos entre Modo Claro y Oscuro, así el texto es legible en ambos
+       sin necesidad de pasar el mouse. */
+    #qrDocModalForm .qrticket-select-inline option { color: var(--rp-text-heading); background-color: var(--rp-inset); }
     /* Estado en el Ministerio comparte exactamente la misma tipografía que
        el resto de las filas de solo lectura (antes se veía desproporcionado
        en móvil por el auto-ajuste de tamaño de texto del navegador). */
@@ -14566,6 +14611,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             btnQ.style.background = 'var(--rp-border)'; btnQ.style.color = 'var(--rp-text-primary)';
             if (title) title.innerText = 'Escaneo QR — Tipos de Documento Permitidos';
             if (box) { box.style.maxWidth = Math.min(760, window.innerWidth - 32) + 'px'; box.style.height = Math.min(window.innerHeight * 0.8, window.innerHeight - 32) + 'px'; box.style.maxHeight = '90vh'; }
+            renderResumenModoSelector();
             renderQrTiposEditor();
         } else {
             paramStep.style.display = 'flex';
@@ -17202,6 +17248,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         window.qrScan.onDocumentoEscaneadoExcluido(function(combinado) {
             _autocompletarExcluidoDesdeQR(combinado);
         });
+
+        // Cambio 05 (Resumen de Escaneo en el teléfono): el usuario
+        // completó y envió desde el teléfono el resumen del documento
+        // (Modo Admin: "Resumen en celular"). Se guarda con exactamente la
+        // misma lógica que usa el modal de la PC (ver _guardarRegistroEscaneo).
+        if (window.qrScan.onResumenCompletadoCelular) {
+            window.qrScan.onResumenCompletadoCelular(function(payload) {
+                _procesarResumenCompletadoCelular(payload);
+            });
+        }
     }
 
     // Cambio 01 (ampliación): aplica al catálogo real de Proveedores (mismo
@@ -17289,6 +17345,76 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         return true;
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // Cambio 05 — RESUMEN DE ESCANEO EN EL TELÉFONO (Modo Admin: "Resumen
+    // en celular"). La PC sigue siendo el centro de control (vinculación,
+    // módulo, documentos permitidos, y toda la validación de los 5
+    // _autocompletar...DesdeQR de arriba — duplicados, tipo permitido,
+    // empresa activa — no cambia en nada). Lo único que cambia es que, en
+    // vez de abrir el modal "Documento Escaneado" aquí mismo, el
+    // documento ya validado se reenvía al teléfono para que el usuario lo
+    // complete ahí; la PC recibe el resultado final y lo guarda con la
+    // MISMA lógica de siempre (ver _guardarRegistroEscaneo).
+    // ══════════════════════════════════════════════════════════════════
+
+    // Envía el documento (ya validado) al teléfono vinculado. Si por
+    // cualquier motivo no se pudo entregar (el teléfono se desconectó justo
+    // en este instante, el módulo no está corriendo, etc.), se usa la PC
+    // como respaldo — el documento nunca se pierde.
+    function _enviarResumenACelular(libro, combinado) {
+        if (!window.qrScan || !window.qrScan.enviarResumenCelular) {
+            openQrDocModal(libro, combinado);
+            return;
+        }
+        window.qrScan.enviarResumenCelular(libro, combinado).then(function(res) {
+            if (!res || !res.ok) {
+                showToast((res && res.error) || 'No se pudo enviar el documento al teléfono — se muestra en la computadora.', 'error');
+                openQrDocModal(libro, combinado);
+            }
+            // Corrección 01 — IMPORTANTE: no se debe llamar aquí a
+            // window.qrScan.reportarResultado() en el caso de éxito. Esa
+            // llamada manda al teléfono un mensaje 'resultado-documento',
+            // y el manejador de ese mensaje en app.js SIEMPRE navega a la
+            // pantalla "Resultado" (mostrarPantalla('screenResultado')) sin
+            // condición. Como 'mostrar-resumen' ya se le envió al teléfono
+            // DENTRO de enviarResumenCelular() (ver qrPairingServer.js),
+            // antes incluso de que esta promesa se resuelva, el teléfono ya
+            // había pasado a la pantalla de Resumen — este segundo mensaje
+            // lo sacaba de ahí inmediatamente, sin darle chance de
+            // completarlo ni enviarlo de vuelta. main.js ya le manda al
+            // teléfono un aviso genérico ("Documento recibido — revísalo en
+            // tu computadora") apenas consulta el documento, que queda en
+            // pantalla como mucho un instante hasta que 'mostrar-resumen'
+            // lo reemplaza — no hace falta (ni conviene) mandar un segundo
+            // aviso desde aquí.
+        }).catch(function() {
+            openQrDocModal(libro, combinado);
+        });
+    }
+
+    // El usuario completó y envió desde el teléfono el resumen de un
+    // documento. payload: { libro, combinado, campos, sel } — mismo
+    // "campos"/"sel" que arma el modal de la PC (ver qrDocEnviar). Se
+    // guarda con _guardarRegistroEscaneo (idéntica lógica en ambos modos)
+    // y se informa el resultado de vuelta al teléfono, reutilizando el
+    // mismo canal que ya usa el flujo de escaneo por cámara.
+    function _procesarResumenCompletadoCelular(payload) {
+        if (!payload || !payload.libro || !payload.combinado) return;
+        if (_rechazarEscaneoSinEmpresaActiva()) return;
+
+        var libro = payload.libro;
+        var combinado = payload.combinado;
+        var campos = payload.campos || {};
+        campos.sel = payload.sel || null;
+
+        var resultado = _guardarRegistroEscaneo(libro, combinado, campos);
+
+        if (window.qrScan && window.qrScan.reportarResultado) {
+            window.qrScan.reportarResultado({ ok: resultado.ok, mensaje: resultado.mensaje });
+        }
+        showToast(resultado.mensaje, resultado.ok ? 'success' : 'error');
+    }
+
     // Cambio 03 (gestión trasladada a la computadora): ya NO se guarda el
     // registro automáticamente. El teléfono solo mandó el QR — 'combinado'
     // trae el resultado de la consulta pública (fecha, código de
@@ -17338,7 +17464,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             return;
         }
 
-        openQrDocModal('compras', combinado);
+        // Cambio 05 — Modo Admin "Resumen de Escaneo": en la PC
+        // (comportamiento de siempre) o en el teléfono vinculado.
+        if (resumenEscaneoModoLoad() === 'celular') {
+            _enviarResumenACelular('compras', combinado);
+        } else {
+            openQrDocModal('compras', combinado);
+        }
     }
 
     // Combina el resultado de la consulta pública + si la venta es exenta o
@@ -17386,7 +17518,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             return;
         }
 
-        openQrDocModal('cf', combinado);
+        // Cambio 05 — Modo Admin "Resumen de Escaneo": en la PC
+        // (comportamiento de siempre) o en el teléfono vinculado.
+        if (resumenEscaneoModoLoad() === 'celular') {
+            _enviarResumenACelular('cf', combinado);
+        } else {
+            openQrDocModal('cf', combinado);
+        }
     }
 
     // Combina el resultado de la consulta pública (sin selección de proveedor/
@@ -17437,7 +17575,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             return;
         }
 
-        openQrDocModal('retencion', combinado);
+        // Cambio 05 — Modo Admin "Resumen de Escaneo": en la PC
+        // (comportamiento de siempre) o en el teléfono vinculado.
+        if (resumenEscaneoModoLoad() === 'celular') {
+            _enviarResumenACelular('retencion', combinado);
+        } else {
+            openQrDocModal('retencion', combinado);
+        }
     }
 
     // Combina el resultado de la consulta pública (Factura de Sujeto
@@ -17496,7 +17640,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             return;
         }
 
-        openQrDocModal('excluido', combinado);
+        // Cambio 05 — Modo Admin "Resumen de Escaneo": en la PC
+        // (comportamiento de siempre) o en el teléfono vinculado.
+        if (resumenEscaneoModoLoad() === 'celular') {
+            _enviarResumenACelular('excluido', combinado);
+        } else {
+            openQrDocModal('excluido', combinado);
+        }
     }
 
     // Combina el resultado de la consulta pública + el cliente elegido/creado
@@ -17610,7 +17760,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             return;
         }
 
-        openQrDocModal('ccf', combinado);
+        // Cambio 05 — Modo Admin "Resumen de Escaneo": en la PC
+        // (comportamiento de siempre) o en el teléfono vinculado.
+        if (resumenEscaneoModoLoad() === 'celular') {
+            _enviarResumenACelular('ccf', combinado);
+        } else {
+            openQrDocModal('ccf', combinado);
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -17816,6 +17972,73 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         if (!codigo) return false; // tipo desconocido para CAT-002 -> rechazar
         var permitidos = qrScanTiposLoad()[libro] || [];
         return permitidos.indexOf(codigo) !== -1;
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // Cambio 05 — RESUMEN DE ESCANEO: dónde se muestra y completa
+    // (configurable desde Modo Admin, pestaña "Escaneo QR").
+    //
+    // La computadora sigue siendo SIEMPRE el centro de control de la
+    // sesión de escaneo (vinculación por QR, selección de módulo,
+    // documentos permitidos — nada de esto cambia). Esta configuración
+    // decide únicamente dónde se muestra y completa el Resumen de un
+    // documento YA escaneado y consultado en Hacienda:
+    //   'pc'      — (por defecto) el modal "Documento Escaneado" se abre
+    //               en la propia computadora, exactamente como hasta
+    //               ahora (openQrDocModal).
+    //   'celular' — el mismo resumen se envía al teléfono vinculado, que
+    //               lo muestra y lo completa; la PC recibe al final el
+    //               resultado y lo guarda.
+    // Es una preferencia puramente local a este equipo (no depende de la
+    // empresa activa), por eso se guarda aparte de "Tipos de Documento
+    // Permitidos" y no se sincroniza a main.js: el teléfono nunca necesita
+    // conocerla de antemano, solo recibe el resumen cuando corresponde
+    // (ver _enviarResumenACelular).
+    // ══════════════════════════════════════════════════════════════════
+    var RESUMEN_MODO_STORAGE_KEY = 'fs_resumen_escaneo_modo_v1';
+
+    function resumenEscaneoModoLoad() {
+        var v = fsStore.getItem(RESUMEN_MODO_STORAGE_KEY);
+        return (v === 'celular') ? 'celular' : 'pc';
+    }
+
+    function resumenEscaneoModoSave(modo) {
+        var val = (modo === 'celular') ? 'celular' : 'pc';
+        fsStore.setItem(RESUMEN_MODO_STORAGE_KEY, val);
+        renderResumenModoSelector();
+        showToast(val === 'celular'
+            ? 'El Resumen de Escaneo ahora se completa en el teléfono'
+            : 'El Resumen de Escaneo ahora se completa en esta computadora', 'success');
+    }
+
+    // Editor en Modo Admin (pestaña "Escaneo QR") — dos tarjetas
+    // seleccionables, mismo patrón visual que el resto de Admin.
+    function renderResumenModoSelector() {
+        var wrap = document.getElementById('resumenModoSelector');
+        if (!wrap) return;
+        var actual = resumenEscaneoModoLoad();
+        var OPCIONES = [
+            { id: 'pc', titulo: 'Solo computadora', desc: 'El resumen se muestra y completa aquí, en la PC (comportamiento actual).' },
+            { id: 'celular', titulo: 'Resumen en celular', desc: 'El teléfono vinculado muestra y completa el resumen; la PC recibe el resultado final.' }
+        ];
+        wrap.innerHTML = '';
+        OPCIONES.forEach(function(op) {
+            var activo = actual === op.id;
+            var card = document.createElement('button');
+            card.type = 'button';
+            card.style.cssText = 'text-align:left;padding:14px;border-radius:10px;cursor:pointer;font-family:\'Inter\',sans-serif;transition:all .15s;' +
+                (activo
+                    ? 'border:1px solid var(--rp-accent);background:rgba(59,130,246,0.08);'
+                    : 'border:1px solid var(--rp-border-strong);background:transparent;');
+            card.innerHTML =
+                '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">' +
+                '<span style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:' + (activo ? 'var(--rp-accent)' : 'var(--rp-text-secondary)') + ';"></span>' +
+                '<span style="font-size:12.5px;font-weight:700;color:' + (activo ? 'var(--rp-accent)' : 'var(--rp-text-primary)') + ';">' + _esc(op.titulo) + '</span>' +
+                '</div>' +
+                '<p style="margin:0;font-size:11px;color:var(--rp-text-secondary);line-height:1.4;">' + _esc(op.desc) + '</p>';
+            card.onclick = function() { resumenEscaneoModoSave(op.id); };
+            wrap.appendChild(card);
+        });
     }
 
     // ── Editor en Modo Admin (pestaña "Escaneo QR") ──────────────────
@@ -18325,24 +18548,46 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     // excluidoRecords), y registra/actualiza el proveedor o cliente en su
     // catálogo real (autoRegistrarProveedor/autoRegistrarCliente), igual
     // que ya hacía el guardado manual de cada anexo. ──
-    function qrDocEnviar() {
-        var libro = qrDocState.libro;
+    // ══════════════════════════════════════════════════════════════════
+    // Cambio 05 — Punto único que arma y guarda el registro de un
+    // documento escaneado en el anexo correspondiente. Es EXACTAMENTE la
+    // misma lógica que antes vivía solo dentro de qrDocEnviar() (cálculos,
+    // forma del registro, registro/actualización del proveedor o cliente
+    // en su catálogo real) — se extrajo tal cual, sin cambiar una sola
+    // fórmula, para poder reutilizarla desde DOS orígenes distintos sin
+    // duplicar código:
+    //   1) qrDocEnviar() — el usuario confirma en el modal "Documento
+    //      Escaneado" de la PC (Modo Admin: "Solo computadora").
+    //   2) _procesarResumenCompletadoCelular() — el usuario completó y
+    //      envió el mismo resumen desde el teléfono (Modo Admin: "Resumen
+    //      en celular").
+    // 'campos' desacopla esta función de dónde vinieron los valores (DOM
+    // en la PC, mensaje WebSocket del teléfono): { tipoDoc, monto,
+    // esExenta, bienServicio, sel }. 'sel' es el proveedor/cliente elegido
+    // o agregado (mismos campos que ya usaba qrDocState.sel).
+    // Devuelve { ok, mensaje } — nunca lanza ni muestra el toast por su
+    // cuenta, para que cada origen decida cómo informarlo (en la PC vía
+    // showToast normal; hacia el teléfono vía window.qrScan.reportarResultado).
+    // ══════════════════════════════════════════════════════════════════
+    function _guardarRegistroEscaneo(libro, combinado, campos) {
         var info = QRDOC_LIBRO_INFO[libro];
-        var combinado = qrDocState.combinado;
-        if (!info || !combinado) return;
+        if (!info || !combinado) return { ok: false, mensaje: 'Datos del documento inválidos.' };
 
-        if (!info.sinProveedor && !qrDocState.sel) {
-            showToast(info.esCliente ? 'Selecciona o agrega un cliente antes de enviar' : 'Selecciona o agrega un proveedor antes de enviar', 'error');
-            return;
+        campos = campos || {};
+        var sel = campos.sel || null;
+
+        if (!info.sinProveedor && !sel) {
+            return { ok: false, mensaje: info.esCliente ? 'Falta seleccionar o agregar un cliente.' : 'Falta seleccionar o agregar un proveedor.' };
         }
 
-        var fecha = document.getElementById('qrDoc_fecha').textContent || '';
-        var tipoDoc = info.sinTipoDoc ? '' : document.getElementById('qrDoc_tipoDoc').value;
-        var monto = parseFloat(document.getElementById('qrDoc_monto').value) || 0;
-        var esExenta = document.getElementById('qrDoc_exenta').checked;
-        var sello = document.getElementById('qrDoc_sello').textContent || '';
+        var fecha = combinado.fecha || '';
+        var tipoDoc = info.sinTipoDoc ? '' : (campos.tipoDoc || info.tipoDocDefault);
+        var monto = parseFloat(campos.monto) || 0;
+        var esExenta = !!campos.esExenta;
+        var bienServicioVal = campos.bienServicio || 'bien';
+        var sello = combinado.selloRecepcion || '';
         var codGen = combinado.codGen || '';
-        var sel = qrDocState.sel || {};
+        sel = sel || {};
 
         var empSector = '1', empTipoIng = '1';
         if (activeEmpresaId) {
@@ -18351,15 +18596,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             if (empActiva && empActiva.tipoIng) empTipoIng = empActiva.tipoIng;
         }
 
+        var mensaje = '';
+
         if (libro === 'compras') {
             // Cambio 01 — FACTURA DE EXPORTACIÓN (tipoDoc '11'): no lleva
             // IVA, así que no se calcula crédito fiscal ni se envía a
             // "C. Internas Gravadas"; el monto va a "Importaciones Grav.
             // Bienes" o "Importaciones Grav. Servicios" según el selector
-            // Bien/Servicio del modal. Cualquier otro tipo de documento
-            // conserva exactamente el cálculo previo (rama else).
+            // Bien/Servicio. Cualquier otro tipo de documento conserva
+            // exactamente el cálculo previo (rama else).
             var esExportacionCp = (tipoDoc === '11');
-            var bienServicioCp = (document.getElementById('qrDoc_bienServicio') || {}).value || 'bien';
             var credito = esExportacionCp ? 0 : monto * 0.13;
             var r = {
                 fecha: fecha, clase: '4', tipoDoc: tipoDoc,
@@ -18368,8 +18614,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 intExentas: 0, internExentas: 0, impExentas: 0,
                 intGravadas: esExportacionCp ? 0 : monto,
                 internGrav: 0,
-                impGrav: (esExportacionCp && bienServicioCp === 'bien') ? monto : 0,
-                impServ: (esExportacionCp && bienServicioCp === 'servicio') ? monto : 0,
+                impGrav: (esExportacionCp && bienServicioVal === 'bien') ? monto : 0,
+                impServ: (esExportacionCp && bienServicioVal === 'servicio') ? monto : 0,
                 credito: credito, total: esExportacionCp ? monto : (monto + credito),
                 fovial: 0, cotrans: 0,
                 tipoOp: '1', clasif: sel.clasif || '1', sector: sel.sector || empSector, tipoCosto: sel.tipoCosto || '1',
@@ -18380,7 +18626,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             saveCurrentMonthData();
             renderComprasTable();
             if (r.nit || r.nrc) { autoRegistrarProveedor(r.nit, r.nombre, r.dui, r.nrc, r.clasif, r.sector, r.tipoCosto, ['compras']); renderProveedoresTable(); }
-            showToast('Documento agregado al Libro de Compras ✓', 'success');
+            mensaje = 'Documento agregado al Libro de Compras ✓';
 
         } else if (libro === 'cf') {
             // Cambio 01 — FACTURA DE EXPORTACIÓN (tipoDoc '11'): no lleva
@@ -18389,11 +18635,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             // en vez de Exentas/Gravadas. Cualquier otro tipo de documento
             // conserva exactamente el cálculo previo de exenta/gravada.
             var esExportacionCf = (tipoDoc === '11');
-            var bienServicioCf = (document.getElementById('qrDoc_bienServicio') || {}).value || 'bien';
             var exentasVal = (!esExportacionCf && esExenta) ? monto : 0;
             var gravadasVal = (!esExportacionCf && !esExenta) ? monto : 0;
-            var expFueraVal = (esExportacionCf && bienServicioCf === 'bien') ? monto : 0;
-            var expServVal = (esExportacionCf && bienServicioCf === 'servicio') ? monto : 0;
+            var expFueraVal = (esExportacionCf && bienServicioVal === 'bien') ? monto : 0;
+            var expServVal = (esExportacionCf && bienServicioVal === 'servicio') ? monto : 0;
             var r = {
                 fecha: fecha, clase: '4', tipoDoc: tipoDoc,
                 resolucion: combinado.numeroControl || '', serie: sello, maquina: '',
@@ -18406,7 +18651,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             cfRecords.push(r);
             saveCurrentMonthData();
             renderCfTable();
-            showToast('Documento agregado a Consumidor Final ✓', 'success');
+            mensaje = 'Documento agregado a Consumidor Final ✓';
 
         } else if (libro === 'ccf') {
             var exentasValD = esExenta ? monto : 0;
@@ -18426,7 +18671,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             renderDebitoTable();
             var nitCliente = (r.nit || r.nrc || '').trim();
             if (nitCliente) { var agregado = autoRegistrarCliente(nitCliente, r.nombre, r.nrc); if (agregado) renderClientesTable(); }
-            showToast('Documento agregado a Crédito Fiscal ✓', 'success');
+            mensaje = 'Documento agregado a Crédito Fiscal ✓';
 
         } else if (libro === 'retencion') {
             var r = {
@@ -18439,7 +18684,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             saveCurrentMonthData();
             renderRetenidoTable();
             if (r.nit || sel.nrc || r.dui) { autoRegistrarProveedor(r.nit, sel.nombre, r.dui, sel.nrc, sel.clasif || '1', sel.sector || empSector, sel.tipoCosto || '1', ['retenido']); renderProveedoresTable(); }
-            showToast('Documento agregado a Retenciones (Anexo 7) ✓', 'success');
+            mensaje = 'Documento agregado a Retenciones (Anexo 7) ✓';
 
         } else if (libro === 'excluido') {
             var nit = (sel.nit || '').trim(), dui = (sel.dui || '').trim();
@@ -18455,9 +18700,39 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             saveCurrentMonthData();
             renderExcluidoTable();
             if (nit || dui || sel.nrc) { autoRegistrarProveedor(nit, sel.nombre, dui, sel.nrc, r.clasif, r.sector, r.tipoCosto, ['excluido'], tipoDocSujeto, r.tipoOp); renderProveedoresTable(); }
-            showToast('Documento agregado a Sujeto Excluido (Anexo 5) ✓', 'success');
+            mensaje = 'Documento agregado a Sujeto Excluido (Anexo 5) ✓';
+        } else {
+            return { ok: false, mensaje: 'Anexo no reconocido.' };
         }
 
+        return { ok: true, mensaje: mensaje };
+    }
+
+    // Modo Admin "Solo computadora" (por defecto) — el usuario confirma
+    // aquí mismo, en el modal de la PC. Solo reúne los valores del DOM y
+    // delega el guardado real a _guardarRegistroEscaneo (ver arriba).
+    function qrDocEnviar() {
+        var libro = qrDocState.libro;
+        var info = QRDOC_LIBRO_INFO[libro];
+        var combinado = qrDocState.combinado;
+        if (!info || !combinado) return;
+
+        if (!info.sinProveedor && !qrDocState.sel) {
+            showToast(info.esCliente ? 'Selecciona o agrega un cliente antes de enviar' : 'Selecciona o agrega un proveedor antes de enviar', 'error');
+            return;
+        }
+
+        var campos = {
+            tipoDoc: info.sinTipoDoc ? '' : document.getElementById('qrDoc_tipoDoc').value,
+            monto: document.getElementById('qrDoc_monto').value,
+            esExenta: document.getElementById('qrDoc_exenta').checked,
+            bienServicio: (document.getElementById('qrDoc_bienServicio') || {}).value || 'bien',
+            sel: qrDocState.sel
+        };
+
+        var resultado = _guardarRegistroEscaneo(libro, combinado, campos);
+        if (!resultado.ok) { showToast(resultado.mensaje, 'error'); return; }
+        showToast(resultado.mensaje, 'success');
         closeQrDocModal();
     }
 

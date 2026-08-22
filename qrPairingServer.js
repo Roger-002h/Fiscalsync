@@ -241,6 +241,26 @@ function manejarConexionWs(ws) {
       });
       return;
     }
+
+    // Cambio 05 (Resumen de Escaneo en el teléfono — Modo Admin "Resumen en
+    // celular"): el usuario completó en el teléfono el mismo Resumen que
+    // existe en la PC (proveedor/cliente elegido o agregado, tipo de
+    // documento, monto, "exenta", bien/servicio) y lo envía de vuelta. Este
+    // servidor NO arma ni guarda ningún registro — solo transporta el
+    // mensaje al proceso principal, igual que ya hace con
+    // 'documento-escaneado'. Quien realmente construye y guarda el
+    // registro en el anexo correspondiente es la PC, con la MISMA lógica
+    // que ya usa qrDocEnviar() (ver _guardarRegistroEscaneo en index.html)
+    // — así el cálculo/guardado nunca se duplica entre PC y teléfono.
+    if (msg.tipo === 'resumen-completado') {
+      eventos.emit('resumen-completado', {
+        libro: msg.libro,
+        combinado: msg.combinado,
+        campos: (msg.campos && typeof msg.campos === 'object') ? msg.campos : {},
+        sel: (msg.sel && typeof msg.sel === 'object') ? msg.sel : null
+      });
+      return;
+    }
   });
 
   ws.on('close', function () {
@@ -347,6 +367,27 @@ function ordenarEscaneo(libro) {
   return { ok: true, conectado: conectado };
 }
 
+// Cambio 05 (Resumen de Escaneo en el teléfono): la PC decide, según la
+// configuración de Admin ("Solo computadora" | "Resumen en celular"), si
+// el Resumen de un documento escaneado se completa en la propia PC (sin
+// cambios — ver openQrDocModal en index.html) o en el teléfono. Cuando
+// corresponde al teléfono, la PC llama a esta función para reenviarle el
+// documento ya combinado con la consulta de Hacienda, junto con el libro.
+// El teléfono usa su propia copia estática de QRDOC_LIBRO_INFO (idéntica
+// a la de index.html) para pintar el mismo formulario — no hace falta
+// mandarla por la red. No sustituye ordenarEscaneo (que sigue decidiendo
+// CUÁNDO el teléfono abre la cámara); esta función solo entra en juego
+// DESPUÉS de un escaneo, para decidir DÓNDE se completa el resumen.
+// Devuelve { ok, conectado, error? } — si no hay teléfono conectado en
+// este momento, la PC debe mostrar el resumen ella misma como respaldo
+// (ver _enviarResumenACelular en index.html), para no perder el documento.
+function enviarResumenCelular(libro, combinado) {
+  const conectado = !!(_phoneSocket && _phoneSocket.readyState === 1);
+  if (!conectado) return { ok: false, conectado: false, error: 'El teléfono no está conectado.' };
+  enviarAlTelefono({ tipo: 'mostrar-resumen', libro: libro, combinado: combinado });
+  return { ok: true, conectado: true };
+}
+
 // Refresca el catálogo de proveedores que se le manda al teléfono (ej. si el usuario
 // agrega proveedores manualmente en el desktop mientras el módulo sigue abierto)
 function actualizarCatalogo(proveedores) {
@@ -429,5 +470,6 @@ module.exports = {
   actualizarCatalogo: actualizarCatalogo,
   actualizarClientes: actualizarClientes,
   actualizarEmpresaActiva: actualizarEmpresaActiva,
-  ordenarEscaneo: ordenarEscaneo
+  ordenarEscaneo: ordenarEscaneo,
+  enviarResumenCelular: enviarResumenCelular
 };

@@ -1786,6 +1786,20 @@ function _obtenerQrServerModule() {
       }
     });
 
+    // Cambio 05 (Resumen de Escaneo en el teléfono): el usuario completó y
+    // envió desde el teléfono el mismo Resumen que existe en la PC. Este
+    // proceso NO arma ni guarda ningún registro — solo relay al renderer
+    // (igual que con 'qr-documento-escaneado*'), que es quien tiene la
+    // lógica de negocio (comprasRecords/cfRecords/etc.) y quien realmente
+    // construye y guarda el registro (ver _procesarResumenCompletadoCelular
+    // / _guardarRegistroEscaneo en index.html).
+    _qrServerModule.eventos.on('resumen-completado', (payload) => {
+      if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+        _traerVentanaAlFrente(mainWindowRef);
+        mainWindowRef.webContents.send('qr-resumen-completado', payload);
+      }
+    });
+
     // Cambio 03: el teléfono ya no crea ni edita proveedores/clientes (esa
     // gestión vive ahora por completo en la computadora), así que
     // qrPairingServer nunca vuelve a emitir 'proveedor-nuevo', 'cliente-nuevo',
@@ -2021,6 +2035,26 @@ ipcMain.handle('qr-actualizar-tipos-permitidos', async (event, tipos) => {
   try {
     _tiposPermitidosPorLibroQR = (tipos && typeof tipos === 'object') ? tipos : null;
     return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+// Cambio 05 (Resumen de Escaneo en el teléfono): reenvía al teléfono
+// conectado el documento ya consultado en Hacienda (libro + combinado)
+// para que el usuario complete ahí el mismo Resumen que existe en la PC
+// (proveedor/cliente, tipo de documento, monto, exenta, bien/servicio) —
+// el renderer llama esto solo cuando Admin tiene configurado "Resumen en
+// celular" (ver resumenEscaneoModoLoad() en index.html). Devuelve
+// { ok, conectado, error? }; si no hay teléfono conectado, el renderer
+// debe mostrar el resumen en la propia PC como respaldo, para no perder
+// el documento.
+ipcMain.handle('qr-enviar-resumen-celular', async (event, { libro, combinado } = {}) => {
+  try {
+    if (!_qrServerModule || !_qrServerModule.estaCorriendo()) {
+      return { ok: false, error: 'El módulo de escaneo no está iniciado.' };
+    }
+    return _qrServerModule.enviarResumenCelular(libro, combinado);
   } catch (e) {
     return { ok: false, error: e.message };
   }

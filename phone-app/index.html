@@ -318,10 +318,44 @@
   .switch input:checked + .switch-track { background: var(--accent); }
   .switch input:checked + .switch-track::before { transform: translateX(20px); }
 
-  .doc-meta { display: flex; gap: 10px; margin-top: 12px; }
-  .doc-meta .field { flex: 1; background: var(--surface-2); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 10px 12px; }
+  .doc-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+  .doc-meta .field { flex: 1; min-width: 120px; background: var(--surface-2); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 10px 12px; }
   .doc-meta .field .k { font-size: 9.5px; color: var(--faint); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
   .doc-meta .field .v { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink); margin-top: 3px; word-break: break-all; }
+
+  /* ── Cambio 05 — Resumen de Escaneo en el teléfono ─────────────────── */
+  .rs-eyebrow { font-size: 9.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin: 0 0 2px; }
+  .rs-title { font-size: 15px; font-weight: 700; margin: 0 0 10px; color: var(--ink); }
+  .rs-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 99px; font-size: 10.5px; font-weight: 700; background: var(--verify-dim); color: var(--verify); margin-bottom: 10px; }
+  .rs-pill.warn { background: var(--amber-dim); color: var(--amber); }
+  .rs-pill.err { background: var(--danger-dim); color: var(--danger); }
+  .rs-pill .d { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .rs-aviso { font-size: 12px; line-height: 1.5; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--amber-dim); color: #7a520a; margin: 10px 0; }
+  .rs-field { margin-top: 12px; }
+  .rs-field label { display: block; font-size: 11px; font-weight: 700; color: var(--dim); margin-bottom: 5px; }
+  .rs-field select, .rs-field input[type="text"], .rs-field input[type="number"] {
+    width: 100%; font: inherit; font-size: 14px; padding: 11px 12px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--ink);
+  }
+  .rs-field select:focus, .rs-field input:focus { outline: none; border-color: var(--border-focus); }
+  .rs-money-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 12.5px; color: var(--dim); }
+  .rs-money-row b { color: var(--ink); font-family: var(--font-mono); }
+  .rs-bs-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+  .rs-bs-btn { padding: 11px 0; font-size: 12.5px; font-weight: 700; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); color: var(--dim); cursor: pointer; }
+  .rs-bs-btn.on { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+  .rs-prov-panel { margin-top: 10px; background: var(--surface-2); border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 12px; }
+  .rs-prov-results { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; max-height: 240px; overflow-y: auto; }
+  .rs-prov-item { text-align: left; width: 100%; background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 9px 11px; cursor: pointer; }
+  .rs-prov-item .nombre { font-weight: 700; font-size: 13px; color: var(--ink); }
+  .rs-prov-item .nit { font-size: 11px; color: var(--dim); font-family: var(--font-mono); margin-top: 1px; }
+  .rs-prov-chosen { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; background: var(--accent-dim); border: 1px solid rgba(47,143,209,.28); border-radius: var(--radius-sm); padding: 10px 12px; margin-top: 8px; }
+  .rs-prov-chosen .nombre { font-weight: 700; font-size: 13px; color: var(--ink); }
+  .rs-prov-chosen .nit { font-size: 11px; color: var(--dim); font-family: var(--font-mono); margin-top: 2px; }
+  .rs-link-btn { background: none; border: none; padding: 0; color: var(--accent); font-size: 11.5px; font-weight: 700; cursor: pointer; width: auto; }
+  .rs-new-grid { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+  .rs-new-grid .rs-field { margin-top: 0; }
+  .rs-btn-row { display: flex; gap: 10px; margin-top: 14px; }
+  .rs-btn-row button { margin: 0; }
 </style>
 </head>
 <body>
@@ -419,6 +453,14 @@
       <h2>Enviando a FiscalSync…</h2>
       <p class="hint">Revisa y confirma el documento en tu computadora.</p>
     </div>
+
+    <!-- Pantalla: Resumen de Escaneo (Cambio 05 — Modo Admin: "Resumen en
+         celular"). Su contenido se genera dinámicamente en app.js
+         (renderResumen()), con la misma información/campos que el modal
+         "Documento Escaneado" de la computadora — solo cambia dónde se
+         completa, nunca la lógica de guardado (que sigue viviendo en la
+         PC, ver _guardarRegistroEscaneo en index.html). -->
+    <div id="screenResumen" class="hidden card" style="padding:20px;"></div>
 
     <!-- Pantalla: Resultado -->
     <div id="screenResultado" class="hidden card center" style="padding:40px 20px;">

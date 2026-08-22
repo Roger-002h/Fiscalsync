@@ -235,6 +235,22 @@ contextBridge.exposeInMainWorld('qrScan', {
     // verificación. resultado: { ok: false, mensaje: 'Documento ya procesado.' }
     reportarResultado: (resultado) => ipcRenderer.invoke('qr-reportar-resultado', resultado),
 
+    // Cambio 05 (Resumen de Escaneo en el teléfono — Modo Admin): reenvía al
+    // teléfono conectado el documento ya consultado en Hacienda (libro +
+    // combinado) para que complete ahí el Resumen (proveedor/cliente, tipo
+    // de documento, monto, exenta, bien/servicio) — se usa solo cuando
+    // Admin tiene configurado "Resumen en celular" (ver
+    // resumenEscaneoModoLoad() en index.html). Devuelve
+    // { ok, conectado, error? }.
+    enviarResumenCelular: (libro, combinado) => ipcRenderer.invoke('qr-enviar-resumen-celular', { libro, combinado }),
+
+    // cb(payload) — payload: { libro, combinado, campos, sel }. El usuario
+    // completó y envió el Resumen desde el teléfono; el renderer debe
+    // guardar el registro con la MISMA lógica que usa qrDocEnviar() en la
+    // PC (ver _guardarRegistroEscaneo / _procesarResumenCompletadoCelular
+    // en index.html).
+    onResumenCompletadoCelular: (cb) => ipcRenderer.on('qr-resumen-completado', (event, data) => cb(data)),
+
     // Limpia los listeners registrados arriba (llamar al cerrar el módulo, para no acumular)
     removerListeners: () => {
         ipcRenderer.removeAllListeners('qr-estado-conexion');
@@ -247,6 +263,7 @@ contextBridge.exposeInMainWorld('qrScan', {
         ipcRenderer.removeAllListeners('qr-proveedor-editado');
         ipcRenderer.removeAllListeners('qr-cliente-editado');
         ipcRenderer.removeAllListeners('qr-cliente-nuevo');
+        ipcRenderer.removeAllListeners('qr-resumen-completado');
     }
 });
 
