@@ -114,7 +114,20 @@ contextBridge.exposeInMainWorld('fiscalAPI', {
     setPrintConfig: (tipo, config) => ipcRenderer.invoke('set-print-config', { tipo, config }),
 
     // Restaura UN libro a los valores originales del programa
-    resetPrintConfig: (tipo) => ipcRenderer.invoke('reset-print-config', { tipo })
+    resetPrintConfig: (tipo) => ipcRenderer.invoke('reset-print-config', { tipo }),
+
+    // ── Corrección 04: Facturación Electrónica — JSON/PDF en Gestión ───
+    // El renderer llama esto al entrar a Facturación Electrónica y cada vez
+    // que el usuario cambia el "Mes de trabajo", para que las próximas
+    // descargas (JSON automático y PDF de la pestaña nueva de Hacienda) se
+    // guarden en Gestión → [Mes] → [Empresa] → Facturacion.
+    // params: { empresaId, mesLabel, empresaNombre }
+    setFacturacionContext: (params) => ipcRenderer.invoke('fe-set-context', params),
+
+    // cb(info) — info: { ok, state, ext, path } — se dispara cuando main.js
+    // termina de guardar un JSON o PDF de Facturación Electrónica en su
+    // carpeta correspondiente (ver evento 'fe-descarga-completada' en main.js)
+    onFacturacionDescarga: (callback) => ipcRenderer.on('fe-descarga-completada', (event, data) => callback(data))
 });
 
 // ── CAMBIO 01: Escaneo de Documentos Físicos vía QR ─────────────────

@@ -623,6 +623,39 @@
             will-change: opacity;
         }
         .screen.active { opacity: 1; }
+        /* Corrección 02 (2da vuelta) — Facturación Electrónica: NO basta con
+           esconder el contenedor del <webview> solo con opacidad +
+           pointer-events (ver intento anterior): algunos <webview> de
+           Electron pueden seguir interceptando clics de la zona de
+           pantalla que ocupaban aunque estén invisibles y con
+           pointer-events:none — el propio contenido embebido (BrowserPlugin)
+           no siempre respeta esa propiedad. Por eso, además de la
+           opacidad, el JS (ver _mostrarFacturacionElec/_ocultarFacturacionElec)
+           saca por completo esta pantalla del viewport (left muy negativo)
+           mientras está "apagada", y solo la trae de vuelta a su posición
+           normal justo antes de mostrarla — así no hay nada suyo
+           superpuesto sobre "¿A dónde desea ingresar?" con lo que un clic
+           pueda toparse. display:none se sigue evitando (destruye la
+           sesión del <webview> en Electron). */
+        #facturacionElectronicaScreen.fe-live-screen {
+            position: fixed;
+            top: 0;
+            left: -10000px;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 40;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s ease-out;
+            will-change: opacity, left;
+        }
+        #facturacionElectronicaScreen.fe-live-screen.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
         .home-title { font-size: 18px; color: var(--rp-text-secondary); font-weight: 400; letter-spacing: 1px; }
         /* ═══ SCROLLBARS MINIMALISTAS 4px ═══ */
         ::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -2159,6 +2192,10 @@
             padding: 4px 8px; border-radius: 6px; transition: all 0.2s;
         }
         .theme-toggle-btn:hover { color: var(--rp-text-primary); background: var(--rp-border); }
+
+        /* Implementación 01 — Facturación Electrónica: tarjetas de la
+           pantalla intermedia "¿A dónde desea ingresar?" */
+        .fe-select-card:hover { border-color: color-mix(in srgb, var(--rp-accent) 45%, var(--rp-border-strong)); background: var(--rp-border); }
     </style>
     <!-- jsPDF + autoTable embebidos inline — 100% offline, sin dependencias de internet -->
     <script>
@@ -2983,6 +3020,94 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- Implementación 01 — FACTURACIÓN ELECTRÓNICA                         -->
+<!-- Pantalla intermedia: "¿A dónde desea ingresar?" — SOLO aparece para  -->
+<!-- empresas con Facturación Electrónica habilitada (ver                -->
+<!-- ingresarEmpresa()). Para el resto de empresas el flujo no cambia en -->
+<!-- absoluto: entran directo a Gestión, como siempre.                   -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div id="facturacionSelectScreen" class="hidden flex-1 flex flex-col h-screen overflow-hidden screen" style="align-items:center;justify-content:center;background:var(--rp-surface);">
+    <div style="width:100%;max-width:640px;padding:24px;">
+        <button onclick="_volverAEmpresasDesdeSeleccion()" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--rp-text-secondary);font-size:12px;font-weight:600;cursor:pointer;margin-bottom:28px;padding:0;font-family:'Inter',sans-serif;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            Volver a Empresas
+        </button>
+        <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--rp-text-secondary);margin-bottom:6px;" id="facturacionSelectEmpresaNombre"></p>
+        <h1 style="font-size:26px;font-weight:700;color:var(--rp-text-heading);letter-spacing:-0.01em;margin-bottom:8px;">¿A dónde desea ingresar?</h1>
+        <p style="font-size:13px;color:var(--rp-text-secondary);margin-bottom:28px;">Esta empresa tiene habilitada la Facturación Electrónica. Elige con qué sección quieres trabajar.</p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <button onclick="_entrarModoGestionDesdeSeleccion()" class="fe-select-card" style="text-align:left;padding:22px;border-radius:14px;border:1px solid var(--rp-border-strong);background:var(--rp-inset);cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;">
+                <div style="width:38px;height:38px;border-radius:10px;background:rgba(59,130,246,0.12);display:flex;align-items:center;justify-content:center;margin-bottom:14px;">
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--rp-accent)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V7m6 10V11M3 21h18M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16"/></svg>
+                </div>
+                <p style="font-size:14px;font-weight:700;color:var(--rp-text-primary);margin-bottom:5px;">Gestión</p>
+                <p style="font-size:11.5px;color:var(--rp-text-secondary);line-height:1.5;">Libros IVA, anexos, importaciones, exportaciones, directorio y escaneo de documentos.</p>
+            </button>
+
+            <button onclick="_entrarModoFacturacionElectronica()" class="fe-select-card" style="text-align:left;padding:22px;border-radius:14px;border:1px solid var(--rp-border-strong);background:var(--rp-inset);cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;">
+                <div style="width:38px;height:38px;border-radius:10px;background:rgba(79,70,229,0.14);display:flex;align-items:center;justify-content:center;margin-bottom:14px;">
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                </div>
+                <p style="font-size:14px;font-weight:700;color:var(--rp-text-primary);margin-bottom:5px;">Facturación Electrónica</p>
+                <p style="font-size:11.5px;color:var(--rp-text-secondary);line-height:1.5;">Portal oficial de Hacienda (admin.factura.gob.sv) — inicia sesión y trabaja normalmente.</p>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- Implementación 01 — FACTURACIÓN ELECTRÓNICA                         -->
+<!-- Portal oficial de Hacienda embebido (admin.factura.gob.sv/login).   -->
+<!-- No es una interfaz propia: es el portal real, cargado dentro de la  -->
+<!-- app mediante <webview> con su propia sesión (partition) — separada  -->
+<!-- de la sesión general de la app, que bloquea toda petición de red    -->
+<!-- (ver session.defaultSession.webRequest.onBeforeRequest en main.js). -->
+<!-- Esa sesión propia también hace que el inicio de sesión del portal   -->
+<!-- persista entre reinicios de la app, igual que en un navegador.      -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div id="facturacionElectronicaScreen" class="fe-live-screen" style="left:-10000px;">
+    <div class="electron-drag" style="flex-shrink:0;display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--rp-border);background:var(--rp-surface);">
+        <button onclick="_volverASeleccionDesdeFacturacion()" class="electron-no-drag" title="Volver" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:var(--rp-inset);border:1px solid var(--rp-border-strong);color:var(--rp-text-secondary);cursor:pointer;flex-shrink:0;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <button onclick="_recargarWebviewFacturacion()" class="electron-no-drag" title="Recargar" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:var(--rp-inset);border:1px solid var(--rp-border-strong);color:var(--rp-text-secondary);cursor:pointer;flex-shrink:0;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 20v-6h-6M4.5 15a8 8 0 0014.5 3.5M19.5 9A8 8 0 005 5.5"/></svg>
+        </button>
+        <div style="min-width:0;">
+            <p style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--rp-text-secondary);" id="facturacionElecEmpresaNombre"></p>
+            <p style="font-size:12px;font-weight:600;color:var(--rp-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Facturación Electrónica — admin.factura.gob.sv</p>
+        </div>
+        <!-- Corrección 06 — Selector de "Mes de trabajo": determina
+             completamente dónde se guardan el JSON y el PDF que se
+             descarguen a partir de ahora (ver _feChangeMes / fe-set-context
+             en main.js). Es el MISMO componente visual (clases
+             "month-selector"/"month-label", ya definidas para el selector
+             de mes de Gestión) — mismos estilos, tipografía, tamaño y
+             comportamiento de flechas prev/next. Solo su estado
+             (_feMesIndex/_feAnio) es independiente del de Gestión
+             (currentMonth/currentYear), como ya lo era con el <select>
+             anterior. -->
+        <div class="month-selector electron-no-drag" style="margin-left:auto;flex-shrink:0;">
+            <button onclick="_feChangeMes(-1)" title="Mes anterior"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+            <span id="feMonthLabel" class="month-label">Enero 2026</span>
+            <button onclick="_feChangeMes(1)" title="Mes siguiente"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+        </div>
+        <span id="facturacionElecLoading" class="hidden" style="font-size:11px;color:var(--rp-text-secondary);flex-shrink:0;">Cargando…</span>
+    </div>
+    <div style="flex:1;position:relative;background:#fff;" id="facturacionElecWebviewContainer">
+        <!-- Corrección 01 — el <webview> ya NO es estático en el HTML: se
+             crea/destruye por JS (ver _asegurarWebviewFacturacion /
+             _destruirWebviewFacturacion) para que cada empresa tenga su
+             propia instancia y sesión (partition) independiente, y para
+             que salir completamente de la empresa cierre esa instancia de
+             verdad — un <webview> fijo con display:none tiende a perder o
+             confundir su contenido al volver a mostrarse, que es
+             exactamente el problema reportado. -->
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
 <!-- MODAL: ACTUALIZACIONES (auto-updater vía GitHub Releases)          -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <div id="updateModal" class="fixed inset-0 z-[999999] hidden" style="background:rgba(0,0,0,0.88);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:16px;">
@@ -3145,6 +3270,47 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
                     </div>
                 </div>
+
+                <!-- ═══ Implementación 01 — FACTURACIÓN ELECTRÓNICA ═══
+                     Solo decide si, al ingresar a ESTA empresa, aparece la
+                     pantalla intermedia "¿A dónde desea ingresar? — Gestión
+                     / Facturación Electrónica" (ver ingresarEmpresa()). No
+                     agrega ningún campo propio del portal de Hacienda — el
+                     login y el uso del portal ocurren dentro del portal
+                     mismo (admin.factura.gob.sv), no en este formulario. -->
+                <div style="border-top:1px solid var(--rp-border);padding-top:16px;">
+                    <p style="font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--rp-indigo);margin-bottom:12px;">Facturación Electrónica</p>
+                    <div style="display:flex;align-items:center;justify-content:space-between;background:var(--rp-inset);border:1px solid var(--rp-border-strong);border-radius:8px;padding:12px 14px;margin-bottom:12px;">
+                        <div>
+                            <p style="font-size:12px;font-weight:600;color:var(--rp-text-primary);margin-bottom:2px;">Habilitar Facturación Electrónica</p>
+                            <p style="font-size:11px;color:var(--rp-text-secondary);">Al ingresar a esta empresa, se podrá elegir entre Gestión o el portal oficial de Hacienda (admin.factura.gob.sv)</p>
+                        </div>
+                        <div id="emp_facturacion_toggle" onclick="toggleEmpFacturacionField()" style="width:40px;height:22px;border-radius:999px;background:var(--rp-border-strong);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;">
+                            <div id="emp_facturacion_thumb" style="width:18px;height:18px;border-radius:50%;background:var(--rp-text-secondary);position:absolute;top:2px;left:2px;transition:all .2s;"></div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="emp_facturacion_activo" value="0">
+                    <!-- Implementación 01 — credenciales del portal de Facturación
+                         Electrónica, guardadas de forma independiente por empresa.
+                         NIT/DUI + Clave de Acceso = login del portal (username /
+                         password). Clave Privada = clave que Hacienda solicita al
+                         emitir/generar un documento (distinta de la Clave de
+                         Acceso) — ver _instalarAutoClavePrivada(). -->
+                    <div id="empFacturacionCreds" style="display:none;">
+                        <div style="margin-bottom:10px;">
+                            <label class="f-label">NIT / DUI</label>
+                            <input type="text" id="emp_fe_usuario" class="f-input" placeholder="NIT o DUI para iniciar sesión en el portal">
+                        </div>
+                        <div style="margin-bottom:10px;">
+                            <label class="f-label">Clave de Acceso</label>
+                            <input type="password" id="emp_fe_clave_acceso" class="f-input" placeholder="Contraseña (Servicios DGII)" autocomplete="off">
+                        </div>
+                        <div>
+                            <label class="f-label">Clave Privada</label>
+                            <input type="password" id="emp_fe_clave_privada" class="f-input" placeholder="Clave privada de validación" autocomplete="off">
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         <footer class="px-8 py-5 border-t border-[var(--rp-border)] flex justify-end gap-3 bg-zinc-950/60 flex-shrink-0">
@@ -3293,7 +3459,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         <!-- WORKSPACE TOPBAR -->
         <div class="workspace-topbar electron-drag">
             <div class="flex items-center gap-4 electron-no-drag">
-                <button onclick="volverAEmpresas()" class="back-btn">
+                <button onclick="_salirDeGestion()" class="back-btn">
                     <i data-lucide="arrow-left" class="w-4 h-4"></i> Volver
                 </button>
                 <div class="h-5 w-px bg-zinc-800"></div>
@@ -6997,6 +7163,70 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'
     ];
 
+    // ══ Corrección 04 — Facturación Electrónica: "Mes de trabajo" ══
+    // Independiente del mes que esté abierto en Gestión (currentMonth/
+    // currentYear) porque el usuario puede estar en Facturación
+    // Electrónica sin haber entrado nunca a Gestión para esa empresa/mes.
+    // Arranca con el mes/año actual, igual que currentMonth/currentYear.
+    var _feMesIndex = new Date().getMonth();
+    var _feAnio     = new Date().getFullYear();
+
+    function _feMesLabelActual() {
+        return MONTH_NAMES[_feMesIndex] + ' ' + _feAnio;
+    }
+
+    // Corrección 06 — refresca el <span class="month-label"> del selector
+    // de Facturación Electrónica, igual que updateMonthLabel() hace con el
+    // de Gestión.
+    function _feUpdateMesLabel() {
+        var lbl = document.getElementById('feMonthLabel');
+        if (lbl) lbl.innerText = _feMesLabelActual();
+    }
+
+    // Envía al proceso principal el contexto vigente (empresa + mes de
+    // trabajo) para que las próximas descargas (JSON automático y PDF
+    // desde la pestaña nueva de Hacienda) se guarden en:
+    // Gestión → [Mes de trabajo] → [Empresa] → Facturacion
+    function _feEnviarContexto() {
+        var empresaId = _facturacionElecActiva && _facturacionElecActiva.empresaId;
+        if (!empresaId) return;
+        var emp = empresas.find(function(e) { return e.id === empresaId; });
+        if (!window.fiscalAPI || !window.fiscalAPI.setFacturacionContext) return;
+        window.fiscalAPI.setFacturacionContext({
+            empresaId: empresaId,
+            mesLabel: _feMesLabelActual(),
+            empresaNombre: emp ? emp.razon : 'Empresa'
+        }).catch(function() {});
+    }
+
+    // Corrección 06 — Handler de las flechas prev/next del selector de mes
+    // de trabajo (mismo comportamiento del stepper de Gestión, ver
+    // changeMonth()): cambiar el mes redirige los PRÓXIMOS documentos
+    // descargados a la carpeta del mes recién elegido, sin tocar lo ya
+    // guardado. Es independiente de currentMonth/currentYear de Gestión —
+    // no recarga libros ni datos, solo actualiza dónde guardar archivos.
+    function _feChangeMes(delta) {
+        _feMesIndex += delta;
+        if (_feMesIndex > 11) { _feMesIndex = 0; _feAnio++; }
+        if (_feMesIndex < 0)  { _feMesIndex = 11; _feAnio--; }
+        _feUpdateMesLabel();
+        _feEnviarContexto();
+    }
+
+    // Corrección 04 — aviso opcional cuando main.js termina de guardar un
+    // JSON o PDF de Facturación Electrónica en su carpeta correspondiente.
+    if (window.fiscalAPI && window.fiscalAPI.onFacturacionDescarga) {
+        window.fiscalAPI.onFacturacionDescarga(function(info) {
+            if (!info) return;
+            if (info.ok) {
+                var tipo = info.ext === '.pdf' ? 'PDF' : (info.ext === '.json' ? 'JSON' : 'Archivo');
+                showToast(tipo + ' guardado en la carpeta Facturacion: ' + info.path, 'success');
+            } else {
+                showToast('No se pudo guardar el archivo de Facturación Electrónica', 'error');
+            }
+        });
+    }
+
     let currentPrintType = '';
     // ══ AGREGADO NUEVO: modo del modal de firma — 'print' (Imprimir Libro) o 'pdf' (Descargar PDF) ══
     var _firmaModalMode = 'print';
@@ -7215,6 +7445,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         document.getElementById('emp_correo_email').value = '';
         document.getElementById('emp_correo_pass').value = '';
         _setEmpCorreosToggle(false);
+        document.getElementById('emp_facturacion_activo').value = '0';
+        document.getElementById('emp_fe_usuario').value = '';
+        document.getElementById('emp_fe_clave_acceso').value = '';
+        document.getElementById('emp_fe_clave_privada').value = '';
+        _setEmpFacturacionToggle(false);
         clearFieldError('emp_nit', 'emp_nit_error');
         clearFieldError('emp_nrc', 'emp_nrc_error');
 
@@ -7231,6 +7466,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 document.getElementById('emp_correos_activo').value = '1';
                 document.getElementById('emp_correo_email').value = emp.correosEmail || '';
                 _setEmpCorreosToggle(true);
+            }
+            if (emp.facturacionElectronica) {
+                document.getElementById('emp_facturacion_activo').value = '1';
+                document.getElementById('emp_fe_usuario').value = emp.feUsuario || '';
+                // Implementación 01 — las claves nunca se muestran en claro al
+                // reabrir el formulario: el campo queda vacío y solo se
+                // sobrescribe el valor guardado si el usuario escribe uno nuevo
+                // (ver saveEmpresa). Igual que ya hace correosPass arriba.
+                document.getElementById('emp_fe_clave_acceso').value = '';
+                document.getElementById('emp_fe_clave_privada').value = '';
+                _setEmpFacturacionToggle(true);
             }
         } else {
             document.getElementById('empresaModalTitle').innerText = 'Nueva Empresa';
@@ -7262,6 +7508,34 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         }
     }
 
+    // Implementación 01 — Facturación Electrónica: mismo patrón de toggle
+    // que "Módulo de Correos DTE" (arriba), pero sin campos adicionales —
+    // solo decide si esta empresa muestra la pantalla intermedia al
+    // ingresar (ver ingresarEmpresa()).
+    function toggleEmpFacturacionField() {
+        var activo = document.getElementById('emp_facturacion_activo').value === '1';
+        activo = !activo;
+        document.getElementById('emp_facturacion_activo').value = activo ? '1' : '0';
+        _setEmpFacturacionToggle(activo);
+    }
+    function _setEmpFacturacionToggle(on) {
+        var tog   = document.getElementById('emp_facturacion_toggle');
+        var thumb = document.getElementById('emp_facturacion_thumb');
+        var creds = document.getElementById('empFacturacionCreds');
+        if (!tog || !thumb) return;
+        if (on) {
+            tog.style.background   = '#4f46e5';
+            thumb.style.left       = '20px';
+            thumb.style.background = '#fff';
+            if (creds) creds.style.display = 'block';
+        } else {
+            tog.style.background   = 'var(--rp-border-strong)';
+            thumb.style.left       = '2px';
+            thumb.style.background = 'var(--rp-text-secondary)';
+            if (creds) creds.style.display = 'none';
+        }
+    }
+
     function closeEmpresaModal() {
         _cerrarModalAnimado('empresaModalForm');
     }
@@ -7276,6 +7550,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         var correosActivo = document.getElementById('emp_correos_activo').value === '1';
         var correosEmail  = document.getElementById('emp_correo_email').value.trim();
         var correosPass   = document.getElementById('emp_correo_pass').value;
+        var facturacionElectronica = document.getElementById('emp_facturacion_activo').value === '1';
+        var feUsuario       = document.getElementById('emp_fe_usuario').value.trim();
+        var feClaveAcceso   = document.getElementById('emp_fe_clave_acceso').value;
+        var feClavePrivada  = document.getElementById('emp_fe_clave_privada').value;
 
         if (!razon) { showToast('La Razón Social es obligatoria', 'error'); return; }
 
@@ -7298,6 +7576,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         if (correosActivo && !correosEmail) { showToast('Ingresa el correo de envío para activar el módulo', 'error'); return; }
         if (correosActivo && !correosPass && index === -1) { showToast('Ingresa la contraseña de aplicación', 'error'); return; }
 
+        // Implementación 01 — Facturación Electrónica: los tres datos son
+        // obligatorios solo si el módulo está habilitado, y las claves solo
+        // se exigen al crear la empresa (al editar, dejarlas en blanco
+        // conserva la clave ya guardada — mismo patrón que Correos DTE).
+        if (facturacionElectronica && !feUsuario) { showToast('Ingresa el NIT/DUI de Facturación Electrónica', 'error'); return; }
+        if (facturacionElectronica && !feClaveAcceso && index === -1) { showToast('Ingresa la Clave de Acceso de Facturación Electrónica', 'error'); return; }
+        if (facturacionElectronica && !feClavePrivada && index === -1) { showToast('Ingresa la Clave Privada de Facturación Electrónica', 'error'); return; }
+
         if (!valid) { showToast('Corrige los campos con formato incorrecto', 'error'); return; }
 
 
@@ -7308,7 +7594,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 id: id, razon: razon, nit: nit, nrc: nrc, tipoIng: tipoIng, sector: sector,
                 correosActivo: correosActivo,
                 correosEmail: correosActivo ? correosEmail : '',
-                correosPass:  correosActivo && correosPass ? _correosSimpleCipher(correosPass) : ''
+                correosPass:  correosActivo && correosPass ? _correosSimpleCipher(correosPass) : '',
+                facturacionElectronica: facturacionElectronica,
+                // Implementación 01 — credenciales de Facturación Electrónica,
+                // independientes por empresa (ver saveEmpresa/openEmpresaModal).
+                feUsuario:      facturacionElectronica ? feUsuario : '',
+                feClaveAcceso:  facturacionElectronica && feClaveAcceso  ? _correosSimpleCipher(feClaveAcceso)  : '',
+                feClavePrivada: facturacionElectronica && feClavePrivada ? _correosSimpleCipher(feClavePrivada) : ''
             });
         } else {
             empresas[index].razon   = razon;
@@ -7317,10 +7609,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             empresas[index].tipoIng = tipoIng;
             empresas[index].sector  = sector;
             empresas[index].correosActivo = correosActivo;
+            empresas[index].facturacionElectronica = facturacionElectronica;
             delete empresas[index]._reconstructed;
             if (correosActivo) {
                 empresas[index].correosEmail = correosEmail;
                 if (correosPass) empresas[index].correosPass = _correosSimpleCipher(correosPass);
+            }
+            if (facturacionElectronica) {
+                empresas[index].feUsuario = feUsuario;
+                if (feClaveAcceso)  empresas[index].feClaveAcceso  = _correosSimpleCipher(feClaveAcceso);
+                if (feClavePrivada) empresas[index].feClavePrivada = _correosSimpleCipher(feClavePrivada);
             }
         }
 
@@ -7333,6 +7631,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     function eliminarEmpresa(index) {
         var emp = empresas[index];
         fsConfirm('¿Eliminar la empresa "' + emp.razon + '" y TODOS sus datos mensuales?\n\nEsta acción no se puede deshacer.', function() {
+
+        // Corrección 01 — por seguridad: si por algún motivo quedaba una
+        // instancia viva de Facturación Electrónica asociada a esta
+        // empresa (normalmente ya no, porque para llegar a esta pantalla
+        // ya se pasó por volverAEmpresas(), que la destruye), se destruye
+        // también aquí antes de eliminar la empresa.
+        if (_facturacionElecActiva.empresaId === emp.id) _destruirWebviewFacturacion();
 
         var prefix = 'fs_data_v' + APP_VERSION + '_' + emp.id + '_';
         var keysToRemove = [];
@@ -7353,7 +7658,396 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     // ══════════════════════════════════════════════
     // INGRESAR A EMPRESA
     // ══════════════════════════════════════════════
+    // Implementación 01 — Facturación Electrónica: única decisión nueva en
+    // todo el flujo de entrada. Si la empresa NO tiene la función
+    // habilitada, el comportamiento es EXACTAMENTE el de siempre (entra
+    // directo a Gestión — ver _entrarModoGestion). Si la tiene habilitada,
+    // se muestra la pantalla intermedia y es esa pantalla la que decide,
+    // según el botón que el usuario presione, a cuál de los dos módulos
+    // entrar.
     function ingresarEmpresa(empresaId) {
+        var emp = empresas.find(function(e) { return e.id === empresaId; });
+        if (!emp) return;
+
+        if (emp.facturacionElectronica) {
+            _mostrarSeleccionEntradaEmpresa(empresaId);
+            return;
+        }
+
+        _entrarModoGestion(empresaId);
+    }
+
+    // Pantalla intermedia "¿A dónde desea ingresar?" — guarda temporalmente
+    // qué empresa se está por abrir mientras el usuario elige.
+    var _facturacionEmpresaIdPendiente = null;
+
+    function _mostrarSeleccionEntradaEmpresa(empresaId) {
+        var emp = empresas.find(function(e) { return e.id === empresaId; });
+        if (!emp) return;
+        _facturacionEmpresaIdPendiente = empresaId;
+        document.getElementById('facturacionSelectEmpresaNombre').innerText = emp.razon;
+        _mostrarPantalla('facturacionSelectScreen', 'empresaScreen');
+    }
+
+    function _volverAEmpresasDesdeSeleccion() {
+        // Corrección 01 — aquí SÍ se sale completamente de la empresa
+        // (el usuario nunca llegó a entrar a Facturación Electrónica, pero
+        // por si ya existía una instancia viva de una entrada anterior a
+        // esta misma empresa, se destruye igual — es "salir de empresa").
+        _destruirWebviewFacturacion();
+        _facturacionEmpresaIdPendiente = null;
+        // Corrección 02 — con _salirDeGestion() ahora también se puede
+        // llegar aquí con una sesión de Gestión todavía "activa" en
+        // memoria (el usuario venía de Gestión, no directo de la lista de
+        // empresas). Al salir de verdad de la empresa hay que limpiarla
+        // igual que hace volverAEmpresas(), o quedaría activeEmpresaId
+        // apuntando a una empresa que ya no está abierta.
+        if (activeEmpresaId) {
+            activeEmpresaId = null;
+            resetInMemoryRecords();
+            _sincronizarEmpresaActivaQR();
+        }
+        _mostrarPantalla('empresaScreen', 'facturacionSelectScreen');
+        renderEmpresaList();
+        lucide.createIcons();
+    }
+
+    function _entrarModoGestionDesdeSeleccion() {
+        var empresaId = _facturacionEmpresaIdPendiente;
+        _facturacionEmpresaIdPendiente = null;
+        _entrarModoGestion(empresaId, 'facturacionSelectScreen');
+    }
+
+    // Implementación 01 — Facturación Electrónica: carga el portal oficial
+    // de Hacienda dentro de la app (ver <webview> en
+    // #facturacionElectronicaScreen). No arma ninguna sesión de trabajo de
+    // Gestión (no llama loadCurrentMonthData/renderAllTables) — el usuario
+    // sigue dentro del portal de Hacienda, no del sistema de libros.
+    function _entrarModoFacturacionElectronica() {
+        var empresaId = _facturacionEmpresaIdPendiente;
+        var emp = empresas.find(function(e) { return e.id === empresaId; });
+        if (!emp) return;
+        _facturacionEmpresaIdPendiente = null;
+
+        document.getElementById('facturacionElecEmpresaNombre').innerText = emp.razon;
+        _asegurarWebviewFacturacion(empresaId);
+        // Corrección 04 — deja listo el selector de "Mes de trabajo" (por
+        // defecto el mes/año actual) y avisa a main.js dónde guardar los
+        // próximos JSON/PDF que Hacienda genere para esta empresa.
+        _feMesIndex = new Date().getMonth();
+        _feAnio     = new Date().getFullYear();
+        _feUpdateMesLabel();
+        _feEnviarContexto();
+        _mostrarFacturacionElec('facturacionSelectScreen');
+    }
+
+    function _volverASeleccionDesdeFacturacion() {
+        // Corrección 01 — salir de Facturación Electrónica NO es lo mismo
+        // que salir de la empresa: el usuario sigue dentro de la misma
+        // empresa, así que el <webview> de esta empresa NO se destruye
+        // aquí — se queda vivo (oculto) para poder volver a entrar al
+        // instante, tantas veces como haga falta, sin perder la sesión del
+        // portal ni recargar. Solo se destruye en volverAEmpresas() y en
+        // _volverAEmpresasDesdeSeleccion(), que sí son "salir de empresa".
+        //
+        // Corrección 03 — CAUSA RAÍZ del congelamiento de "¿A dónde desea
+        // ingresar?": _entrarModoFacturacionElectronica() deja
+        // _facturacionEmpresaIdPendiente en null apenas la usa (línea que
+        // dice "_facturacionEmpresaIdPendiente = null;"), y hasta ahora
+        // esta función nunca la volvía a llenar al regresar. Como
+        // _entrarModoGestionDesdeSeleccion() y
+        // _entrarModoFacturacionElectronica() dependen de esa variable
+        // para saber sobre qué empresa actuar, al quedar en null ambas
+        // hacían "empresas.find(...) → undefined" y salían de inmediato
+        // sin hacer nada — los botones "Gestión" y "Facturación
+        // Electrónica" parecían no responder (pantalla "congelada"),
+        // mientras que "Volver a Empresas" seguía funcionando porque esa
+        // función no depende de esta variable. Se restaura aquí, tomando
+        // el id de la empresa desde la instancia de Facturación
+        // Electrónica que sigue viva (_facturacionElecActiva), para que
+        // ambas opciones vuelvan a funcionar sin recargar ni salir de la
+        // empresa.
+        _facturacionEmpresaIdPendiente = _facturacionElecActiva.empresaId;
+        document.getElementById('facturacionSelectEmpresaNombre').innerText =
+            document.getElementById('facturacionElecEmpresaNombre').innerText;
+        _ocultarFacturacionElec('facturacionSelectScreen');
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // Corrección 02 (2da vuelta) — mostrar/ocultar la pantalla de
+    // Facturación Electrónica SIN pasar nunca por display:none (ver clase
+    // "fe-live-screen" en el CSS) Y sin dejarla superpuesta (aunque sea
+    // invisible) sobre "¿A dónde desea ingresar?": además de la opacidad,
+    // se saca literalmente del viewport (left:-10000px) mientras está
+    // apagada, porque el <webview> puede seguir interceptando clics de su
+    // antigua posición aunque tenga opacity:0/pointer-events:none. La
+    // otra pantalla del par (facturacionSelectScreen) sigue usando el
+    // mecanismo normal (_mostrarPantalla / display:none), porque esa no
+    // contiene ningún <webview>.
+    // ══════════════════════════════════════════════════════════════════
+    function _mostrarFacturacionElec(idPantallaAOcultar) {
+        var origen = document.getElementById(idPantallaAOcultar);
+        if (origen) {
+            origen.classList.remove('active');
+            setTimeout(function() { origen.classList.add('hidden'); }, 150);
+        }
+        var fe = document.getElementById('facturacionElectronicaScreen');
+        if (fe) {
+            fe.style.left = '0';
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() { fe.classList.add('active'); });
+            });
+        }
+        if (_facturacionElecActiva.webview && _facturacionElecActiva.webview.focus) {
+            setTimeout(function() {
+                try { _facturacionElecActiva.webview.focus(); } catch(e) {}
+            }, 170);
+        }
+    }
+
+    function _ocultarFacturacionElec(idPantallaAMostrar) {
+        var fe = document.getElementById('facturacionElectronicaScreen');
+        // Soltar cualquier foco que el <webview> todavía tuviera retenido
+        // ANTES de empezar a ocultarlo — si el foco se queda "atrapado"
+        // dentro del webview, los clics posteriores en la otra pantalla
+        // pueden no llegarle a nadie.
+        if (_facturacionElecActiva.webview && _facturacionElecActiva.webview.blur) {
+            try { _facturacionElecActiva.webview.blur(); } catch(e) {}
+        }
+        if (document.activeElement && document.activeElement.blur) {
+            try { document.activeElement.blur(); } catch(e) {}
+        }
+        if (fe) {
+            fe.classList.remove('active');
+            // Se saca del viewport recién cuando termina el fundido (150ms),
+            // para no cortar la animación de salida.
+            setTimeout(function() { fe.style.left = '-10000px'; }, 150);
+        }
+        var destino = document.getElementById(idPantallaAMostrar);
+        if (destino) {
+            destino.classList.remove('hidden');
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() { destino.classList.add('active'); });
+            });
+        }
+    }
+
+    function _recargarWebviewFacturacion() {
+        if (_facturacionElecActiva.webview && _facturacionElecActiva.webview.reload) {
+            _facturacionElecActiva.webview.reload();
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // Corrección 01 — CICLO DE VIDA DE FACTURACIÓN ELECTRÓNICA POR EMPRESA
+    //
+    // Cada empresa tiene su propio <webview> y su propia sesión (partition
+    // "persist:facturacion-electronica-<idDeEmpresa>"), completamente
+    // independiente de las demás empresas — nunca se comparte partición,
+    // ventana ni estado de navegación entre dos empresas distintas.
+    //
+    // Regla de vida (ver Corrección 01, puntos 3, 4 y 7):
+    //   - Mientras el usuario siga DENTRO de la misma empresa, puede
+    //     entrar y salir de Facturación Electrónica todas las veces que
+    //     quiera: el <webview> se crea UNA sola vez y se reutiliza (nunca
+    //     se recarga ni se pierde su sesión) — ver
+    //     _volverASeleccionDesdeFacturacion(), que NO destruye nada.
+    //   - Al salir COMPLETAMENTE de la empresa (volver a la lista de
+    //     empresas), el <webview> de esa empresa se destruye por completo
+    //     (se quita del DOM) y su instancia se olvida. La próxima vez que
+    //     se entre a esa empresa se crea un <webview> nuevo desde cero.
+    // ══════════════════════════════════════════════════════════════════
+    var _facturacionElecActiva = { empresaId: null, webview: null };
+
+    // Crea el <webview> de Facturación Electrónica para 'empresaId' si no
+    // existe todavía uno vivo para ESA MISMA empresa. Si ya hay uno vivo
+    // (el usuario solo estaba yendo y viniendo de Gestión, sin salir de la
+    // empresa) lo reutiliza tal cual, sin tocarlo — por eso la sesión del
+    // portal no se pierde entre idas y vueltas.
+    function _asegurarWebviewFacturacion(empresaId) {
+        if (_facturacionElecActiva.empresaId === empresaId && _facturacionElecActiva.webview) {
+            return; // ya existe una instancia viva para esta empresa — se reutiliza
+        }
+        // Por seguridad: si quedaba una instancia de OTRA empresa (no
+        // debería pasar si volverAEmpresas() ya la destruyó, pero se
+        // cubre el caso igual), se destruye antes de crear la nueva.
+        _destruirWebviewFacturacion();
+
+        var cont = document.getElementById('facturacionElecWebviewContainer');
+        if (!cont) return;
+
+        var wv = document.createElement('webview');
+        wv.id = 'facturacionElecWebview';
+        wv.setAttribute('src', 'https://admin.factura.gob.sv/login');
+        // Partición propia por empresa — ver main.js (will-attach-webview),
+        // que también la fuerza del lado del proceso principal como
+        // segunda barrera de seguridad, por si este valor se manipulara.
+        wv.setAttribute('partition', 'persist:facturacion-electronica-' + empresaId);
+        // Corrección 07 — Electron bloquea por defecto CUALQUIER pestaña
+        // nueva (window.open, target="_blank", etc.) que un <webview>
+        // intente abrir, sin importar lo que haga setWindowOpenHandler en
+        // main.js — el popup se descarta antes de llegar ahí. Hacienda
+        // abre el PDF precisamente así (ver Corrección 05), así que sin
+        // este atributo esa pestaña nunca podía abrirse, aunque el
+        // candado de dominio en main.js ya estuviera bien resuelto.
+        wv.setAttribute('allowpopups', 'true');
+        wv.style.width = '100%';
+        wv.style.height = '100%';
+        wv.style.display = 'flex';
+
+        var indicador = document.getElementById('facturacionElecLoading');
+        if (indicador) {
+            wv.addEventListener('did-start-loading', function() { indicador.classList.remove('hidden'); });
+            wv.addEventListener('did-stop-loading', function() { indicador.classList.add('hidden'); });
+        }
+
+        // Corrección 03 — Autocompletado de credenciales: cada vez que el
+        // <webview> termina de cargar una página (login inicial, recarga,
+        // o cualquier navegación dentro del portal) se vuelve a instalar
+        // tanto el autocompletado de NIT/DUI + Clave de Acceso (pantalla
+        // de login) como el detector de la Clave Privada (modal que
+        // Hacienda muestra más adelante), porque "dom-ready" entrega un
+        // contexto de página nuevo cada vez.
+        wv.addEventListener('dom-ready', function() {
+            _instalarAutoLoginFacturacion(wv, empresaId);
+            _instalarAutoClavePrivada(wv, empresaId);
+        });
+
+        cont.appendChild(wv);
+        _facturacionElecActiva = { empresaId: empresaId, webview: wv };
+    }
+
+    // Corrección 03 — Autocompletado de NIT/DUI y Clave de Acceso: al
+    // abrir https://admin.factura.gob.sv/login, coloca automáticamente el
+    // NIT/DUI (emp.feUsuario) en #username y la Clave de Acceso
+    // (emp.feClaveAcceso, descifrada) en #password del portal, usando las
+    // credenciales de la empresa actualmente asociada a este <webview>.
+    // NO envía el formulario (no simula Enter ni click en el botón de
+    // ingresar): el usuario confirma el inicio de sesión manualmente,
+    // como pide la Corrección 03 (la automatización del envío queda para
+    // una fase aparte, si se decide más adelante). Importante: la Clave
+    // Privada NUNCA se usa aquí — solo NIT/DUI y Clave de Acceso, que son
+    // los dos datos de inicio de sesión (ver _instalarAutoClavePrivada
+    // para la Clave Privada, que es un dato distinto usado más tarde).
+    function _instalarAutoLoginFacturacion(wv, empresaId) {
+        var emp = empresas.find(function(e) { return e.id === empresaId; });
+        if (!emp) return;
+        var usuario = emp.feUsuario || '';
+        var claveAcceso = emp.feClaveAcceso ? _correosDecipher(emp.feClaveAcceso) : '';
+        if (!usuario && !claveAcceso) return;
+
+        var script = '(function(){\n' +
+            'if (window.__fsAutoLoginInstalado) return;\n' +
+            'window.__fsAutoLoginInstalado = true;\n' +
+            'var USUARIO = ' + JSON.stringify(usuario) + ';\n' +
+            'var CLAVE_ACCESO = ' + JSON.stringify(claveAcceso) + ';\n' +
+            'function setValor(input, valor){\n' +
+            '  if (!input || input.dataset.fsAutoLlenado) return;\n' +
+            '  input.dataset.fsAutoLlenado = "1";\n' +
+            '  var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;\n' +
+            '  setter.call(input, valor);\n' +
+            '  input.dispatchEvent(new Event("input", {bubbles:true}));\n' +
+            '  input.dispatchEvent(new Event("change", {bubbles:true}));\n' +
+            '}\n' +
+            'function buscar(){\n' +
+            '  var campoUsuario = document.getElementById("username");\n' +
+            '  var campoClave = document.getElementById("password");\n' +
+            '  if (campoUsuario && USUARIO) setValor(campoUsuario, USUARIO);\n' +
+            '  if (campoClave && CLAVE_ACCESO) setValor(campoClave, CLAVE_ACCESO);\n' +
+            '}\n' +
+            'new MutationObserver(buscar).observe(document.documentElement, {childList:true, subtree:true});\n' +
+            'buscar();\n' +
+            '})();';
+
+        if (wv.executeJavaScript) {
+            wv.executeJavaScript(script).catch(function() {});
+        }
+    }
+
+    // Implementación 01, punto 5 / Corrección 04 — Detección de la Clave
+    // Privada, disparada por el usuario y no automática: cuando el portal
+    // de Hacienda muestra el modal (SweetAlert2) "Ingrese la clave
+    // privada de validación", el campo queda vacío y esperando — la Clave
+    // Privada NO se escribe sola. Cuando el usuario presiona Enter dentro
+    // de ese campo estando vacío, ESE Enter se intercepta (preventDefault
+    // + stopImmediatePropagation) y ÚNICAMENTE coloca la Clave Privada en
+    // el campo — no hace nada más, no reenvía ningún Enter ni envía el
+    // formulario. El usuario debe presionar Enter una segunda vez para
+    // enviarlo; como en ese momento el campo ya tiene el dato
+    // (fsAutoLlenado ya está marcado), ese segundo Enter pasa de largo sin
+    // ser interceptado y el portal lo procesa de forma normal.
+    //
+    // Corrección 05 — ANTES este código, además de colocar la clave,
+    // simulaba un Enter sintético 80ms después para enviar el formulario
+    // por su cuenta. Eso generó un envío DE MÁS: el usuario presionaba
+    // Enter, el sistema llenaba el campo Y ADEMÁS disparaba su propio
+    // Enter, resultando en un documento generado sin que el usuario lo
+    // pidiera. Se quitó por completo ese segundo Enter automático — ahora
+    // el Enter del usuario solo sirve para llenar el campo, y el envío
+    // real del formulario queda 100% en manos del usuario.
+    function _instalarAutoClavePrivada(wv, empresaId) {
+        var emp = empresas.find(function(e) { return e.id === empresaId; });
+        if (!emp || !emp.feClavePrivada) return;
+        var clave = _correosDecipher(emp.feClavePrivada);
+        if (!clave) return;
+
+        var script = '(function(){\n' +
+            'if (window.__fsAutoClavePrivadaInstalado) return;\n' +
+            'window.__fsAutoClavePrivadaInstalado = true;\n' +
+            'var CLAVE = ' + JSON.stringify(clave) + ';\n' +
+            'var PLACEHOLDER = ' + JSON.stringify('Ingrese la clave privada de validación') + ';\n' +
+            'function ponerClave(input){\n' +
+            '  input.dataset.fsAutoLlenado = "1";\n' +
+            '  var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;\n' +
+            '  setter.call(input, CLAVE);\n' +
+            '  input.dispatchEvent(new Event("input", {bubbles:true}));\n' +
+            '  input.dispatchEvent(new Event("change", {bubbles:true}));\n' +
+            '}\n' +
+            'function instalar(input){\n' +
+            '  if (!input || input.dataset.fsEnterInstalado) return;\n' +
+            '  input.dataset.fsEnterInstalado = "1";\n' +
+            '  input.addEventListener("keydown", function(ev){\n' +
+            '    if (ev.key !== "Enter" && ev.keyCode !== 13) return;\n' +
+            '    if (input.dataset.fsAutoLlenado) return;\n' +
+            '    ev.preventDefault();\n' +
+            '    ev.stopImmediatePropagation();\n' +
+            '    ponerClave(input);\n' +
+            '  }, true);\n' +
+            '}\n' +
+            'function buscar(){\n' +
+            '  var input = document.querySelector("input[placeholder=\\"" + PLACEHOLDER + "\\"]");\n' +
+            '  if (input) instalar(input);\n' +
+            '}\n' +
+            'new MutationObserver(buscar).observe(document.documentElement, {childList:true, subtree:true});\n' +
+            'buscar();\n' +
+            '})();';
+
+        if (wv.executeJavaScript) {
+            wv.executeJavaScript(script).catch(function() {});
+        }
+    }
+
+    // Destruye por completo la instancia viva de Facturación Electrónica
+    // (si existe) — se llama SOLO al salir completamente de la empresa
+    // (volverAEmpresas / _volverAEmpresasDesdeSeleccion), nunca al
+    // simplemente volver a "¿A dónde desea ingresar?".
+    function _destruirWebviewFacturacion() {
+        if (_facturacionElecActiva.webview && _facturacionElecActiva.webview.parentNode) {
+            _facturacionElecActiva.webview.parentNode.removeChild(_facturacionElecActiva.webview);
+        }
+        _facturacionElecActiva = { empresaId: null, webview: null };
+        // Corrección 02 — reseteo defensivo: asegura que la pantalla nunca
+        // quede con la clase "active" puesta si se destruyó el <webview>
+        // mientras estaba visible.
+        var fe = document.getElementById('facturacionElectronicaScreen');
+        if (fe) { fe.classList.remove('active'); fe.style.left = '-10000px'; }
+    }
+
+    // Contiene EXACTAMENTE la misma lógica que antes tenía ingresarEmpresa()
+    // — solo se le agregó el parámetro idPantallaOrigen para poder llegar
+    // aquí tanto desde la lista de empresas (comportamiento normal) como
+    // desde la pantalla intermedia de Facturación Electrónica.
+    function _entrarModoGestion(empresaId, idPantallaOrigen) {
         var emp = empresas.find(function(e) { return e.id === empresaId; });
         if (!emp) return;
 
@@ -7378,7 +8072,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
         // AJUSTADO — Cambio 07 (Animaciones): transición visual al entrar
         // a una empresa, en vez de un cambio instantáneo.
-        _mostrarPantalla('workspaceContainer', 'empresaScreen');
+        _mostrarPantalla('workspaceContainer', idPantallaOrigen || 'empresaScreen');
 
         // Mostrar/ocultar nav de correos según configuración de empresa
         var navCorreos = document.getElementById('navCorreosWrap');
@@ -7394,11 +8088,46 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         _sincronizarEmpresaActivaQR();
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // Corrección 02 — botón "Volver" de Gestión: si la empresa activa
+    // tiene Facturación Electrónica habilitada, salir de Gestión regresa
+    // a "¿A dónde desea ingresar?" (la empresa sigue activa: NO se
+    // destruye el <webview> de Facturación Electrónica ni se pierde su
+    // sesión — ver puntos 4 y 6 de Corrección 02). Solo "Volver a
+    // Empresas" desde esa pantalla intermedia (_volverAEmpresasDesdeSeleccion)
+    // sale de verdad de la empresa. Para empresas SIN Facturación
+    // Electrónica el comportamiento es EXACTAMENTE el de siempre: salir
+    // de Gestión sale directo a la lista de empresas (volverAEmpresas).
+    // ══════════════════════════════════════════════════════════════════
+    function _salirDeGestion() {
+        var empActiva = empresas.find(function(e) { return e.id === activeEmpresaId; });
+        if (empActiva && empActiva.facturacionElectronica) {
+            saveCurrentMonthData();
+            // La pantalla de selección lee de esta variable para saber sobre
+            // qué empresa actuar cuando el usuario elija Gestión o
+            // Facturación Electrónica (ver _entrarModoGestionDesdeSeleccion /
+            // _entrarModoFacturacionElectronica).
+            _facturacionEmpresaIdPendiente = empActiva.id;
+            document.getElementById('facturacionSelectEmpresaNombre').innerText = empActiva.razon;
+            _mostrarPantalla('facturacionSelectScreen', 'workspaceContainer');
+            lucide.createIcons();
+            return;
+        }
+        volverAEmpresas();
+    }
+
     // ══════════════════════════════════════════════
     // VOLVER A EMPRESAS
     // ══════════════════════════════════════════════
     function volverAEmpresas() {
         saveCurrentMonthData();
+
+        // Corrección 01 — salir de la empresa (a diferencia de solo salir
+        // de Facturación Electrónica hacia "¿A dónde desea ingresar?")
+        // destruye por completo el <webview> de esta empresa, si existía
+        // uno. La próxima vez que se entre a esta empresa se crea uno
+        // nuevo desde cero (ver _asegurarWebviewFacturacion).
+        _destruirWebviewFacturacion();
 
         activeEmpresaId = null;
         resetInMemoryRecords();
@@ -16362,6 +17091,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 if (typeof emp.correosActivo === 'undefined')   { emp.correosActivo = false; cambio = true; }
                 if (typeof emp.correosEmail  === 'undefined')   { emp.correosEmail  = '';    cambio = true; }
                 if (typeof emp.correosPass   === 'undefined')   { emp.correosPass   = '';    cambio = true; }
+                // Implementación 01 — Facturación Electrónica: empresas
+                // creadas antes de esta función quedan con la config
+                // deshabilitada por defecto (comportamiento actual, sin
+                // pantalla de selección — ver ingresarEmpresa()).
+                if (typeof emp.facturacionElectronica === 'undefined') { emp.facturacionElectronica = false; cambio = true; }
                 if (cambio) {
                     resumen.empresasActualizadas++;
                     resumen.camposCorregidos++;

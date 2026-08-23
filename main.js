@@ -9,6 +9,136 @@ const { cat002CodigoDesdeTexto, nombrePorCodigo } = require('./cat002.js');
 
 let mainWindowRef = null; // 👈 NUEVO: referencia para enviar el estado del updater al renderer
 
+// ══════════════════════════════════════════════════════════════════════
+// Corrección 04 — Facturación Electrónica: descarga/organización de JSON
+// y PDF dentro de Gestión (Mes → Cliente → Facturacion).
+//
+// _feContextos: guarda, por cada partición ("persist:facturacion-
+// electronica-<idEmpresa>"), el mes de trabajo y la empresa que el
+// renderer indicó (ver ipcMain.handle('fe-set-context') más abajo), más
+// el nombre base del último .json descargado (para nombrar el PDF igual,
+// ver punto 6 de la Corrección 04).
+//
+// _feSesionesEnganchadas: evita instalar el listener 'will-download' más
+// de una vez para la misma partición (el <webview> puede recrearse varias
+// veces para la misma empresa a lo largo de la sesión de la app).
+// ══════════════════════════════════════════════════════════════════════
+const _feContextos = {};
+const _feSesionesEnganchadas = new Map();
+
+function _feMesLabelPorDefecto() {
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+    'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const d = new Date();
+  return meses[d.getMonth()] + ' ' + d.getFullYear();
+}
+
+function _feContextoDe(partition) {
+  return _feContextos[partition] || {
+    mesLabel: _feMesLabelPorDefecto(),
+    empresaNombre: 'Empresa',
+    ultimoJsonBase: null
+  };
+}
+
+// Corrección 08 — Simula el clic sobre el botón "Descargar" del visor de
+// PDF de Chromium (<cr-icon-button id="save" iron-icon="cr:file-download">)
+// dentro de la pestaña oculta que Hacienda abre para mostrar el PDF. Ese
+// botón vive anidado dentro de varios Shadow DOM (del propio visor
+// interno), así que hay que atravesarlos recursivamente para encontrarlo
+// — son de tipo "open", por lo que sí se pueden inspeccionar/hacer clic
+// desde afuera con executeJavaScript.
+// El visor de PDF de Chromium normalmente NO vive en el documento
+// principal de la pestaña: corre en un frame interno propio (una especie
+// de "guest" embebido, similar a un <webview>). Por eso no basta con
+// recorrer el Shadow DOM del documento de arriba — hay que probar el
+// script en CADA frame de la pestaña (el principal y todos sus hijos),
+// usando la API de frames de Electron (webContents.mainFrame.frames).
+// El visor puede tardar un momento en terminar de inicializarse (sobre
+// todo con PDFs grandes), así que se reintenta varias veces con una
+// pequeña pausa entre cada intento antes de darse por vencido.
+const _FE_SCRIPT_BUSCAR_BOTON_DESCARGA = `
+    (function() {
+      function buscarBoton(root) {
+        if (!root) return null;
+        var directo = root.querySelector('#save');
+        if (directo) return directo;
+        var nodos = root.querySelectorAll('*');
+        for (var i = 0; i < nodos.length; i++) {
+          if (nodos[i].shadowRoot) {
+            var enc = buscarBoton(nodos[i].shadowRoot);
+            if (enc) return enc;
+          }
+        }
+        return null;
+      }
+      var boton = buscarBoton(document);
+      if (boton) { boton.click(); return true; }
+      return false;
+    })();
+`;
+
+// Junta el frame principal + todos sus frames hijos (recursivo), para
+// poder probar el script de búsqueda del botón en cada uno.
+function _feRecolectarFrames(frame, lista) {
+  if (!frame) return lista;
+  lista.push(frame);
+  try {
+    const hijos = frame.frames || [];
+    for (const hijo of hijos) _feRecolectarFrames(hijo, lista);
+  } catch (e) { /* noop */ }
+  return lista;
+}
+
+async function _feBuscarYClickEnTodosLosFrames(wc) {
+  let frames = [];
+  try {
+    frames = _feRecolectarFrames(wc.mainFrame, []);
+  } catch (e) {
+    console.warn('[Facturación Electrónica][debug] no se pudo listar frames:', e.message);
+  }
+  console.log('[Facturación Electrónica][debug] buscando botón de descarga en', frames.length, 'frame(s)');
+  for (const frame of frames) {
+    try {
+      const clicked = await frame.executeJavaScript(_FE_SCRIPT_BUSCAR_BOTON_DESCARGA, true);
+      if (clicked) return true;
+    } catch (e) {
+      console.warn('[Facturación Electrónica][debug] error ejecutando el script en un frame:', e.message);
+    }
+  }
+  return false;
+}
+
+function _feIntentarClickDescargarPdf(childWindow, intentosRestantes) {
+  if (!childWindow || childWindow.isDestroyed()) return;
+  const wc = childWindow.webContents;
+  if (!wc || wc.isDestroyed()) return;
+
+  _feBuscarYClickEnTodosLosFrames(wc).then((clicked) => {
+    if (clicked) {
+      console.log('[Facturación Electrónica][debug] clic automático en "Descargar" realizado con éxito.');
+      return; // listo — el clic disparó la descarga real
+    }
+    if (intentosRestantes > 0) {
+      setTimeout(() => _feIntentarClickDescargarPdf(childWindow, intentosRestantes - 1), 500);
+    } else {
+      // No se encontró el botón tras varios intentos (visor no cargó,
+      // vive en un frame que no pudimos listar, cambió su estructura, u
+      // otro error). No dejamos al usuario sin forma de descargar el
+      // PDF: se muestra la pestaña para que pueda hacer clic manualmente.
+      console.warn('[Facturación Electrónica] No se encontró el botón de descarga tras varios intentos (revisar los logs [debug] de arriba); se muestra la pestaña para descarga manual.');
+      if (!childWindow.isDestroyed()) childWindow.show();
+    }
+  }).catch((e) => {
+    console.warn('[Facturación Electrónica] Error automatizando la descarga del PDF:', e.message);
+    if (intentosRestantes > 0) {
+      setTimeout(() => _feIntentarClickDescargarPdf(childWindow, intentosRestantes - 1), 500);
+    } else if (!childWindow.isDestroyed()) {
+      childWindow.show();
+    }
+  });
+}
+
 // Cambio 04 — Trae la ventana principal al frente (por encima de cualquier
 // otra ventana/aplicación abierta) SOLO en el instante en que llega un
 // documento escaneado por QR que sí va a mostrarse (justo antes de enviarlo
@@ -63,12 +193,231 @@ function createWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
       webSecurity: true,
+      // Implementación 01 — Facturación Electrónica: habilita el tag
+      // <webview> (deshabilitado por defecto en Electron) para poder
+      // embeber el portal oficial de Hacienda dentro de la app. El
+      // candado real está en 'will-attach-webview' más abajo, que valida
+      // cada <webview> antes de crearse.
+      webviewTag: true,
     }
   });
 
   mainWindowRef = win; // 👈 NUEVO
 
   Menu.setApplicationMenu(null);
+
+  // Implementación 01 / Corrección 01 — Facturación Electrónica: candado
+  // de seguridad para el tag <webview> (ver #facturacionElectronicaScreen
+  // en index.html). Aunque el HTML que crea el <webview> es el nuestro (no
+  // contenido de terceros), Electron recomienda validar igual cualquier
+  // <webview> antes de adjuntarse, por si en el futuro se agrega
+  // contenido dinámico a esa pantalla:
+  //   - Fuerza sus webPreferences (nunca nodeIntegration, siempre
+  //     contextIsolation) sin importar lo que el HTML haya pedido.
+  //   - Valida que la partición sea una de Facturación Electrónica para
+  //     UNA empresa concreta ("persist:facturacion-electronica-<idEmpresa>")
+  //     — Corrección 01 le dio a cada empresa su propia sesión aislada
+  //     (ver _asegurarWebviewFacturacion en index.html), así que YA NO se
+  //     fuerza un único valor fijo (eso volvería a mezclar la sesión de
+  //     todas las empresas en una sola, deshaciendo esa corrección) — solo
+  //     se rechaza cualquier partición que no siga ese patrón esperado.
+  //   - Rechaza cualquier intento de cargar un <webview> fuera del
+  //     dominio oficial de Hacienda (admin.factura.gob.sv).
+  win.webContents.on('will-attach-webview', (event, webPreferences, params) => {
+    webPreferences.nodeIntegration = false;
+    webPreferences.contextIsolation = true;
+    webPreferences.preload = undefined;
+
+    if (typeof params.partition !== 'string' || !/^persist:facturacion-electronica-.+$/.test(params.partition)) {
+      console.warn('[Facturación Electrónica] Se bloqueó un <webview> con partición inesperada:', params.partition);
+      event.preventDefault();
+      return;
+    }
+
+    let host = '';
+    try { host = new URL(params.src).hostname; } catch (e) { /* noop */ }
+    if (host !== 'admin.factura.gob.sv') {
+      console.warn('[Facturación Electrónica] Se bloqueó un <webview> fuera del portal oficial:', params.src);
+      event.preventDefault();
+      return;
+    }
+
+    // Corrección 04, punto 1 y 5/6 — Hacienda descarga el .json de forma
+    // automática y, para el PDF, abre una pestaña nueva desde la cual el
+    // usuario lo descarga manualmente. Ambas descargas pasan por la MISMA
+    // sesión (partition) de esta empresa, así que basta con enganchar
+    // 'will-download' una sola vez por partición para capturar las dos.
+    const partition = params.partition;
+    if (!_feSesionesEnganchadas.has(partition)) {
+      const sess = session.fromPartition(partition);
+      _feSesionesEnganchadas.set(partition, sess);
+
+      sess.on('will-download', (downloadEvent, item, webContentsDeDescarga) => {
+        try {
+          const ctx = _feContextoDe(partition);
+          const dir = _feGetFacturacionDir(ctx.mesLabel, ctx.empresaNombre);
+          const originalName = item.getFilename();
+          const ext = path.extname(originalName).toLowerCase();
+          let destName;
+
+          if (ext === '.json') {
+            // Punto 1/2 — el .json se guarda con su nombre tal cual, y se
+            // recuerda su nombre base para que el PDF (punto 6) lo use.
+            destName = sanitizeFolderName(originalName);
+            _feContextos[partition] = Object.assign({}, ctx, {
+              ultimoJsonBase: path.basename(originalName, ext)
+            });
+          } else if (ext === '.pdf') {
+            // Punto 6 — el PDF usa como base el nombre del último .json
+            // descargado, cambiando únicamente la extensión.
+            const base = ctx.ultimoJsonBase || path.basename(originalName, ext);
+            destName = sanitizeFolderName(base) + '.pdf';
+          } else {
+            destName = sanitizeFolderName(originalName);
+          }
+
+          const destPath = path.join(dir, destName);
+          item.setSavePath(destPath);
+
+          item.once('done', (doneEvent, state) => {
+            if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+              mainWindowRef.webContents.send('fe-descarga-completada', {
+                ok: state === 'completed',
+                state: state,
+                ext: ext,
+                path: destPath
+              });
+            }
+            // Corrección 07, punto 2 — apenas el PDF termina de guardarse
+            // (ya organizado y renombrado igual que el .json, arriba), se
+            // abre automáticamente con el visor de PDF predeterminado del
+            // sistema, para que el usuario lo vea de inmediato sin tener
+            // que ir a buscarlo a mano en la carpeta Facturacion. Misma
+            // mecánica que ya usa el handler 'print-pdf' (shell.openPath).
+            if (state === 'completed' && ext === '.pdf') {
+              shell.openPath(destPath).then((err) => {
+                if (err) console.warn('[Facturación Electrónica] No se pudo abrir automáticamente el PDF:', err);
+              });
+            }
+            // Corrección 08 — la pestaña oculta que disparó esta descarga
+            // (mediante el clic simulado en 'Descargar', ver
+            // _feIntentarClickDescargarPdf) ya cumplió su función; se
+            // cierra sola para no dejar ventanas ocultas acumulándose.
+            // Cuidado: NUNCA se cierra si la descarga vino del <webview>
+            // principal (el .json, que se descarga directo, sin pestaña
+            // nueva) — por eso se compara contra mainWindowRef.
+            if (ext === '.pdf' && webContentsDeDescarga && !webContentsDeDescarga.isDestroyed()) {
+              try {
+                const winDeDescarga = BrowserWindow.fromWebContents(webContentsDeDescarga);
+                if (winDeDescarga && !winDeDescarga.isDestroyed() && winDeDescarga !== mainWindowRef) {
+                  winDeDescarga.destroy();
+                }
+              } catch (e) { /* noop */ }
+            }
+          });
+        } catch (e) {
+          console.warn('[Facturación Electrónica] Error organizando descarga:', e.message);
+        }
+      });
+    }
+  });
+
+  // Corrección 04, punto 1 — Hacienda muestra el PDF en una pestaña nueva
+  // del navegador (no lo descarga directo). Se permite esa pestaña nueva
+  // ÚNICAMENTE si apunta al portal oficial, y se la fuerza a compartir la
+  // MISMA partición (sesión) del <webview> que la abrió, para que su
+  // descarga pase por el mismo 'will-download' de arriba y quede
+  // organizada y renombrada igual que el .json (ver Corrección 04).
+  win.webContents.on('did-attach-webview', (event, contents) => {
+    let partitionDeEstaWebview = null;
+    for (const [p, s] of _feSesionesEnganchadas.entries()) {
+      if (s === contents.session) { partitionDeEstaWebview = p; break; }
+    }
+    if (!partitionDeEstaWebview) return;
+
+    contents.setWindowOpenHandler(({ url }) => {
+      let host = '';
+      try { host = new URL(url).hostname; } catch (e) { /* noop */ }
+
+      // Corrección 05 — Hacienda abre la pestaña nueva inicialmente en
+      // "about:blank" (todavía sin dominio) y RECIÉN DESPUÉS, ya con la
+      // ventana abierta, la redirige hacia el PDF. Si aquí solo se
+      // aceptara el dominio oficial, esa apertura en about:blank quedaba
+      // bloqueada y la pestaña nunca llegaba a existir para poder navegar
+      // al PDF (ese era el bug: new URL('about:blank').hostname es '' y
+      // nunca coincide con 'admin.factura.gob.sv'). Por eso se permite
+      // about:blank explícitamente aquí; el candado de dominio se aplica
+      // de todas formas más abajo, en 'did-create-window', validando la
+      // PRIMERA navegación real que haga esa pestaña.
+      const esAboutBlank = (url === 'about:blank' || host === '');
+      if (!esAboutBlank && host !== 'admin.factura.gob.sv') {
+        console.warn('[Facturación Electrónica] Se bloqueó una pestaña nueva fuera del portal oficial:', url);
+        return { action: 'deny' };
+      }
+      // Corrección 08, punto 1 — la pestaña sigue oculta (el usuario no
+      // necesita verla), pero ahora SÍ se le permite cargar normalmente
+      // hasta mostrar el visor de PDF de Chromium (igual que cuando
+      // estaba visible y la descarga manual funcionaba) — se agrega
+      // backgroundThrottling:false para que, al estar oculta, Chromium no
+      // le baje la prioridad a sus temporizadores/JS y el visor tarde lo
+      // mismo en aparecer que si estuviera visible. El clic en
+      // "Descargar" se automatiza más abajo, en 'did-create-window'.
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          show: false,
+          webPreferences: {
+            partition: partitionDeEstaWebview,
+            nodeIntegration: false,
+            contextIsolation: true,
+            backgroundThrottling: false
+          }
+        }
+      };
+    });
+
+    // Corrección 08 — Automatiza la descarga del PDF simulando el clic
+    // real sobre el botón "Descargar" del visor de PDF de Chromium
+    // (<cr-icon-button id="save">), en vez de intentar reconstruir o
+    // interceptar la URL del PDF a mano (la Corrección 07 intentó eso y
+    // falló: Hacienda no siempre navega esa pestaña de forma directa a
+    // una URL descargable — a veces el PDF se carga dentro del propio
+    // visor interno, así que 'will-navigate' nunca llegaba a dispararse
+    // con una URL útil, y la pestaña oculta se quedaba sin hacer nada).
+    // Ahora se dej a la pestaña cargar TAL CUAL lo hacía cuando estaba
+    // visible (igual comportamiento, solo que sin mostrarla), y una vez
+    // que termina de cargar se busca el botón de descarga atravesando
+    // los Shadow DOM del visor (son de tipo "open", por eso se puede
+    // encontrar así) y se le simula un clic. Ese clic dispara la MISMA
+    // descarga que el 'will-download' de la sesión compartida ya
+    // organiza y renombra igual que el .json (Corrección 04).
+    contents.on('did-create-window', (childWindow) => {
+      try {
+        console.log('[Facturación Electrónica][debug] se creó la pestaña oculta del PDF (about:blank).');
+
+        childWindow.webContents.on('will-navigate', (navEvent, navUrl) => {
+          let navHost = '';
+          try { navHost = new URL(navUrl).hostname; } catch (e) { /* noop */ }
+          console.log('[Facturación Electrónica][debug] will-navigate en la pestaña del PDF ->', navUrl);
+          if (navHost !== 'admin.factura.gob.sv') {
+            console.warn('[Facturación Electrónica] Se bloqueó una navegación fuera del portal oficial en la pestaña del PDF:', navUrl);
+            navEvent.preventDefault();
+            if (!childWindow.isDestroyed()) childWindow.destroy();
+          }
+          // Si es del dominio oficial, se deja continuar la navegación
+          // normalmente — es necesario que el visor cargue de verdad
+          // para poder simular el clic de descarga más abajo.
+        });
+
+        childWindow.webContents.on('did-finish-load', () => {
+          console.log('[Facturación Electrónica][debug] did-finish-load en la pestaña del PDF, URL actual:', childWindow.webContents.getURL());
+          _feIntentarClickDescargarPdf(childWindow, 15);
+        });
+      } catch (e) {
+        console.warn('[Facturación Electrónica] No se pudo asegurar la pestaña del PDF:', e.message);
+      }
+    });
+  });
 
   session.defaultSession.webRequest.onBeforeRequest(
     { urls: ['http://*/*', 'https://*/*'] },
@@ -271,6 +620,44 @@ function getExportDir(mesLabel, empresaNombre, tipo) {
 
   return empresaDir;
 }
+
+// ══════════════════════════════════════════════════════════════════════
+// Corrección 04, puntos 2-5 — Carpeta de Facturación Electrónica dentro de
+// la MISMA estructura que ya usa Gestión (getExportDir de arriba), para no
+// tener una segunda lógica de carpetas independiente:
+// [Raíz]/FiscalSync/FiscalSync [Año]/FiscalSync - [Mes]/[Empresa]/Facturacion/
+// Se crea solo si no existe; si ya existe (con archivos o sin ellos) se
+// reutiliza tal cual — nunca se borra ni sobrescribe nada.
+// ══════════════════════════════════════════════════════════════════════
+function _feGetFacturacionDir(mesLabel, empresaNombre) {
+  const empresaDir = getExportDir(mesLabel, empresaNombre, 'pdf');
+  const facturacionDir = path.join(empresaDir, 'Facturacion');
+  if (!fs.existsSync(facturacionDir)) fs.mkdirSync(facturacionDir, { recursive: true });
+  return facturacionDir;
+}
+
+// fe-set-context — el renderer llama esto cada vez que el usuario entra a
+// Facturación Electrónica o cambia el selector de "Mes de trabajo" (ver
+// _feEnviarContexto en index.html), para que las descargas de esa empresa
+// (JSON automático y PDF desde la pestaña nueva) se guarden en la carpeta
+// correcta. Mientras el usuario no cambie el mes, todo lo que se descargue
+// sigue yendo al mismo período — cambiar el mes redirige los PRÓXIMOS
+// archivos, sin tocar los ya guardados.
+ipcMain.handle('fe-set-context', async (event, { empresaId, mesLabel, empresaNombre } = {}) => {
+  try {
+    if (!empresaId) return { error: 'empresaId es requerido' };
+    const partition = 'persist:facturacion-electronica-' + empresaId;
+    const anterior = _feContextos[partition] || {};
+    _feContextos[partition] = {
+      mesLabel: mesLabel || _feMesLabelPorDefecto(),
+      empresaNombre: empresaNombre || anterior.empresaNombre || 'Empresa',
+      ultimoJsonBase: anterior.ultimoJsonBase || null
+    };
+    return { ok: true };
+  } catch (e) {
+    return { error: e.message };
+  }
+});
 
 // save-export-file — Guarda cualquier archivo exportado (CSV, XLS, JSON, etc.)
 // directamente en [Raíz]/FiscalSync/FiscalSync [Año]/FiscalSync - [Mes]/[Empresa]/ sin mostrar ningún diálogo.
