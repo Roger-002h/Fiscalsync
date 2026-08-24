@@ -1,6 +1,6 @@
 {
   "name": "fiscalsync",
-  "version": "1.39.0",
+  "version": "1.39.1",
   "description": "Sistema Fiscal Offline — FiscalSync",
   "main": "main.js",
   "scripts": {
@@ -17,6 +17,8 @@
       "certGen.js",
       "qrPairingServer.js",
       "cat002.js",
+      "actividades.js",
+      "ubicaciones.js",
       "icon.ico",
       "assets/**/*",
       "phone-app/**/*"

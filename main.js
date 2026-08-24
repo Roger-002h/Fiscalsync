@@ -335,6 +335,24 @@ function createWindow() {
     }
     if (!partitionDeEstaWebview) return;
 
+    // AGREGADO NUEVO (Agregado 01 — Atajo Ctrl+B para búsqueda rápida de
+    // clientes): mientras el usuario trabaja normalmente en el portal de
+    // Hacienda, el foco del teclado queda DENTRO de este <webview> — un
+    // WebContents aparte del de la ventana principal. Un keydown escuchado
+    // en el documento de index.html nunca se entera de esas teclas, así
+    // que hay que interceptarlas aquí, sobre el propio webContents del
+    // <webview> (antes de que la página del portal las reciba), y
+    // reenviar el atajo a la ventana principal por IPC para que sea
+    // index.html quien abra/cierre el panel flotante de búsqueda rápida.
+    contents.on('before-input-event', (event, input) => {
+      if (input.type !== 'keyDown') return;
+      if (!(input.control || input.meta) || input.alt || input.shift) return;
+      if ((input.key || '').toLowerCase() !== 'b') return;
+      if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+        mainWindowRef.webContents.send('fe-atajo-busqueda-rapida');
+      }
+    });
+
     contents.setWindowOpenHandler(({ url }) => {
       let host = '';
       try { host = new URL(url).hostname; } catch (e) { /* noop */ }
@@ -656,6 +674,312 @@ ipcMain.handle('fe-set-context', async (event, { empresaId, mesLabel, empresaNom
     return { ok: true };
   } catch (e) {
     return { error: e.message };
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// Implementación 02 — Facturación Electrónica: CLIENTES (llenado de
+// formularios en el portal de Hacienda).
+//
+// Esta lista de clientes es independiente del catálogo de "Clientes" que
+// ya usan Gestión / Escaneo QR (Libro de Ventas): aquí solo se guardan los
+// datos que se necesitan para autocompletar los formularios de admin.
+// factura.gob.sv (Factura, CCF, FSE, Nota de Crédito).
+//
+// Se guarda en disco, UN archivo JSON por empresa
+// (userData/facturacion-electronica-clientes/<empresaId>.json),
+// independiente de la carpeta mensual de PDF/JSON (esa carpeta cambia de
+// mes en mes; los clientes de un comprador no deberían perderse ni
+// duplicarse al cambiar el "Mes de trabajo").
+// ══════════════════════════════════════════════════════════════════════
+function _feClientesDir() {
+  const dir = path.join(app.getPath('userData'), 'facturacion-electronica-clientes');
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function _feClientesPath(empresaId) {
+  return path.join(_feClientesDir(), sanitizeFolderName(String(empresaId)) + '.json');
+}
+
+function _feClientesLeer(empresaId) {
+  try {
+    const p = _feClientesPath(empresaId);
+    if (!fs.existsSync(p)) return [];
+    const data = JSON.parse(fs.readFileSync(p, 'utf8'));
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.warn('[Facturación Electrónica][Clientes] Error leyendo clientes:', e.message);
+    return [];
+  }
+}
+
+function _feClientesGuardar(empresaId, clientes) {
+  try {
+    fs.writeFileSync(_feClientesPath(empresaId), JSON.stringify(clientes || [], null, 2), 'utf8');
+    return true;
+  } catch (e) {
+    console.warn('[Facturación Electrónica][Clientes] Error guardando clientes:', e.message);
+    return false;
+  }
+}
+
+// Mismo orden de columnas que ya usaba la extensión de Chrome retirada,
+// para que un CSV exportado por ella (o por versiones anteriores) se
+// pueda seguir importando aquí sin conversión manual.
+const _FE_CSV_HEADER = 'Modos,TipoDoc,Numero,Nombre,Actividad,Depto,Muni,Distrito,Direccion,Tel,Email,NombreComercial,NRC,ActividadFSE,NitCCF';
+
+// Parser CSV genérico (RFC 4180): procesa TODO el contenido carácter por
+// carácter en vez de cortar primero por líneas — así un campo entre
+// comillas que contenga comas, comillas escapadas ("") o incluso un salto
+// de línea literal no rompe el resto de las columnas. Devuelve un arreglo
+// de filas, cada fila un arreglo de valores de columna (strings, ya sin
+// las comillas envolventes).
+function _feParsearCSVFilas(contenido) {
+  const text = String(contenido || '');
+  const filas = [];
+  let fila = [];
+  let campo = '';
+  let dentroComillas = false;
+  const len = text.length;
+  let i = 0;
+  while (i < len) {
+    const ch = text[i];
+    if (dentroComillas) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { campo += '"'; i += 2; continue; }
+        dentroComillas = false; i++; continue;
+      }
+      campo += ch; i++; continue;
+    }
+    if (ch === '"') { dentroComillas = true; i++; continue; }
+    if (ch === ',') { fila.push(campo); campo = ''; i++; continue; }
+    if (ch === '\r') { i++; continue; }
+    if (ch === '\n') { fila.push(campo); campo = ''; filas.push(fila); fila = []; i++; continue; }
+    campo += ch; i++;
+  }
+  // Última fila si el archivo no termina con salto de línea.
+  if (campo.length || fila.length) { fila.push(campo); filas.push(fila); }
+  return filas;
+}
+
+// Convierte las filas ya separadas en clientes con la estructura "plana"
+// que usa el resto de esta sección (modos/tDoc/num/nom/act/dep/mun/dis/
+// com/tel/cor/nomCom/nrc/actFse/nitCcf), respetando el mismo mapeo que ya
+// usaba el importador anterior. Los campos numéricos (Numero/NRC/NitCCF/
+// Tel) se conservan como texto para no perder ceros a la izquierda. Los
+// campos vacíos se conservan vacíos: no se inventa información.
+// Devuelve { clientes, errores } — "errores" lista filas con muy pocas
+// columnas como para representar un cliente, junto con su número de fila.
+function _feClientesParsearCSV(contenido) {
+  const filas = _feParsearCSVFilas(contenido);
+  const nuevos = [];
+  const errores = [];
+  for (let i = 1; i < filas.length; i++) { // i = 1: se salta el encabezado
+    const f = filas[i];
+    if (!f || !f.length || (f.length === 1 && !f[0].trim())) continue; // fila vacía
+    if (f.length < 4) { errores.push({ fila: i + 1, motivo: 'Columnas insuficientes (' + f.length + ')' }); continue; }
+    nuevos.push({
+      modos: (f[0] || '').split(';').map(m => m.trim().toUpperCase()).filter(Boolean),
+      tDoc: (f[1] || '').trim(),
+      num: (f[2] || '').trim(),
+      nom: (f[3] || '').trim(),
+      act: (f[4] || '').trim(),
+      dep: (f[5] || '').trim().padStart(2, '0'),
+      mun: (f[6] || '').trim().padStart(2, '0'),
+      dis: (f[7] || '').trim(),
+      com: (f[8] || '').trim(),
+      tel: (f[9] || '').trim(),
+      cor: (f[10] || '').trim(),
+      nomCom: (f[11] || '').trim(),
+      nrc: (f[12] || '').trim(),
+      actFse: (f[13] || '').trim(),
+      nitCcf: (f[14] || '').trim()
+    });
+  }
+  return { clientes: nuevos, errores: errores };
+}
+
+// ── Detección de duplicados / fusión con clientes ya existentes ─────────
+// Identificadores de negocio de un cliente (NIT CCF, NRC, TipoDoc+Numero).
+// Solo se usan los que vienen no vacíos: dos clientes con NIT CCF vacío en
+// ambos NO se consideran "coincidentes" por eso.
+function _feClientesIdentificadores(c) {
+  const ids = [];
+  if (c && c.nitCcf && String(c.nitCcf).trim()) ids.push('nit:' + String(c.nitCcf).trim());
+  if (c && c.nrc && String(c.nrc).trim()) ids.push('nrc:' + String(c.nrc).trim());
+  if (c && c.tDoc && c.num && String(c.tDoc).trim() && String(c.num).trim()) {
+    ids.push('doc:' + String(c.tDoc).trim() + ':' + String(c.num).trim());
+  }
+  return ids;
+}
+
+// Busca, dentro de la lista ya guardada, el índice de un cliente que
+// comparta al menos un identificador con la fila importada. -1 si no hay
+// coincidencia (es decir, es un cliente nuevo).
+function _feClientesBuscarExistente(clientesExistentes, nuevo) {
+  const idsNuevo = _feClientesIdentificadores(nuevo);
+  if (!idsNuevo.length) return -1;
+  for (let i = 0; i < clientesExistentes.length; i++) {
+    const idsExistente = _feClientesIdentificadores(clientesExistentes[i]);
+    for (let j = 0; j < idsNuevo.length; j++) {
+      if (idsExistente.indexOf(idsNuevo[j]) !== -1) return i;
+    }
+  }
+  return -1;
+}
+
+// Arma la estructura porModo para una fila importada: los datos propios
+// del tipo de documento (tDoc/num/nitCcf/nrc/nomCom/act/actFse) se
+// replican para CADA modo que trae esa fila (el CSV de la extensión
+// anterior no distinguía datos por modo dentro de una misma fila).
+function _feClientesPorModoDesdeFila(fila) {
+  const porModo = {};
+  (fila.modos || []).forEach(function(m) {
+    porModo[m] = {
+      tDoc: fila.tDoc || '',
+      num: fila.num || '',
+      nitCcf: fila.nitCcf || (fila.tDoc === '36' ? (fila.num || '') : ''),
+      nrc: fila.nrc || '',
+      nomCom: fila.nomCom || '',
+      act: fila.act || '',
+      actFse: fila.actFse || ''
+    };
+  });
+  return porModo;
+}
+
+// Crea un cliente nuevo (estructura interna completa, con porModo) a
+// partir de una fila importada.
+function _feClientesCrearDesdeImportacion(fila) {
+  return {
+    modos: fila.modos || [],
+    nom: fila.nom || '',
+    tDoc: fila.tDoc || '',
+    num: fila.num || '',
+    nitCcf: fila.nitCcf || '',
+    nrc: fila.nrc || '',
+    nomCom: fila.nomCom || '',
+    act: fila.act || '',
+    actFse: fila.actFse || '',
+    porModo: _feClientesPorModoDesdeFila(fila),
+    dep: fila.dep || '',
+    mun: fila.mun || '',
+    dis: fila.dis || '',
+    com: fila.com || '',
+    tel: fila.tel || '',
+    cor: fila.cor || ''
+  };
+}
+
+// Fusiona un cliente ya existente con una fila importada que coincidió
+// con él (mismo NIT CCF, NRC o TipoDoc+Numero). Reglas (ver punto 14 del
+// pedido): no se pierde información ya guardada.
+//   - Los campos de texto del CSV solo sobrescriben si vienen NO vacíos;
+//     si el CSV trae el campo vacío, se conserva el valor ya guardado.
+//   - "modos" se UNE (no se reemplaza): si el cliente ya era válido para
+//     un modo que este CSV no trae, lo sigue siendo.
+//   - "porModo" se actualiza/crea solo para los modos que trae ESTA fila,
+//     sin tocar los datos por modo que el cliente ya tenía para otros
+//     tipos de documento.
+function _feClientesFusionar(existente, fila) {
+  const combinado = Object.assign({}, existente);
+  ['nom', 'act', 'dep', 'mun', 'dis', 'com', 'tel', 'cor', 'nomCom', 'nrc', 'actFse', 'nitCcf', 'tDoc', 'num'].forEach(function(campo) {
+    if (fila[campo] && String(fila[campo]).trim()) combinado[campo] = fila[campo];
+  });
+  const modosExistentes = (Array.isArray(existente.modos) && existente.modos.length) ? existente.modos.slice() : (existente.modo ? [existente.modo] : []);
+  (fila.modos || []).forEach(function(m) { if (modosExistentes.indexOf(m) === -1) modosExistentes.push(m); });
+  combinado.modos = modosExistentes;
+  combinado.porModo = Object.assign({}, existente.porModo || {}, _feClientesPorModoDesdeFila(fila));
+  return combinado;
+}
+
+function _feClientesACSV(clientes) {
+  const clean = (val) => `"${(val || '').toString().replace(/"/g, '""')}"`;
+  const modosDe = (c) => (Array.isArray(c.modos) && c.modos.length) ? c.modos : (c.modo ? [c.modo] : []);
+  let csv = _FE_CSV_HEADER + '\n';
+  (clientes || []).forEach((c) => {
+    csv += `${modosDe(c).join(';')},${c.tDoc || ''},${c.num || ''},${clean(c.nom)},${clean(c.act)},${c.dep || ''},${c.mun || ''},${clean(c.dis)},${clean(c.com)},${clean(c.tel)},${clean(c.cor)},${clean(c.nomCom)},${clean(c.nrc)},${clean(c.actFse)},${clean(c.nitCcf)}\n`;
+  });
+  return csv;
+}
+
+// Lee la lista completa de clientes de una empresa.
+ipcMain.handle('fe-clientes-leer', async (event, { empresaId } = {}) => {
+  if (!empresaId) return { error: 'empresaId es requerido' };
+  return { ok: true, clientes: _feClientesLeer(empresaId) };
+});
+
+// Sobrescribe la lista completa de clientes de una empresa (alta, edición
+// y borrado se resuelven en el renderer sobre el array completo, y este
+// handler simplemente lo persiste).
+ipcMain.handle('fe-clientes-guardar', async (event, { empresaId, clientes } = {}) => {
+  if (!empresaId) return { error: 'empresaId es requerido' };
+  const ok = _feClientesGuardar(empresaId, clientes || []);
+  return ok ? { ok: true } : { error: 'No se pudo guardar el archivo de clientes.' };
+});
+
+// Diálogo nativo para elegir un CSV e importarlo (se AGREGA a los
+// clientes ya existentes de la empresa, no los reemplaza).
+ipcMain.handle('fe-clientes-importar-csv', async (event, { empresaId } = {}) => {
+  if (!empresaId) return { error: 'empresaId es requerido' };
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const res = await dialog.showOpenDialog(win, {
+    title: 'Importar clientes desde CSV',
+    filters: [{ name: 'CSV', extensions: ['csv'] }],
+    properties: ['openFile']
+  });
+  if (res.canceled || !res.filePaths[0]) return { canceled: true };
+  try {
+    const contenido = fs.readFileSync(res.filePaths[0], 'utf8');
+    const parseo = _feClientesParsearCSV(contenido);
+    const filasNuevas = parseo.clientes;
+    const actuales = _feClientesLeer(empresaId);
+
+    let nuevosCount = 0;
+    let actualizadosCount = 0;
+    filasNuevas.forEach(function(fila) {
+      const idxExistente = _feClientesBuscarExistente(actuales, fila);
+      if (idxExistente !== -1) {
+        actuales[idxExistente] = _feClientesFusionar(actuales[idxExistente], fila);
+        actualizadosCount++;
+      } else {
+        actuales.push(_feClientesCrearDesdeImportacion(fila));
+        nuevosCount++;
+      }
+    });
+
+    _feClientesGuardar(empresaId, actuales);
+    return {
+      ok: true,
+      clientes: actuales,
+      agregados: nuevosCount, // se conserva por compatibilidad con llamadores anteriores
+      procesados: filasNuevas.length,
+      nuevos: nuevosCount,
+      actualizados: actualizadosCount,
+      errores: parseo.errores.length,
+      detalleErrores: parseo.errores
+    };
+  } catch (e) {
+    return { error: 'No se pudo leer el archivo: ' + e.message };
+  }
+});
+
+// Diálogo nativo para elegir dónde guardar el CSV exportado.
+ipcMain.handle('fe-clientes-exportar-csv', async (event, { empresaId, empresaNombre } = {}) => {
+  if (!empresaId) return { error: 'empresaId es requerido' };
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const res = await dialog.showSaveDialog(win, {
+    title: 'Exportar clientes a CSV',
+    defaultPath: `Clientes_${sanitizeFolderName(empresaNombre || String(empresaId))}.csv`,
+    filters: [{ name: 'CSV', extensions: ['csv'] }]
+  });
+  if (res.canceled || !res.filePath) return { canceled: true };
+  try {
+    fs.writeFileSync(res.filePath, _feClientesACSV(_feClientesLeer(empresaId)), 'utf8');
+    return { ok: true, path: res.filePath };
+  } catch (e) {
+    return { error: 'No se pudo guardar el archivo: ' + e.message };
   }
 });
 

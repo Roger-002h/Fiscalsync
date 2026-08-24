@@ -656,6 +656,310 @@
             opacity: 1;
             pointer-events: auto;
         }
+        /* Implementación 02 — Facturación Electrónica: panel de Clientes.
+           Vive en el DOM de la app (nunca dentro del <webview>), flotando
+           sobre el webview solo mientras está abierto. El webview sigue
+           ocupando el 100% de #facturacionElecWebviewContainer todo el
+           tiempo, sin importar si el panel está abierto o cerrado. */
+        #feClientesDropdown {
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            width: 380px;
+            max-height: calc(100vh - 100px);
+            background: var(--rp-surface);
+            border: 1px solid var(--rp-border-strong);
+            border-radius: 14px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.28);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 50;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-6px) scale(0.98);
+            transition: opacity .15s ease, transform .15s ease, visibility .15s;
+        }
+        #feClientesDropdown.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0) scale(1);
+        }
+        #feClientesDropdown .fe-cli-header {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--rp-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        #feClientesDropdown .fe-cli-body {
+            padding: 12px 14px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        #feClientesDropdown .fe-cli-item {
+            background: var(--rp-inset);
+            border: 1px solid var(--rp-border);
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 8px;
+        }
+        #feClientesDropdown input,
+        #feClientesDropdown select,
+        #feClientesDropdown textarea {
+            width: 100%;
+            padding: 8px 9px;
+            margin: 4px 0;
+            border: 1px solid var(--rp-border-strong);
+            border-radius: 8px;
+            font-size: 12.5px;
+            background: var(--rp-surface);
+            color: var(--rp-text-primary);
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+        #feClientesDropdown label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--rp-text-secondary);
+            display: block;
+            margin-top: 6px;
+        }
+        #feClientesDropdown .fe-cli-chip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 8px;
+            border-radius: 8px;
+            border: 2px solid var(--rp-border-strong);
+            background: var(--rp-surface);
+            color: var(--rp-text-secondary);
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        #feClientesDropdown .fe-cli-chip.selected,
+        #feClientesDropdown .fe-cli-chip.configurado {
+            color: #fff;
+            border-color: transparent;
+        }
+        /* AGREGADO NUEVO (Corrección 01 — Registro de Clientes según Tipo de
+           Documento): .activo resalta cuál de los tipos de documento ya
+           configurados es el que se está editando ahora mismo en el
+           formulario (los campos que se ven abajo son SOLO los suyos, no
+           una mezcla de todos los configurados). */
+        /* AJUSTADO (Corrección 02): se quitó .fe-cli-chip-x — los chips ya
+           no tienen botón "×" para quitar/eliminar un tipo de documento. */
+        #feClientesDropdown .fe-cli-chip {
+            position: relative;
+        }
+        #feClientesDropdown .fe-cli-chip.activo {
+            box-shadow: 0 0 0 2px var(--rp-indigo);
+        }
+        #feClientesDropdown .fe-cli-badge {
+            font-size: 8.5px;
+            font-weight: 700;
+            color: #fff;
+            padding: 3px 6px;
+            border-radius: 20px;
+            margin-right: 3px;
+        }
+        /* AGREGADO NUEVO (Corrección 04 — Diseño del apartado de Clientes):
+           - .fe-cli-import / .fe-cli-export dan a los botones de
+             Importar/Exportar CSV un color, borde y texto propios (además
+             del ícono, que ya era distinto: flecha hacia la bandeja para
+             Importar y flecha saliendo de la bandeja para Exportar), para
+             que se distingan de un vistazo.
+           - .fe-cli-section-label encabeza cada bloque ("Lista de
+             Clientes" / "Registrar Cliente" o "Editar Cliente") para que
+             ambos apartados queden claramente identificados.
+           - .fe-cli-form-card le da al formulario de alta/edición su
+             propia "tarjeta" (fondo, borde y separación) en vez del simple
+             borde superior que antes lo dejaba pegado a la lista. */
+        #feClientesDropdown .fe-cli-action-btn {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            height: 28px;
+            padding: 0 10px;
+            border-radius: 7px;
+            cursor: pointer;
+            font-size: 10.5px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        #feClientesDropdown .fe-cli-import {
+            background: rgba(34,197,94,0.12);
+            border: 1px solid rgba(34,197,94,0.4);
+            color: #22C55E;
+        }
+        #feClientesDropdown .fe-cli-import:hover { background: rgba(34,197,94,0.2); }
+        #feClientesDropdown .fe-cli-export {
+            background: rgba(99,102,241,0.12);
+            border: 1px solid rgba(99,102,241,0.4);
+            color: var(--rp-indigo);
+        }
+        #feClientesDropdown .fe-cli-export:hover { background: rgba(99,102,241,0.2); }
+        #feClientesDropdown .fe-cli-section-label {
+            font-size: 9.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--rp-text-secondary);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #feClientesDropdown .fe-cli-section-label:before {
+            content: "";
+            width: 3px;
+            height: 11px;
+            border-radius: 2px;
+            background: var(--rp-indigo);
+            display: inline-block;
+        }
+        #feClientesDropdown .fe-cli-lista-section {
+            padding-bottom: 4px;
+        }
+        /* AGREGADO NUEVO (Agregado 01 — Atajo Ctrl+B para búsqueda rápida de
+           clientes): estilos propios de #feBusquedaRapida, totalmente
+           independientes de los de #feClientesDropdown (arriba). Se centra
+           en la parte superior del <webview>, a diferencia del panel de
+           Clientes que se ancla arriba a la derecha bajo su botón. */
+        #feBusquedaRapida {
+            position: absolute;
+            top: 14%;
+            left: 50%;
+            transform: translate(-50%, -8px) scale(0.98);
+            width: 420px;
+            max-width: calc(100% - 32px);
+            max-height: 60vh;
+            background: var(--rp-surface);
+            border: 1px solid var(--rp-border-strong);
+            border-radius: 14px;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.32);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 60;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity .15s ease, transform .15s ease, visibility .15s;
+        }
+        #feBusquedaRapida.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translate(-50%, 0) scale(1);
+        }
+        #feBusquedaRapida .fe-bq-header {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--rp-border);
+            color: var(--rp-text-secondary);
+        }
+        #feBusquedaRapida .fe-bq-header input {
+            flex: 1;
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 13px;
+            color: var(--rp-text-primary);
+            font-family: inherit;
+        }
+        #feBusquedaRapida .fe-bq-close {
+            flex-shrink: 0;
+            border: none;
+            background: transparent;
+            color: var(--rp-text-secondary);
+            font-size: 18px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 2px 4px;
+        }
+        #feBusquedaRapida .fe-bq-body {
+            padding: 8px 10px;
+            overflow-y: auto;
+        }
+        #feBusquedaRapida .fe-bq-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            background: var(--rp-inset);
+            border: 1px solid var(--rp-border);
+            border-radius: 9px;
+            padding: 8px 10px;
+            margin-bottom: 6px;
+        }
+        #feBusquedaRapida .fe-bq-item span {
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--rp-text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #feBusquedaRapida .fe-bq-item button {
+            flex-shrink: 0;
+            border: none;
+            border-radius: 7px;
+            padding: 6px 10px;
+            font-weight: 600;
+            font-size: 11px;
+            cursor: pointer;
+            color: #fff;
+        }
+        #feClientesDropdown .fe-cli-form-card {
+            /* AJUSTADO (Cambio 01 — Separar Registro de Clientes del
+               Listado): al ser ahora una vista independiente (la Lista de
+               Clientes se oculta mientras esta tarjeta está visible), ya
+               no necesita el margen superior que antes la separaba del
+               listado de arriba. */
+            margin-top: 0;
+            padding: 12px;
+            border: 1px solid var(--rp-border-strong);
+            border-radius: 12px;
+            background: var(--rp-inset);
+        }
+        /* Corrección 01 — Autocomplete de Actividad Económica: lista en
+           cascada que aparece bajo el input a medida que se escribe (o al
+           enfocarlo), igual que ya funcionaba en la extensión retirada. */
+        .fe-cli-autocomplete {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 220px;
+            overflow-y: auto;
+            background: var(--rp-surface);
+            border: 1px solid var(--rp-border-strong);
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+            z-index: 60;
+            margin-top: 2px;
+        }
+        .fe-cli-autocomplete.open { display: block; }
+        .fe-cli-autocomplete-item {
+            padding: 7px 10px;
+            font-size: 12px;
+            color: var(--rp-text-primary);
+            cursor: pointer;
+        }
+        .fe-cli-autocomplete-item:hover,
+        .fe-cli-autocomplete-item.selected {
+            background: var(--rp-inset);
+        }
+        .fe-cli-autocomplete-item mark {
+            background: transparent;
+            color: var(--rp-indigo);
+            font-weight: 700;
+        }
         .home-title { font-size: 18px; color: var(--rp-text-secondary); font-weight: 400; letter-spacing: 1px; }
         /* ═══ SCROLLBARS MINIMALISTAS 4px ═══ */
         ::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -3078,6 +3382,27 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             <p style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--rp-text-secondary);" id="facturacionElecEmpresaNombre"></p>
             <p style="font-size:12px;font-weight:600;color:var(--rp-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Facturación Electrónica — admin.factura.gob.sv</p>
         </div>
+        <!-- Implementación 02 — Facturación Electrónica: botón que abre/
+             cierra el panel de Clientes (reemplaza el botón flotante (FAB)
+             que antes inyectaba la extensión de Chrome directo sobre la
+             página de Hacienda). El panel (#feClientesDropdown) vive acá,
+             en el DOM de la app — nunca dentro del <webview>.
+             Corrección 01 — va INMEDIATAMENTE a la izquierda del selector
+             de "Mes de trabajo" (por eso se movió antes de ese bloque; el
+             margin-left:auto del selector de mes es lo que empuja a ambos
+             hacia la derecha del todo, dejando este botón justo pegado a
+             su izquierda). -->
+        <!-- Corrección 03 — Tamaño del botón Clientes: se iguala su altura
+             (42px = 32px de los botones internos del selector de mes + 4px
+             de padding arriba/abajo + 1px de borde arriba/abajo) y su
+             border-radius (10px) a los del "month-selector" de al lado,
+             para que ambos elementos tengan la misma presencia visual.
+             Función y ubicación (justo a la izquierda del selector de mes)
+             quedan exactamente igual que antes. -->
+        <button onclick="_feClientesToggleDropdown(event)" class="electron-no-drag" title="Clientes" id="btnFeClientes" style="display:flex;align-items:center;justify-content:center;gap:6px;height:42px;padding:0 14px;border-radius:10px;background:var(--rp-inset);border:1px solid var(--rp-border-strong);color:var(--rp-text-secondary);cursor:pointer;flex-shrink:0;font-size:12px;font-weight:600;margin-left:auto;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path stroke-linecap="round" stroke-linejoin="round" d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            Clientes
+        </button>
         <!-- Corrección 06 — Selector de "Mes de trabajo": determina
              completamente dónde se guardan el JSON y el PDF que se
              descarguen a partir de ahora (ver _feChangeMes / fe-set-context
@@ -3088,7 +3413,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
              (_feMesIndex/_feAnio) es independiente del de Gestión
              (currentMonth/currentYear), como ya lo era con el <select>
              anterior. -->
-        <div class="month-selector electron-no-drag" style="margin-left:auto;flex-shrink:0;">
+        <div class="month-selector electron-no-drag" style="flex-shrink:0;">
             <button onclick="_feChangeMes(-1)" title="Mes anterior"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
             <span id="feMonthLabel" class="month-label">Enero 2026</span>
             <button onclick="_feChangeMes(1)" title="Mes siguiente"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
@@ -3104,6 +3429,255 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
              verdad — un <webview> fijo con display:none tiende a perder o
              confundir su contenido al volver a mostrarse, que es
              exactamente el problema reportado. -->
+
+        <!-- Implementación 02 — Panel de Clientes: flota SOBRE el webview
+             (posición absoluta dentro de este mismo contenedor) solo
+             mientras está abierto; se cierra solo al elegir un cliente o
+             al hacer clic fuera (ver _feClientesToggleDropdown /
+             listener global de cierre en el bloque JS). -->
+        <div id="feClientesDropdown">
+            <div class="fe-cli-header">
+                <strong style="font-size:13px;color:var(--rp-text-primary);">Clientes</strong>
+                <!-- AGREGADO NUEVO (Cambio 01 — Separar Registro de Clientes del
+                     Listado): estos botones (Importar/Exportar/Nuevo) son acciones
+                     de administración de la Lista de Clientes, así que solo se
+                     muestran en esa vista — se ocultan mientras está abierta la
+                     vista de Registrar/Editar Cliente (ver _feClientesMostrarVista). -->
+                <div id="feClientesHeaderAcciones" style="display:flex;gap:6px;">
+                    <button onclick="_feClientesImportar()" title="Importar clientes desde un archivo CSV" class="fe-cli-action-btn fe-cli-import">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Importar
+                    </button>
+                    <button onclick="_feClientesExportar()" title="Exportar clientes a un archivo CSV" class="fe-cli-action-btn fe-cli-export">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        Exportar
+                    </button>
+                    <button onclick="_feClientesNuevo()" title="Nuevo cliente" style="background:var(--rp-indigo);border:none;border-radius:7px;width:28px;height:28px;cursor:pointer;color:#fff;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1;">+</button>
+                </div>
+            </div>
+            <div class="fe-cli-body">
+                <!-- AGREGADO NUEVO (Corrección 04): la "Lista de Clientes" queda
+                     identificada como su propia sección, separada del formulario
+                     de alta/edición que aparece más abajo cuando se usa. -->
+                <div class="fe-cli-lista-section" id="feClientesListaSection">
+                    <div class="fe-cli-section-label">Lista de Clientes</div>
+                    <input type="text" id="feClientesBuscar" placeholder="Buscar cliente..." oninput="_feClientesRender(this.value)" style="margin-bottom:8px;">
+
+                    <!-- Lista de clientes -->
+                    <div id="feClientesLista"></div>
+                </div>
+
+                <!-- Formulario alta/edición (oculto por defecto).
+                     AGREGADO NUEVO (Corrección 04 — Diseño del apartado de
+                     Clientes): ahora vive dentro de su propia "tarjeta"
+                     (.fe-cli-form-card) con un rótulo propio
+                     (#fecli_form_titulo, "Registrar Cliente" / "Editar
+                     Cliente" según corresponda — ver _feClientesNuevo /
+                     _feClientesEditar), separado con claridad de la Lista
+                     de Clientes de arriba. No cambia su comportamiento. -->
+                <div id="feClientesForm" class="hidden fe-cli-form-card">
+                    <div class="fe-cli-section-label" id="fecli_form_titulo">Registrar Cliente</div>
+                    <input type="hidden" id="fecli_index" value="-1">
+
+                    <!-- AJUSTADO (Corrección 02 — Orden y selección de documentos): los
+                         botones de selección/cambio de documento quedan arriba, y justo
+                         debajo el bloque COMPLETO de "Datos para: X" (no solo el rótulo,
+                         también los campos propios de ese documento: Tipo Doc/Número, NIT
+                         CCF, NRC, Nombre comercial, Actividad económica) — así se ve y se
+                         llena de inmediato, sin tener que bajar. Los datos generales del
+                         cliente (nombre, dirección, etc.) y el apartado "Tipo(s) de
+                         Documento que aplican a este cliente" (ahora solo informativo)
+                         quedan más abajo. Los botones YA NO tienen "×": dejaron de servir
+                         para quitar/eliminar los datos de un documento (ver
+                         _feRenderChipsModo). La selección final de en qué documentos queda
+                         habilitado el cliente ahora se pregunta al presionar Guardar (ver
+                         _feAbrirModalValidez / fecliValidezModal). -->
+                    <div id="fecli_modos_chips" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:4px 0 8px 0;"></div>
+
+                    <!-- AGREGADO NUEVO (Corrección 02 — Registro de Clientes según Tipo de
+                         Documento): mientras no se seleccione ningún tipo de documento, se
+                         oculta todo el resto del formulario y solo se muestra este aviso. -->
+                    <p id="fecli_sin_tipo_msg" style="font-size:11px;color:var(--rp-text-secondary);margin:2px 0 10px 0;">Selecciona al menos un tipo de documento para mostrar los campos del cliente.</p>
+
+                    <!-- AGREGADO NUEVO (Corrección 04 — Estado del formulario al desactivar
+                         un documento): este aviso vive FUERA de fecli_datos_cliente (a
+                         diferencia de la versión de la Corrección 02) precisamente para poder
+                         mostrarse cuando dicho contenedor está oculto por completo. Aparece
+                         cuando ya hay documentos configurados pero NINGUNO está activo en este
+                         momento — por ejemplo, justo después de desactivar con doble toque el
+                         único/último documento activo (ver _feModoDesactivarDoble) — dejando
+                         claro que no hay ningún documento seleccionado para llenar. -->
+                    <p id="fecli_ningun_activo_msg" class="hidden" style="font-size:11px;color:var(--rp-text-secondary);margin:2px 0 10px 0;">Ningún documento está activo. Toca uno de los botones de arriba para ver o editar sus datos.</p>
+
+                    <!-- AJUSTADO (Corrección 04 — Estado del formulario al desactivar un
+                         documento): contenedor de los campos "comunes" del cliente Y de los
+                         campos propios de cada tipo de documento. Antes (Corrección 02) este
+                         bloque solo se ocultaba si NO había ningún tipo de documento
+                         configurado, así que si se desactivaba (doble toque) el único
+                         documento activo, los datos generales (nombre, dirección, etc.)
+                         seguían visibles aunque ya no hubiera ningún documento para llenar.
+                         Ahora también permanece oculto mientras no haya un documento ACTIVO
+                         (ver _feActualizarVisibilidadCampos), de modo que al desactivar el
+                         documento activo el formulario completo desaparece — tal como si no
+                         se hubiera seleccionado ningún documento — y reaparece normalmente en
+                         cuanto se vuelve a tocar (un solo toque) cualquier botón de documento. -->
+                    <div id="fecli_datos_cliente" class="hidden">
+
+                        <!-- AGREGADO NUEVO (Corrección 01 — Registro de Clientes según Tipo de
+                             Documento): bloque de datos PROPIOS de cada tipo de documento. Solo
+                             muestra/edita los datos del tipo de documento actualmente activo (el
+                             resaltado entre los chips de arriba); los demás tipos de documento ya
+                             configurados para este cliente conservan sus propios datos guardados
+                             aparte y no se mezclan aquí (ver _feModoActivarOAgregar,
+                             _feGuardarModoActivoEnMemoria, _feCargarModoActivoEnCampos).
+                             AJUSTADO (Corrección 02): este bloque, con su rótulo "Datos para:",
+                             se movió arriba de los datos generales del cliente. -->
+                        <div id="fecli_por_modo">
+                            <div id="fecli_modo_activo_label" style="font-size:10.5px;font-weight:700;color:var(--rp-text-secondary);margin-bottom:2px;">
+                                Datos para: <span id="fecli_modo_activo_nombre" style="color:var(--rp-text-primary);"></span>
+                            </div>
+
+                            <!-- AGREGADO NUEVO (Corrección 01 — Primera corrección): Crédito
+                                 Fiscal identifica al cliente únicamente por su NIT (campo
+                                 "NIT (para Crédito Fiscal)" más abajo), así que para ese tipo
+                                 de documento este bloque de Tipo Doc/Número se oculta. Para los
+                                 demás tipos de documento se sigue mostrando igual que antes. -->
+                            <div id="fecli_cont_tipoNum" class="hidden" style="display:flex;gap:8px;">
+                                <div style="flex:1;">
+                                    <label>Tipo Doc</label>
+                                    <select id="fecli_tipoDoc">
+                                        <option value="">-- Seleccione --</option>
+                                        <option value="36">NIT</option>
+                                        <option value="13">DUI</option>
+                                        <option value="03">PASAPORTE</option>
+                                        <option value="02">CARNET RESIDENTE</option>
+                                        <option value="37">OTRO</option>
+                                    </select>
+                                </div>
+                                <div style="flex:1;">
+                                    <label>Número</label>
+                                    <input type="text" id="fecli_numDoc">
+                                </div>
+                            </div>
+
+                            <div id="fecli_cont_nit_ccf" class="hidden">
+                                <label>NIT (para Crédito Fiscal)</label>
+                                <input type="text" id="fecli_nitCcf">
+                            </div>
+                            <div id="fecli_cont_nrc" class="hidden">
+                                <label>NRC</label>
+                                <input type="text" id="fecli_nrc">
+                            </div>
+                            <div id="fecli_cont_comercial" class="hidden">
+                                <label>Nombre comercial</label>
+                                <input type="text" id="fecli_comercial">
+                            </div>
+                            <div id="fecli_cont_actividad" class="hidden" style="position:relative;">
+                                <label>Actividad económica</label>
+                                <input type="text" id="fecli_actividad" autocomplete="off">
+                                <div id="fecli_actividad_dropdown" class="fe-cli-autocomplete"></div>
+                            </div>
+                            <div id="fecli_cont_actividad_fse" class="hidden">
+                                <label>Actividad económica (Sujeto Excluido)</label>
+                                <input type="text" id="fecli_actividadFse">
+                            </div>
+                        </div>
+
+                        <!-- AJUSTADO (Corrección 02): datos generales del cliente (no cambian
+                             según el documento activo), ahora debajo del bloque "Datos para:". -->
+                        <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--rp-border-strong);">
+                            <label>Nombre completo</label>
+                            <input type="text" id="fecli_nombre">
+
+                            <div style="display:flex;gap:8px;">
+                                <div style="flex:1;">
+                                    <label>Departamento</label>
+                                    <select id="fecli_depto" onchange="_feActualizarMunicipios(this.value)"></select>
+                                </div>
+                                <div style="flex:1;">
+                                    <label>Municipio</label>
+                                    <select id="fecli_municipio" onchange="_feActualizarDistritos(document.getElementById('fecli_depto').value, this.value)"></select>
+                                </div>
+                            </div>
+                            <label>Distrito</label>
+                            <select id="fecli_distrito"></select>
+
+                            <label>Dirección / Complemento</label>
+                            <input type="text" id="fecli_complemento">
+
+                            <div style="display:flex;gap:8px;">
+                                <div style="flex:1;"><label>Teléfono</label><input type="text" id="fecli_tel"></div>
+                                <div style="flex:1;"><label>Correo</label><input type="text" id="fecli_correo"></div>
+                            </div>
+                        </div>
+
+                        <!-- AJUSTADO (Corrección 02 — Orden y selección de documentos): este
+                             apartado bajó de posición y ya es solo informativo — muestra los
+                             tipos de documento que se han ido configurando con los botones de
+                             arriba, sin botón "×" ni función para quitarlos. La selección de
+                             en qué documentos quedará VÁLIDO el cliente se hace aparte, al
+                             presionar Guardar (ver fecliValidezModal). -->
+                        <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--rp-border-strong);">
+                            <label>Tipo(s) de Documento que aplican a este cliente</label>
+                            <div id="fecli_modos_resumen" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;"></div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;gap:8px;margin-top:10px;">
+                        <button onclick="_feClientesCancelarForm()" style="flex:1;background:var(--rp-inset);border:1px solid var(--rp-border-strong);border-radius:8px;padding:9px;font-weight:600;font-size:12px;color:var(--rp-text-secondary);cursor:pointer;">Cancelar</button>
+                        <button onclick="_feClientesGuardarForm()" style="flex:1;background:var(--rp-indigo);border:none;border-radius:8px;padding:9px;font-weight:600;font-size:12px;color:#fff;cursor:pointer;">Guardar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- input file oculto usado únicamente como fallback si se prefiriera
+             importar sin diálogo nativo; el flujo actual usa
+             fiscalAPI.importarClientesFE (diálogo nativo, ver main.js) -->
+    </div>
+
+    <!-- AGREGADO NUEVO (Agregado 01 — Atajo Ctrl+B para búsqueda rápida de
+         clientes): panel flotante COMPLETAMENTE APARTE de #feClientesDropdown
+         — no se tocó absolutamente nada del apartado de Clientes (diseño,
+         estructura, lista, registro ni botones actuales). Este panel solo
+         se abre con el atajo de teclado Ctrl+B (ver _feBusquedaRapidaAbrir,
+         enlazado al evento "keydown" del documento) y flota centrado sobre
+         el <webview> de Hacienda, igual que #feClientesDropdown flota sobre
+         él pero sin depender de ningún botón. Muestra únicamente el nombre
+         de cada cliente y un botón "Rellenar" (sin badges, sin Tipo Doc/
+         Número, sin botones Editar/Borrar) — la búsqueda rápida es solo un
+         atajo hacia la función "Rellenar" que ya existe en el apartado de
+         Clientes (ver _feBusquedaRapidaLlenar, que reutiliza tal cual
+         _feClientesLlenar). -->
+    <div id="feBusquedaRapida">
+        <div class="fe-bq-header">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="feBusquedaRapidaInput" placeholder="Buscar cliente por nombre..." oninput="_feBusquedaRapidaRender(this.value)" onkeydown="if(event.key==='Escape'){event.stopPropagation();_feBusquedaRapidaCerrar();}">
+            <button type="button" title="Cerrar (Esc)" onclick="_feBusquedaRapidaCerrar()" class="fe-bq-close">&times;</button>
+        </div>
+        <div class="fe-bq-body" id="feBusquedaRapidaLista"></div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- MODAL: VALIDEZ DE DOCUMENTOS DEL CLIENTE (Corrección 02 — Orden y   -->
+<!-- selección de documentos en Registro de Clientes)                   -->
+<!-- AGREGADO NUEVO: al presionar "Guardar" en el formulario de un      -->
+<!-- cliente, se pregunta aquí en qué documentos debe quedar VÁLIDO ese -->
+<!-- cliente. Por defecto vienen marcados los tipos de documento que ya -->
+<!-- se configuraron con datos (ver _feAbrirModalValidez), pero se      -->
+<!-- pueden marcar/desmarcar libremente antes de confirmar el guardado. -->
+<!-- Esto NO afecta los datos ya llenados de cada documento (porModo);  -->
+<!-- solo define en qué documentos el cliente queda habilitado.        -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div id="fecliValidezModal" class="fixed inset-0 z-[999999] hidden" style="background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:16px;">
+    <div style="background:var(--rp-surface);border:1px solid var(--rp-border-strong);border-radius:16px;width:100%;max-width:360px;padding:20px;">
+        <h3 style="font-size:13.5px;font-weight:700;color:var(--rp-text-heading);margin-bottom:4px;">¿En qué documentos desea que este cliente sea válido?</h3>
+        <p style="font-size:11px;color:var(--rp-text-secondary);margin-bottom:14px;line-height:1.4;">Selecciona los tipos de documento en los que este cliente quedará habilitado.</p>
+        <div id="fecliValidezOpciones" style="display:flex;flex-direction:column;gap:9px;margin-bottom:16px;"></div>
+        <div style="display:flex;gap:8px;">
+            <button onclick="_feValidezCancelar()" style="flex:1;background:var(--rp-inset);border:1px solid var(--rp-border-strong);border-radius:8px;padding:9px;font-weight:600;font-size:12px;color:var(--rp-text-secondary);cursor:pointer;">Cancelar</button>
+            <button onclick="_feValidezConfirmar()" style="flex:1;background:var(--rp-indigo);border:none;border-radius:8px;padding:9px;font-weight:600;font-size:12px;color:#fff;cursor:pointer;">Guardar Cliente</button>
+        </div>
     </div>
 </div>
 
@@ -6960,6 +7534,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
      script principal, porque QRSCAN_TIPOS_DTE y _cat002CodigoDesdeTexto
      dependen de window.FiscalSyncCat002 definido aquí. -->
 <script src="cat002.js"></script>
+<!-- Implementación 02 — Facturación Electrónica: Clientes. Catálogos de
+     apoyo para el panel de clientes (ubicación geográfica y actividades
+     económicas), reutilizados tal cual de la extensión de Chrome
+     retirada — son JS puro sin dependencias de chrome.* -->
+<script src="ubicaciones.js"></script>
+<script src="actividades.js"></script>
 
 <script>
 
@@ -7223,6 +7803,30 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 showToast(tipo + ' guardado en la carpeta Facturacion: ' + info.path, 'success');
             } else {
                 showToast('No se pudo guardar el archivo de Facturación Electrónica', 'error');
+            }
+        });
+    }
+
+    // AGREGADO NUEVO (Agregado 01 — Atajo Ctrl+B para búsqueda rápida de
+    // clientes): mientras se trabaja normalmente en el portal de Hacienda,
+    // el foco del teclado está DENTRO del <webview> — que es un WebContents
+    // aparte (otro proceso), no el documento de esta app. Por eso Ctrl+B no
+    // puede detectarse con un simple keydown en el documento del renderer;
+    // hay que interceptarlo en main.js sobre el webContents de ESE webview
+    // (igual que ya se hace para detectar la descarga del PDF, ver
+    // onFacturacionDescarga arriba) y reenviarlo aquí por IPC. Ver main.js
+    // (app.on('web-contents-created', …) + contents.hostWebContents.send)
+    // y preload.js (contextBridge → onAtajoBusquedaRapidaFE) para la otra
+    // mitad de este cambio.
+    if (window.fiscalAPI && window.fiscalAPI.onAtajoBusquedaRapidaFE) {
+        window.fiscalAPI.onAtajoBusquedaRapidaFE(function() {
+            var screen = document.getElementById('facturacionElectronicaScreen');
+            if (!screen || !screen.classList.contains('active')) return;
+            var panel = document.getElementById('feBusquedaRapida');
+            if (panel && panel.classList.contains('open')) {
+                _feBusquedaRapidaCerrar();
+            } else {
+                _feBusquedaRapidaAbrir();
             }
         });
     }
@@ -8041,7 +8645,1027 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         // mientras estaba visible.
         var fe = document.getElementById('facturacionElectronicaScreen');
         if (fe) { fe.classList.remove('active'); fe.style.left = '-10000px'; }
+        _feClientesCache = [];
+        _feClientesCerrarDropdown();
     }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Implementación 02 — Facturación Electrónica: CLIENTES
+    // ────────────────────────────────────────────────────────────────────
+    // Reemplaza al botón flotante (FAB) que antes inyectaba la extensión
+    // de Chrome directo sobre admin.factura.gob.sv. Ahora es un dropdown
+    // que vive en el DOM de la app (#feClientesDropdown, dentro de
+    // #facturacionElecWebviewContainer) — el <webview> nunca se toca ni
+    // se le inyecta nada; el llenado se hace desde afuera con
+    // webview.executeJavaScript(), igual que el resto del programa ya usa
+    // ese mismo mecanismo para otras automatizaciones sobre Hacienda.
+    //
+    // Almacenamiento: JSON en disco por empresa (fiscalAPI.leerClientesFE/
+    // guardarClientesFE, ver main.js) — independiente del catálogo de
+    // "Clientes" de Gestión/Escaneo QR (Libro de Ventas).
+    // ════════════════════════════════════════════════════════════════════
+
+    var _feClientesCache = [];
+
+    // AGREGADO NUEVO (Corrección 01 — Registro de Clientes según Tipo de
+    // Documento): estado del formulario de alta/edición mientras está
+    // abierto. _feModosConfigurados es la lista de tipos de documento que
+    // el cliente tiene habilitados (equivalente a lo que antes eran los
+    // chips "selected"); _feModoActivo es cuál de esos tipos se está
+    // mostrando/editando ahora mismo en el bloque de campos de abajo;
+    // _feDatosPorModo guarda, por separado para cada tipo, sus propios
+    // datos (Tipo Doc/Número, NIT CCF, NRC, Nombre comercial, Actividad
+    // económica) para que no se mezclen entre sí aunque el cliente tenga
+    // varios tipos de documento habilitados.
+    var _feModosConfigurados = [];
+    var _feModoActivo = null;
+    var _feDatosPorModo = {};
+
+    var FE_TIPOS_DOC = {
+        FCF: { label: "Consumidor Final", color: "#0A66C2" },
+        CCF: { label: "Crédito Fiscal",   color: "#22C55E" },
+        FSE: { label: "Sujeto Excluido",  color: "#F59E0B" },
+        NC:  { label: "Nota de Crédito",  color: "#EF4444" }
+    };
+
+    // Tolera registros antiguos que solo tenían `modo` (string) en vez de
+    // `modos` (arreglo) — mismo criterio que ya usaba la extensión.
+    function _feModosDe(c) {
+        if (Array.isArray(c.modos) && c.modos.length) return c.modos;
+        if (c.modo) return [c.modo];
+        return [];
+    }
+
+    // Detecta qué formulario de Hacienda está abierto AHORA MISMO dentro
+    // del <webview>, según su URL actual (no la de la ventana de la app).
+    //   /cf        -> Factura Consumidor Final (FCF)
+    //   /ccf       -> Comprobante de Crédito Fiscal (CCF)
+    //   /fse       -> Factura de Sujeto Excluido (FSE)
+    //   /notascd.. -> Nota de Crédito (NC)
+    var FE_RUTAS_HACIENDA = [
+        { modo: 'NC',  test: function(p) { return /^\/notascd(;|\/|$)/.test(p); } },
+        { modo: 'CCF', test: function(p) { return /^\/ccf(;|\/|$)/.test(p); } },
+        { modo: 'FSE', test: function(p) { return /^\/fse(;|\/|$)/.test(p); } },
+        { modo: 'FCF', test: function(p) { return /^\/cf(;|\/|$)/.test(p); } }
+    ];
+    function _feDetectarModoPorUrlWebview() {
+        try {
+            var wv = _facturacionElecActiva.webview;
+            if (!wv || !wv.getURL) return null;
+            var url = new URL(wv.getURL());
+            if (url.hostname !== 'admin.factura.gob.sv') return null;
+            var match = FE_RUTAS_HACIENDA.find(function(r) { return r.test(url.pathname || ""); });
+            return match ? match.modo : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function _feClientesToggleDropdown(ev) {
+        if (ev) ev.stopPropagation();
+        var dd = document.getElementById('feClientesDropdown');
+        if (!dd) return;
+        var abriendo = !dd.classList.contains('open');
+        if (abriendo) {
+            _feClientesAbrirDropdown();
+        } else {
+            _feClientesCerrarDropdown();
+        }
+    }
+
+    function _feClientesAbrirDropdown() {
+        var dd = document.getElementById('feClientesDropdown');
+        if (!dd) return;
+        // AGREGADO NUEVO (Cambio 01 — Separar Registro de Clientes del
+        // Listado): al abrir el panel siempre se parte desde la vista de
+        // Lista de Clientes (por si había quedado en la vista de
+        // Registrar/Editar de una apertura anterior).
+        _feClientesMostrarVista('lista');
+        document.getElementById('feClientesBuscar').value = "";
+        dd.classList.add('open');
+        _feClientesCargar();
+    }
+
+    function _feClientesCerrarDropdown() {
+        var dd = document.getElementById('feClientesDropdown');
+        if (dd) dd.classList.remove('open');
+    }
+
+    // Cierra el dropdown al hacer clic fuera de él (pero no al hacer clic
+    // en el propio botón que lo abre, ni dentro del panel).
+    document.addEventListener('click', function(e) {
+        var dd = document.getElementById('feClientesDropdown');
+        var btn = document.getElementById('btnFeClientes');
+        if (!dd || !dd.classList.contains('open')) return;
+        if (dd.contains(e.target) || (btn && btn.contains(e.target))) return;
+        _feClientesCerrarDropdown();
+    });
+
+    function _feClientesEmpresaActual() {
+        var empresaId = _facturacionElecActiva && _facturacionElecActiva.empresaId;
+        if (!empresaId) return null;
+        var emp = (typeof empresas !== 'undefined') ? empresas.find(function(e) { return e.id === empresaId; }) : null;
+        return { id: empresaId, nombre: emp ? (emp.nombre || emp.razonSocial || String(empresaId)) : String(empresaId) };
+    }
+
+    function _feClientesCargar() {
+        var ctx = _feClientesEmpresaActual();
+        if (!ctx || !window.fiscalAPI || !window.fiscalAPI.leerClientesFE) { _feClientesCache = []; _feClientesRender(); return; }
+        window.fiscalAPI.leerClientesFE(ctx.id).then(function(res) {
+            _feClientesCache = (res && res.ok && Array.isArray(res.clientes)) ? res.clientes : [];
+            _feClientesRender();
+        });
+    }
+
+    function _feClientesPersistir(callback) {
+        var ctx = _feClientesEmpresaActual();
+        if (!ctx || !window.fiscalAPI || !window.fiscalAPI.guardarClientesFE) return;
+        window.fiscalAPI.guardarClientesFE(ctx.id, _feClientesCache).then(function() {
+            if (callback) callback();
+        });
+    }
+
+    function _feClientesRender(filtro) {
+        var div = document.getElementById('feClientesLista');
+        if (!div) return;
+        filtro = (filtro || document.getElementById('feClientesBuscar').value || "").toLowerCase();
+        var modoActual = _feDetectarModoPorUrlWebview();
+        var vis = _feClientesCache.filter(function(c) {
+            return ((c.nom || "") + (c.num || "")).toLowerCase().indexOf(filtro) !== -1;
+        });
+        if (!vis.length) {
+            div.innerHTML = '<p style="text-align:center;color:var(--rp-text-secondary);font-size:12px;margin-top:10px;">Sin clientes' + (filtro ? ' que coincidan' : '') + '.</p>';
+            return;
+        }
+        div.innerHTML = vis.map(function(c) {
+            var idx = _feClientesCache.indexOf(c);
+            var modos = _feModosDe(c);
+            var badges = modos.map(function(m) {
+                var tipo = FE_TIPOS_DOC[m] || { label: m || "N/D", color: "#94a3b8" };
+                return '<span class="fe-cli-badge" style="background:' + tipo.color + ';" title="' + tipo.label + '">' + tipo.label + '</span>';
+            }).join('');
+            var puedeLlenar = !!modoActual && modos.indexOf(modoActual) !== -1;
+            var tipoActual = modoActual ? (FE_TIPOS_DOC[modoActual] || { label: modoActual, color: "#22C55E" }) : null;
+            var tituloDeshabilitado = !modoActual
+                ? 'Abre esta acción desde una pantalla de Hacienda (Factura, CCF, FSE o Nota de Crédito)'
+                : ('Este cliente no tiene habilitado ' + tipoActual.label);
+            var btnFill = puedeLlenar
+                ? '<button onclick="_feClientesLlenar(' + idx + ')" style="background:' + tipoActual.color + ';color:#fff;border:none;border-radius:7px;padding:6px 9px;font-weight:600;font-size:11px;cursor:pointer;">Llenar</button>'
+                : '<button disabled title="' + tituloDeshabilitado + '" style="background:#cbd5e1;color:#f8fafc;border:none;border-radius:7px;padding:6px 9px;font-weight:600;font-size:11px;cursor:not-allowed;">Llenar</button>';
+            return '<div class="fe-cli-item">' +
+                '<div style="font-weight:700;font-size:12px;color:var(--rp-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + (c.nom || '') + '">' + (c.nom || '(sin nombre)') + '</div>' +
+                '<div style="font-size:10px;opacity:.7;color:var(--rp-text-secondary);margin-bottom:5px;">' + (c.tDoc || '') + ': ' + (c.num || '') + '</div>' +
+                '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:7px;">' + badges + '</div>' +
+                '<div style="display:flex;gap:6px;">' +
+                    '<button onclick="_feClientesEditar(' + idx + ')" style="background:var(--rp-surface);border:1px solid var(--rp-border-strong);color:var(--rp-text-secondary);border-radius:7px;padding:6px 9px;font-weight:600;font-size:11px;cursor:pointer;">Editar</button>' +
+                    '<button onclick="_feClientesBorrar(' + idx + ')" style="background:#EF4444;color:#fff;border:none;border-radius:7px;padding:6px 9px;font-weight:600;font-size:11px;cursor:pointer;">Borrar</button>' +
+                    btnFill +
+                '</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    function _feClientesBorrar(idx) {
+        if (!confirm('¿Borrar este cliente?')) return;
+        _feClientesCache.splice(idx, 1);
+        _feClientesPersistir(function() { _feClientesRender(); });
+    }
+
+    // ── Formulario alta/edición ─────────────────────────────────────────
+    // AGREGADO NUEVO (Corrección 01 — Registro de Clientes según Tipo de
+    // Documento): la selección múltiple de tipos de documento ya NO junta
+    // los campos de todos los tipos seleccionados en un mismo formulario.
+    // Cada chip de tipo de documento ahora funciona como una "pestaña":
+    //   - Clic en un tipo que aún NO está configurado para este cliente →
+    //     se agrega a _feModosConfigurados, se vuelve el tipo activo y sus
+    //     campos empiezan vacíos (ver _feModoActivarOAgregar).
+    //   - Clic en un tipo que YA está configurado → simplemente lo vuelve
+    //     el tipo activo y carga SUS PROPIOS datos guardados (no los de
+    //     los demás tipos configurados).
+    // AJUSTADO (Corrección 02): los chips ya NO tienen botón "×" — dejó de
+    // existir la forma de quitar/eliminar los datos de un tipo de documento
+    // desde aquí. La selección final de en qué documentos queda VÁLIDO el
+    // cliente se pregunta aparte, al presionar Guardar.
+    // Antes de cambiar de tipo activo siempre se guardan en memoria los
+    // datos que se estaban editando (_feGuardarModoActivoEnMemoria), para
+    // no perder lo digitado al pasar de uno a otro.
+    function _feActualizarVisibilidadCampos(modosConfigurados, modoActivo) {
+        // Mientras no haya ningún tipo de documento configurado, se oculta
+        // por completo el bloque de datos del cliente y se muestra
+        // únicamente el aviso "Selecciona al menos un tipo de documento…".
+        var hayModoConfigurado = modosConfigurados.length > 0;
+        var hayModoActivo = !!modoActivo;
+        var contDatos = document.getElementById('fecli_datos_cliente');
+        var msgSinTipo = document.getElementById('fecli_sin_tipo_msg');
+        var msgNingunActivo = document.getElementById('fecli_ningun_activo_msg');
+
+        // AJUSTADO (Corrección 04 — Estado del formulario al desactivar un
+        // documento): el bloque de datos (fecli_datos_cliente) ahora solo
+        // se muestra cuando hay un documento CONFIGURADO Y ACTIVO al mismo
+        // tiempo. Antes (Corrección 02) solo dependía de "configurado", así
+        // que al desactivar con doble toque el único documento activo (ver
+        // _feModoDesactivarDoble) los datos generales del cliente (nombre,
+        // dirección, etc.) quedaban visibles aunque ya no hubiera ningún
+        // documento para llenar. Con este cambio, si todos los documentos
+        // quedan desactivados, el formulario completo se oculta — tal como
+        // si no se hubiera seleccionado ningún documento.
+        if (contDatos) contDatos.classList.toggle('hidden', !hayModoConfigurado || !hayModoActivo);
+
+        // El aviso "Selecciona al menos un tipo de documento…" solo aplica
+        // cuando NO hay ningún documento configurado todavía.
+        if (msgSinTipo) msgSinTipo.classList.toggle('hidden', hayModoConfigurado);
+
+        // AJUSTADO (Corrección 04): con "un toque selecciona / dos toques
+        // desactiva" (ver _feModoActivarOAgregar y _feModoDesactivarDoble),
+        // puede haber documentos ya configurados pero ninguno activo en
+        // este momento (por ejemplo, justo después de un doble toque sobre
+        // el documento que estaba activo). En ese caso se oculta TODO el
+        // bloque de datos (ver arriba) y se muestra este aviso en su lugar,
+        // dejando claro que no hay ningún documento seleccionado para
+        // llenar.
+        if (msgNingunActivo) msgNingunActivo.classList.toggle('hidden', !hayModoConfigurado || hayModoActivo);
+
+        // Primera corrección — Crédito Fiscal: para CCF no se necesitan
+        // Tipo Doc ni Número (el cliente se identifica solo con su NIT en
+        // el campo "NIT (para Crédito Fiscal)"); para los demás tipos de
+        // documento sí se necesitan, igual que antes.
+        var necesitaTipoNum = !!modoActivo && modoActivo !== "CCF";
+        var necesitaNitCcf = modoActivo === "CCF";
+        var necesitaNrc = modoActivo === "CCF" || modoActivo === "NC" || modoActivo === "FCF";
+        var necesitaComercial = modoActivo === "CCF" || modoActivo === "NC";
+        var necesitaActividad = modoActivo === "CCF" || modoActivo === "NC" || modoActivo === "FCF";
+        var necesitaActividadFse = modoActivo === "FSE";
+        document.getElementById('fecli_cont_tipoNum').classList.toggle('hidden', !necesitaTipoNum);
+        document.getElementById('fecli_cont_nit_ccf').classList.toggle('hidden', !necesitaNitCcf);
+        document.getElementById('fecli_cont_nrc').classList.toggle('hidden', !necesitaNrc);
+        document.getElementById('fecli_cont_comercial').classList.toggle('hidden', !necesitaComercial);
+        document.getElementById('fecli_cont_actividad').classList.toggle('hidden', !necesitaActividad);
+        document.getElementById('fecli_cont_actividad_fse').classList.toggle('hidden', !necesitaActividadFse);
+    }
+
+    // AJUSTADO (Corrección 03 — Deseleccionar documentos mediante doble
+    // toque): un solo toque SIEMPRE selecciona/activa el documento (o lo
+    // agrega si aún no estaba configurado) y NUNCA lo desactiva — ni
+    // siquiera tocando dos veces el mismo botón por separado. Para
+    // desactivar un documento hay que hacer DOBLE toque/clic seguido sobre
+    // su botón (ver _feModoDesactivarDoble, enlazado por ondblclick más
+    // abajo). Los chips siguen sin botón "×".
+    function _feRenderChipsModo(modosConfigurados, modoActivo) {
+        var cont = document.getElementById('fecli_modos_chips');
+        cont.innerHTML = Object.keys(FE_TIPOS_DOC).map(function(m) {
+            var tipo = FE_TIPOS_DOC[m];
+            var configurado = modosConfigurados.indexOf(m) !== -1;
+            var activo = m === modoActivo;
+            var clases = (configurado ? ' configurado' : '') + (activo ? ' activo' : '');
+            var estilo = configurado ? 'background:' + tipo.color + ';' : '';
+            return '<div class="fe-cli-chip' + clases + '" data-modo="' + m + '" style="' + estilo + '" onclick="event.stopPropagation();_feModoActivarOAgregar(\'' + m + '\')" ondblclick="event.stopPropagation();_feModoDesactivarDoble(\'' + m + '\')">' + tipo.label + '</div>';
+        }).join('');
+        _feRenderResumenModos(modosConfigurados);
+    }
+
+    // AGREGADO NUEVO (Corrección 02 — Orden y selección de documentos):
+    // resumen informativo (sin clic, sin "×") de los tipos de documento que
+    // ya se han configurado para este cliente, mostrado debajo del bloque
+    // de datos ("Tipo(s) de Documento que aplican a este cliente"). Solo
+    // refleja lo ya configurado con los botones de arriba; no decide la
+    // validez final del cliente por documento (eso se pregunta al Guardar).
+    function _feRenderResumenModos(modosConfigurados) {
+        var cont = document.getElementById('fecli_modos_resumen');
+        if (!cont) return;
+        if (!modosConfigurados.length) {
+            cont.innerHTML = '<span style="font-size:11px;color:var(--rp-text-secondary);">Ninguno configurado todavía.</span>';
+            return;
+        }
+        cont.innerHTML = modosConfigurados.map(function(m) {
+            var tipo = FE_TIPOS_DOC[m] || { label: m, color: "#94a3b8" };
+            return '<span class="fe-cli-badge" style="background:' + tipo.color + ';font-size:10px;padding:4px 8px;">' + tipo.label + '</span>';
+        }).join('');
+    }
+
+    // Guarda en _feDatosPorModo los valores que están ahora mismo en los
+    // campos del formulario, asociados al tipo de documento activo.
+    function _feGuardarModoActivoEnMemoria() {
+        if (!_feModoActivo) return;
+        _feDatosPorModo[_feModoActivo] = {
+            tDoc: document.getElementById('fecli_tipoDoc').value,
+            num: document.getElementById('fecli_numDoc').value.trim(),
+            nitCcf: document.getElementById('fecli_nitCcf').value.trim(),
+            nrc: document.getElementById('fecli_nrc').value.trim(),
+            nomCom: document.getElementById('fecli_comercial').value.trim(),
+            act: document.getElementById('fecli_actividad').value.trim(),
+            actFse: document.getElementById('fecli_actividadFse').value.trim()
+        };
+    }
+
+    // Carga en los campos del formulario los datos guardados del tipo de
+    // documento actualmente activo (vacíos si es un tipo recién agregado).
+    function _feCargarModoActivoEnCampos() {
+        var datos = (_feModoActivo && _feDatosPorModo[_feModoActivo]) || {};
+        document.getElementById('fecli_tipoDoc').value = datos.tDoc || "";
+        document.getElementById('fecli_numDoc').value = datos.num || "";
+        document.getElementById('fecli_nitCcf').value = datos.nitCcf || "";
+        document.getElementById('fecli_nrc').value = datos.nrc || "";
+        document.getElementById('fecli_comercial').value = datos.nomCom || "";
+        document.getElementById('fecli_actividad').value = datos.act || "";
+        document.getElementById('fecli_actividadFse').value = datos.actFse || "";
+        var lbl = document.getElementById('fecli_modo_activo_nombre');
+        if (lbl) lbl.textContent = _feModoActivo ? ((FE_TIPOS_DOC[_feModoActivo] || {}).label || _feModoActivo) : '';
+    }
+
+    // AJUSTADO (Corrección 03 — Deseleccionar documentos mediante doble
+    // toque): un toque SIEMPRE selecciona/activa el documento — si ya
+    // estaba activo, tocarlo de nuevo lo deja exactamente igual (no lo
+    // desactiva; ese comportamiento de "segundo toque desactiva" de la
+    // Corrección 02 se reemplazó por el doble toque, ver
+    // _feModoDesactivarDoble). Si el documento ya estaba configurado pero
+    // no activo, un toque regresa a él y carga sus propios datos ya
+    // guardados, sin mezclarlos con los de otros documentos.
+    function _feModoActivarOAgregar(m) {
+        if (_feModoActivo === m) return; // ya es el tipo activo, un solo toque no hace nada más
+        _feGuardarModoActivoEnMemoria();
+        var yaConfigurado = _feModosConfigurados.indexOf(m) !== -1;
+        if (!yaConfigurado) {
+            _feModosConfigurados.push(m);
+            // AJUSTADO (Corrección 03): si el documento ya tenía datos
+            // guardados de una activación/desactivación anterior, se
+            // conservan (ver _feModoDesactivarDoble); solo se inicializa
+            // vacío si es la primera vez que se configura.
+            if (!_feDatosPorModo[m]) _feDatosPorModo[m] = {};
+        }
+        _feModoActivo = m;
+        _feCargarModoActivoEnCampos();
+        _feRenderChipsModo(_feModosConfigurados, _feModoActivo);
+        _feActualizarVisibilidadCampos(_feModosConfigurados, _feModoActivo);
+    }
+
+    // AGREGADO NUEVO (Corrección 03 — Deseleccionar documentos mediante
+    // doble toque): al hacer doble toque/clic sobre el botón de un
+    // documento, ese documento se desactiva — pierde su color de
+    // selección, deja de estar activo para el llenado, no se muestra
+    // ningún dato o campo correspondiente, y se elimina de "Tipo(s) de
+    // Documento que aplican a este cliente". Los datos ya digitados para
+    // ese documento se conservan en memoria (por si se vuelve a
+    // seleccionar más adelante), pero deja de contar como documento
+    // configurado/aplicable hasta que se vuelva a tocar. Los demás
+    // documentos ya seleccionados no se ven afectados.
+    function _feModoDesactivarDoble(m) {
+        var idx = _feModosConfigurados.indexOf(m);
+        if (idx === -1) return; // no estaba configurado, nada que desactivar
+        _feModosConfigurados.splice(idx, 1);
+        if (_feModoActivo === m) {
+            _feModoActivo = null;
+            _feCargarModoActivoEnCampos();
+        }
+        _feRenderChipsModo(_feModosConfigurados, _feModoActivo);
+        _feActualizarVisibilidadCampos(_feModosConfigurados, _feModoActivo);
+    }
+
+    // Deptos/municipios/distritos — reutiliza FISCALSYNC_UBICACIONES
+    // (ubicaciones.js), catálogo oficial CAT-012/013/008, sin cambios.
+    // Corrección 01 — ubicaciones.js solo trae los CÓDIGOS de departamento
+    // como claves del objeto (no sus nombres); se agrega aquí el nombre
+    // oficial de cada uno (catálogo CAT-012) únicamente para mostrarlo en
+    // el <select>, sin alterar en nada los datos de ubicaciones.js.
+    var FE_DEPARTAMENTOS_NOMBRES = {
+        "01": "AHUACHAPÁN", "02": "SANTA ANA", "03": "SONSONATE",
+        "04": "CHALATENANGO", "05": "LA LIBERTAD", "06": "SAN SALVADOR",
+        "07": "CUSCATLÁN", "08": "LA PAZ", "09": "CABAÑAS",
+        "10": "SAN VICENTE", "11": "USULUTÁN", "12": "SAN MIGUEL",
+        "13": "MORAZÁN", "14": "LA UNIÓN"
+    };
+    function _feLlenarDeptos() {
+        var sel = document.getElementById('fecli_depto');
+        if (!sel || typeof FISCALSYNC_UBICACIONES === 'undefined') return;
+        sel.innerHTML = Object.keys(FISCALSYNC_UBICACIONES).map(function(dep) {
+            var nombre = FE_DEPARTAMENTOS_NOMBRES[dep] || dep;
+            return '<option value="' + dep + '">' + dep + ' - ' + nombre + '</option>';
+        }).join('');
+    }
+    function _feActualizarMunicipios(dep, selMun, selDis) {
+        var sel = document.getElementById('fecli_municipio');
+        var data = FISCALSYNC_UBICACIONES[dep];
+        if (!sel || !data) return;
+        sel.innerHTML = data.munis.map(function(m) {
+            return '<option value="' + m.v + '"' + (m.v === selMun ? ' selected' : '') + '>' + m.t + '</option>';
+        }).join('');
+        _feActualizarDistritos(dep, sel.value, selDis);
+    }
+    function _feActualizarDistritos(dep, mun, selDis) {
+        var sel = document.getElementById('fecli_distrito');
+        var data = FISCALSYNC_UBICACIONES[dep];
+        if (!sel || !data || !data.distritos[mun]) { if (sel) sel.innerHTML = ''; return; }
+        sel.innerHTML = data.distritos[mun].map(function(d) {
+            return '<option value="' + d.v + '"' + (d.v === selDis ? ' selected' : '') + '>' + d.t + '</option>';
+        }).join('');
+    }
+
+    // Corrección 01 — Autocomplete de Actividad Económica: reutiliza el
+    // catálogo ACTIVIDADES_ECONOMICAS (actividades.js) para mostrar una
+    // lista en cascada de coincidencias mientras se escribe, igual que ya
+    // funcionaba en la extensión de Chrome retirada. Se inicializa UNA
+    // sola vez (el input y el dropdown son elementos fijos del DOM de la
+    // app, no se recrean cada vez que se abre el formulario).
+    (function _feInitActividadAutocomplete() {
+        var input = document.getElementById('fecli_actividad');
+        var dropdown = document.getElementById('fecli_actividad_dropdown');
+        if (!input || !dropdown) return;
+        var selectedIndex = -1;
+
+        function highlight(text, query) {
+            if (!query) return text;
+            var escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            return text.replace(new RegExp('(' + escaped + ')', 'gi'), '<mark>$1</mark>');
+        }
+
+        function renderDropdown(query) {
+            if (typeof ACTIVIDADES_ECONOMICAS === 'undefined') return;
+            var q = query.trim().toLowerCase();
+            var resultados = q
+                ? ACTIVIDADES_ECONOMICAS.filter(function(a) { return a.toLowerCase().indexOf(q) !== -1; }).slice(0, 80)
+                : ACTIVIDADES_ECONOMICAS.slice(0, 80);
+            if (!resultados.length) {
+                dropdown.innerHTML = '<div class="fe-cli-autocomplete-item" style="color:var(--rp-text-secondary);">Sin resultados</div>';
+            } else {
+                dropdown.innerHTML = resultados.map(function(a, i) {
+                    return '<div class="fe-cli-autocomplete-item" data-value="' + a.replace(/"/g, '&quot;') + '" data-idx="' + i + '">' + highlight(a, q) + '</div>';
+                }).join('');
+            }
+            selectedIndex = -1;
+            dropdown.classList.add('open');
+            Array.prototype.slice.call(dropdown.querySelectorAll('.fe-cli-autocomplete-item')).forEach(function(item) {
+                item.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                    input.value = item.dataset.value;
+                    dropdown.classList.remove('open');
+                });
+            });
+        }
+
+        input.addEventListener('input', function() { renderDropdown(input.value); });
+        input.addEventListener('focus', function() { renderDropdown(input.value); });
+        input.addEventListener('keydown', function(e) {
+            var items = dropdown.querySelectorAll('.fe-cli-autocomplete-item');
+            if (!items.length) return;
+            if (e.key === 'ArrowDown') { e.preventDefault(); selectedIndex = Math.min(selectedIndex + 1, items.length - 1); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); selectedIndex = Math.max(selectedIndex - 1, 0); }
+            else if (e.key === 'Enter' && selectedIndex >= 0) { e.preventDefault(); input.value = items[selectedIndex].dataset.value; dropdown.classList.remove('open'); return; }
+            else if (e.key === 'Escape') { dropdown.classList.remove('open'); return; }
+            items.forEach(function(item, i) { item.classList.toggle('selected', i === selectedIndex); });
+            if (selectedIndex >= 0) items[selectedIndex].scrollIntoView({ block: 'nearest' });
+        });
+        document.addEventListener('click', function(e) {
+            if (!input.contains(e.target) && !dropdown.contains(e.target)) dropdown.classList.remove('open');
+        });
+    })();
+
+    // AGREGADO NUEVO (Cambio 01 — Separar Registro de Clientes del Listado):
+    // el panel de Clientes ahora funciona como dos vistas independientes
+    // dentro del mismo módulo — 'lista' (Lista de Clientes) y 'form'
+    // (Registrar/Editar Cliente) — que se muestran una a la vez en vez de
+    // aparecer una debajo de la otra. Esta función centraliza ese cambio.
+    function _feClientesMostrarVista(vista) {
+        var listaSection = document.getElementById('feClientesListaSection');
+        var formSection = document.getElementById('feClientesForm');
+        var headerAcciones = document.getElementById('feClientesHeaderAcciones');
+        if (!listaSection || !formSection) return;
+        if (vista === 'form') {
+            listaSection.classList.add('hidden');
+            formSection.classList.remove('hidden');
+            if (headerAcciones) headerAcciones.classList.add('hidden');
+        } else {
+            formSection.classList.add('hidden');
+            listaSection.classList.remove('hidden');
+            if (headerAcciones) headerAcciones.classList.remove('hidden');
+        }
+    }
+
+    function _feClientesNuevo() {
+        // AGREGADO NUEVO (Corrección 04): título del bloque/tarjeta del
+        // formulario, para dejar claro que se está registrando un cliente
+        // nuevo (distinto del título al editar, ver _feClientesEditar).
+        var _feTituloForm = document.getElementById('fecli_form_titulo');
+        if (_feTituloForm) _feTituloForm.textContent = 'Registrar Cliente';
+        document.getElementById('fecli_index').value = -1;
+        _feModosConfigurados = [];
+        _feModoActivo = null;
+        _feDatosPorModo = {};
+        _feRenderChipsModo(_feModosConfigurados, _feModoActivo);
+        _feCargarModoActivoEnCampos();
+        _feActualizarVisibilidadCampos(_feModosConfigurados, _feModoActivo);
+        _feLlenarDeptos();
+        document.getElementById('fecli_nombre').value = "";
+        document.getElementById('fecli_depto').value = "06";
+        _feActualizarMunicipios("06");
+        document.getElementById('fecli_complemento').value = "";
+        document.getElementById('fecli_tel').value = "";
+        document.getElementById('fecli_correo').value = "";
+        _feClientesMostrarVista('form');
+    }
+
+    function _feClientesEditar(idx) {
+        var c = _feClientesCache[idx];
+        if (!c) return;
+        // AGREGADO NUEVO (Corrección 04): título del bloque/tarjeta del
+        // formulario cuando se está editando un cliente existente.
+        var _feTituloForm = document.getElementById('fecli_form_titulo');
+        if (_feTituloForm) _feTituloForm.textContent = 'Editar Cliente';
+        var modos = _feModosDe(c);
+
+        // AJUSTADO (Corrección 02 — Orden y selección de documentos): al
+        // editar, los botones de arriba deben poder mostrar/llenar los
+        // datos de CUALQUIER tipo de documento que el cliente ya tenga
+        // guardado en "porModo", no solo los que quedaron marcados como
+        // VÁLIDOS (c.modos) la última vez que se guardó — esos dos
+        // conceptos ya son independientes: "modos" define en qué
+        // documentos es válido el cliente; "porModo" conserva los datos
+        // digitados para cada tipo de documento que se haya llegado a
+        // configurar.
+        var modosConDatos = modos.slice();
+        if (c.porModo) {
+            Object.keys(c.porModo).forEach(function(m) {
+                if (modosConDatos.indexOf(m) === -1) modosConDatos.push(m);
+            });
+        }
+        document.getElementById('fecli_index').value = idx;
+
+        // AGREGADO NUEVO (Corrección 01): reconstruye los datos propios de
+        // cada tipo de documento habilitado para este cliente. Si ya se
+        // guardó con el formato nuevo (c.porModo) se usa tal cual; si es un
+        // cliente guardado ANTES de este cambio (con los campos "planos"
+        // compartidos entre todos sus tipos de documento), se toma ese
+        // mismo valor como punto de partida para cada tipo que tenía
+        // habilitado — desde este momento cada uno queda independiente.
+        _feModosConfigurados = modosConDatos.slice();
+        _feDatosPorModo = {};
+        modosConDatos.forEach(function(m) {
+            if (c.porModo && c.porModo[m]) {
+                _feDatosPorModo[m] = c.porModo[m];
+            } else {
+                _feDatosPorModo[m] = {
+                    tDoc: c.tDoc || "",
+                    num: c.num || "",
+                    nitCcf: c.nitCcf || (c.tDoc === "36" ? (c.num || "") : ""),
+                    nrc: c.nrc || "",
+                    nomCom: c.nomCom || "",
+                    act: c.act || "",
+                    actFse: c.actFse || ""
+                };
+            }
+        });
+        _feModoActivo = modosConDatos.length ? modosConDatos[0] : null;
+
+        _feRenderChipsModo(_feModosConfigurados, _feModoActivo);
+        _feCargarModoActivoEnCampos();
+        _feActualizarVisibilidadCampos(_feModosConfigurados, _feModoActivo);
+        _feLlenarDeptos();
+        document.getElementById('fecli_nombre').value = c.nom || "";
+        document.getElementById('fecli_depto').value = c.dep || "06";
+        _feActualizarMunicipios(c.dep || "06", c.mun, c.dis);
+        document.getElementById('fecli_complemento').value = c.com || "";
+        document.getElementById('fecli_tel').value = c.tel || "";
+        document.getElementById('fecli_correo').value = c.cor || "";
+        _feClientesMostrarVista('form');
+    }
+
+    function _feClientesCancelarForm() {
+        _feClientesMostrarVista('lista');
+    }
+
+    // AJUSTADO (Corrección 02 — Orden y selección de documentos): guardar ya
+    // no persiste el cliente de una vez. Primero se valida el formulario
+    // (nombre y que haya al menos un tipo de documento configurado con
+    // datos) y luego se abre fecliValidezModal para preguntar en qué
+    // documentos debe quedar VÁLIDO el cliente. El guardado real ocurre en
+    // _feClientesGuardarFormFinal, una vez confirmada esa selección.
+    function _feClientesGuardarForm() {
+        // Guarda en memoria lo digitado para el tipo de documento activo
+        // antes de armar el registro final del cliente.
+        _feGuardarModoActivoEnMemoria();
+        var modos = _feModosConfigurados.slice();
+        var nombre = document.getElementById('fecli_nombre').value.trim();
+        if (!nombre) { alert('El nombre es obligatorio.'); return; }
+        if (!modos.length) { alert('Selecciona al menos un tipo de documento aplicable.'); return; }
+        _feAbrirModalValidez();
+    }
+
+    // AGREGADO NUEVO (Corrección 02): puebla fecliValidezModal con un
+    // checkbox por cada tipo de documento existente (FE_TIPOS_DOC),
+    // marcado por defecto si ese tipo ya tiene datos configurados
+    // (_feModosConfigurados) — el usuario puede marcar/desmarcar libremente
+    // antes de confirmar.
+    function _feAbrirModalValidez() {
+        var cont = document.getElementById('fecliValidezOpciones');
+        if (!cont) return;
+        cont.innerHTML = Object.keys(FE_TIPOS_DOC).map(function(m) {
+            var tipo = FE_TIPOS_DOC[m];
+            var checked = _feModosConfigurados.indexOf(m) !== -1 ? ' checked' : '';
+            return '<label style="display:flex;align-items:center;gap:9px;font-size:12.5px;font-weight:600;color:var(--rp-text-primary);cursor:pointer;">' +
+                '<input type="checkbox" class="fecli-validez-check" value="' + m + '"' + checked + ' style="width:16px;height:16px;accent-color:var(--rp-indigo);cursor:pointer;">' +
+                '<span style="width:9px;height:9px;border-radius:50%;background:' + tipo.color + ';display:inline-block;flex-shrink:0;"></span>' +
+                tipo.label +
+            '</label>';
+        }).join('');
+        var modal = document.getElementById('fecliValidezModal');
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+    }
+
+    function _feValidezCancelar() {
+        var modal = document.getElementById('fecliValidezModal');
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
+
+    function _feValidezConfirmar() {
+        var checks = document.querySelectorAll('#fecliValidezOpciones .fecli-validez-check:checked');
+        var modosValidos = Array.prototype.slice.call(checks).map(function(c) { return c.value; });
+        if (!modosValidos.length) { alert('Selecciona al menos un tipo de documento en el que el cliente será válido.'); return; }
+        _feValidezCancelar();
+        _feClientesGuardarFormFinal(modosValidos);
+    }
+
+    // AJUSTADO (Corrección 02): arma y persiste el registro del cliente,
+    // usando "modosValidos" (confirmado en fecliValidezModal) para definir
+    // en qué documentos queda VÁLIDO/habilitado. Los datos propios de cada
+    // tipo de documento ("porModo") se siguen guardando para TODOS los
+    // tipos configurados en el formulario (_feModosConfigurados), se hayan
+    // marcado o no como válidos — así no se pierde nada de lo ya llenado
+    // si luego se vuelve a habilitar ese documento.
+    function _feClientesGuardarFormFinal(modosValidos) {
+        var idx = parseInt(document.getElementById('fecli_index').value, 10);
+        var nombre = document.getElementById('fecli_nombre').value.trim();
+
+        // AGREGADO NUEVO (Corrección 01): cada tipo de documento guarda sus
+        // propios datos (Tipo Doc/Número, NIT CCF, NRC, Nombre comercial,
+        // Actividad económica) de forma independiente en "porModo", sin
+        // mezclarse con los de los demás tipos de documento del mismo
+        // cliente.
+        var porModo = {};
+        _feModosConfigurados.forEach(function(m) {
+            var d = _feDatosPorModo[m] || {};
+            porModo[m] = {
+                tDoc: d.tDoc || "",
+                num: d.num || "",
+                nitCcf: d.nitCcf || "",
+                nrc: d.nrc || "",
+                nomCom: d.nomCom || "",
+                act: d.act || "",
+                actFse: d.actFse || ""
+            };
+        });
+        // Tipo de documento "principal" (CCF si está configurado y es
+        // válido, si no el primero de los válidos) — sus datos se replican
+        // también en los campos "planos" de nivel superior
+        // (tDoc/num/nitCcf/nrc/nomCom/act/actFse) para no romper la
+        // exportación/importación CSV existente, que no conoce la nueva
+        // estructura "porModo". El detalle real e independiente de cada
+        // tipo de documento vive únicamente en "porModo".
+        var modoPrincipal = modosValidos.indexOf("CCF") !== -1 ? "CCF" : modosValidos[0];
+        var dPrincipal = porModo[modoPrincipal] || {};
+        var cliente = {
+            modos: modosValidos,
+            nom: nombre,
+            tDoc: dPrincipal.tDoc,
+            num: dPrincipal.num,
+            nitCcf: dPrincipal.nitCcf,
+            nrc: dPrincipal.nrc,
+            nomCom: dPrincipal.nomCom,
+            act: dPrincipal.act,
+            actFse: dPrincipal.actFse,
+            porModo: porModo,
+            dep: document.getElementById('fecli_depto').value,
+            mun: document.getElementById('fecli_municipio').value,
+            dis: document.getElementById('fecli_distrito').value,
+            com: document.getElementById('fecli_complemento').value.trim(),
+            tel: document.getElementById('fecli_tel').value.trim(),
+            cor: document.getElementById('fecli_correo').value.trim()
+        };
+        if (idx >= 0) { _feClientesCache[idx] = cliente; } else { _feClientesCache.push(cliente); }
+        _feClientesPersistir(function() {
+            _feClientesMostrarVista('lista');
+            _feClientesRender();
+        });
+    }
+
+    // ── Importar / Exportar CSV (diálogos nativos de Electron) ──────────
+    function _feClientesImportar() {
+        var ctx = _feClientesEmpresaActual();
+        if (!ctx || !window.fiscalAPI || !window.fiscalAPI.importarClientesFE) return;
+        window.fiscalAPI.importarClientesFE(ctx.id).then(function(res) {
+            if (res && res.canceled) return;
+            if (res && res.error) { alert(res.error); return; }
+            if (res && res.ok) {
+                _feClientesCache = res.clientes || [];
+                _feClientesRender();
+                var resumen = 'Importación completada\n\n' +
+                    'Clientes procesados: ' + (res.procesados || 0) + '\n' +
+                    'Clientes nuevos: ' + (res.nuevos || 0) + '\n' +
+                    'Clientes actualizados: ' + (res.actualizados || 0) + '\n' +
+                    'Errores: ' + (res.errores || 0);
+                if (res.errores && res.detalleErrores && res.detalleErrores.length) {
+                    resumen += '\n\nFilas con problemas:\n' + res.detalleErrores.map(function(e) {
+                        return '  Fila ' + e.fila + ': ' + e.motivo;
+                    }).join('\n');
+                }
+                alert(resumen);
+            }
+        });
+    }
+
+    function _feClientesExportar() {
+        var ctx = _feClientesEmpresaActual();
+        if (!ctx || !window.fiscalAPI || !window.fiscalAPI.exportarClientesFE) return;
+        window.fiscalAPI.exportarClientesFE(ctx.id, ctx.nombre).then(function(res) {
+            if (res && res.canceled) return;
+            if (res && res.error) { alert(res.error); return; }
+            if (res && res.ok) showToast && showToast('Clientes exportados: ' + res.path, 'success');
+        });
+    }
+
+    // ── Llenado en Hacienda vía webview.executeJavaScript ───────────────
+    // IMPORTANTE: esto NO usa un preload dentro del <webview> — main.js
+    // fuerza `webPreferences.preload = undefined` en 'will-attach-webview'
+    // como candado de seguridad (el webview carga el portal real de
+    // Hacienda con la sesión del usuario) y ese candado no se toca. En su
+    // lugar se ejecuta el script DESDE AFUERA con el método nativo
+    // `<webview>.executeJavaScript()`, exactamente el mismo mecanismo que
+    // main.js ya usa (allá vía win.webContents.executeJavaScript) para
+    // otras automatizaciones sobre admin.factura.gob.sv.
+    function _feClientesLlenar(idx) {
+        var c = _feClientesCache[idx];
+        var wv = _facturacionElecActiva.webview;
+        if (!c || !wv || !wv.executeJavaScript) return;
+        var modo = _feDetectarModoPorUrlWebview();
+        if (!modo) return;
+
+        // AGREGADO NUEVO (Corrección 01): se llenan solo los datos propios
+        // del tipo de documento que está abierto ahora mismo en Hacienda
+        // (c.porModo[modo]), no una mezcla de los distintos tipos de
+        // documento que tenga configurados el cliente. Si el cliente se
+        // guardó ANTES de este cambio (sin c.porModo), se usa el propio
+        // cliente `c` como estaban antes (sus campos planos), igual que
+        // funcionaba previamente.
+        var datosModo = (c.porModo && c.porModo[modo]) ? c.porModo[modo] : c;
+        var cParaLlenar = {
+            nom: c.nom, cor: c.cor, tel: c.tel, dep: c.dep, mun: c.mun, dis: c.dis, com: c.com,
+            tDoc: datosModo.tDoc || "",
+            num: datosModo.num || "",
+            nitCcf: datosModo.nitCcf || (datosModo.tDoc === "36" ? (datosModo.num || "") : ""),
+            nrc: datosModo.nrc || "",
+            nomCom: datosModo.nomCom || "",
+            act: datosModo.act || "",
+            actFse: datosModo.actFse || ""
+        };
+
+        var datosJson = JSON.stringify({ c: cParaLlenar, modo: modo });
+
+        var fillScript = '(function(){' +
+            'var datos = ' + datosJson + ';' +
+            'var c = datos.c; var modo = datos.modo;' +
+            'var actividadParaLlenar = modo === "FSE" ? (c.actFse || c.act) : c.act;' +
+            'function find(selector) {' +
+                'var el = document.getElementById(selector) || document.querySelector("[id*=\\"" + selector + "\\"]");' +
+                'if (el) return el;' +
+                'var byControl = document.querySelectorAll("[formcontrolname=\\"" + selector + "\\"]");' +
+                'for (var i = 0; i < byControl.length; i++) {' +
+                    'var candidate = byControl[i];' +
+                    'if ((candidate.id || "").toLowerCase().indexOf("emisor") === -1) return candidate;' +
+                '}' +
+                'return null;' +
+            '}' +
+            'function set(el, val) {' +
+                'if (!el || val === undefined || val === null) return;' +
+                'var proto = Object.getPrototypeOf(el);' +
+                'var d = Object.getOwnPropertyDescriptor(proto, "value");' +
+                'var setter = d && d.set;' +
+                'if (setter) setter.call(el, val); else el.value = val;' +
+                '["input","change","blur"].forEach(function(ev){ el.dispatchEvent(new Event(ev, { bubbles: true })); });' +
+            '}' +
+            'function wait(sel) {' +
+                'return new Promise(function(r) {' +
+                    'var el = find(sel); if (el) return r(el);' +
+                    'var counter = 0;' +
+                    'var interval = setInterval(function() {' +
+                        'var target = find(sel); counter++;' +
+                        'if (target || counter > 15) { clearInterval(interval); r(target); }' +
+                    '}, 200);' +
+                '});' +
+            '}' +
+            '(async function flow(){' +
+                'if (modo === "CCF") {' +
+                    'var nitParaCcf = c.nitCcf || (c.tDoc === "36" ? c.num : "");' +
+                    'var tDoc = await wait("tipoDocumento"); if (tDoc) set(tDoc, "36");' +
+                    'var elNit = await wait("nit");' +
+                    'if (elNit && nitParaCcf) set(elNit, nitParaCcf);' +
+                '} else {' +
+                    'var tDoc2 = await wait("tipoDocumento"); if (tDoc2) set(tDoc2, c.tDoc);' +
+                    'var docField = c.tDoc === "13" ? "dui" : "nit";' +
+                    'var elDoc = await wait(docField); if (elDoc) set(elDoc, c.num);' +
+                '}' +
+                'var elNomByPlaceholder = ' +
+                    'document.querySelector(\'input[placeholder="Nombre completo del receptor"]\') || ' +
+                    'document.querySelector(\'input[placeholder="Nombre del receptor"]\') || ' +
+                    'document.querySelector(\'input[placeholder*="receptor" i][placeholder*="nombre" i]\') || ' +
+                    'document.querySelector(\'input[placeholder="Nombre completo del cliente"]\') || ' +
+                    'document.querySelector(\'input[placeholder*="cliente" i][placeholder*="nombre" i]\');' +
+                'var elNom = elNomByPlaceholder || await wait("nombre") || await wait("razonSocial");' +
+                'if (elNom) set(elNom, c.nom);' +
+                'var elCor = document.getElementById("CorreoReceptor") || find("correoReceptor") || find("correo");' +
+                'if (elCor) set(elCor, c.cor);' +
+                'var elTel = document.getElementById("TelefonoReceptor") || find("telefonoReceptor") || find("telefono");' +
+                'if (elTel) set(elTel, c.tel);' +
+                'if (c.nrc && (modo === "CCF" || modo === "NC" || modo === "FCF")) {' +
+                    'var elNrc = document.querySelector(\'[formcontrolname="nrc"]\');' +
+                    'if (elNrc) set(elNrc, c.nrc);' +
+                '}' +
+                'if (modo === "CCF" || modo === "NC") { set(find("nombreComercial"), c.nomCom); }' +
+                'if (actividadParaLlenar) {' +
+                    'if (modo === "FSE") {' +
+                        'var candidatos = ["descActividad","actividadEconomica","actividad_economica","descripcionActividad","actividadDescripcion","giro","actividadFse"];' +
+                        'var elDescAct = null;' +
+                        'for (var i = 0; i < candidatos.length; i++) {' +
+                            'elDescAct = document.getElementById(candidatos[i]) || find(candidatos[i]);' +
+                            'if (elDescAct) break;' +
+                        '}' +
+                        'if (!elDescAct) {' +
+                            'elDescAct = document.querySelector(' +
+                                '\'textarea[formcontrolname*="ctividad" i]:not([id*="emisor" i]), \' + ' +
+                                '\'input[formcontrolname*="ctividad" i]:not([id*="emisor" i]), \' + ' +
+                                '\'textarea[placeholder*="actividad" i], input[placeholder*="actividad" i]\'' +
+                            ');' +
+                        '}' +
+                        'if (elDescAct) set(elDescAct, actividadParaLlenar);' +
+                    '} else {' +
+                        'var combo = document.querySelector(\'input[role="combobox"]\');' +
+                        'if (combo) {' +
+                            'combo.focus();' +
+                            'var proto = Object.getPrototypeOf(combo);' +
+                            'var d = Object.getOwnPropertyDescriptor(proto, "value");' +
+                            'var setter = d && d.set;' +
+                            'var texto = actividadParaLlenar; var i = 0;' +
+                            'var typeChar = function() {' +
+                                'if (i <= texto.length) {' +
+                                    'var partial = texto.slice(0, i);' +
+                                    'if (setter) setter.call(combo, partial); else combo.value = partial;' +
+                                    'combo.dispatchEvent(new Event("input", { bubbles: true }));' +
+                                    'combo.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));' +
+                                    'i++;' +
+                                    'if (i <= texto.length) setTimeout(typeChar, 30);' +
+                                    'else { setTimeout(function() { var opt = document.querySelector(".ng-option, mat-option, [role=\\"option\\"]"); if (opt) opt.click(); }, 700); }' +
+                                '}' +
+                            '};' +
+                            'setTimeout(typeChar, 200);' +
+                        '}' +
+                    '}' +
+                '}' +
+                'var dep = await wait("departamento");' +
+                'if (dep) {' +
+                    'set(dep, c.dep);' +
+                    'setTimeout(async function() {' +
+                        'var mun = await wait("municipio"); if (mun) set(mun, c.mun);' +
+                        'setTimeout(async function() {' +
+                            'var dis = await wait("distrito"); if (dis) set(dis, c.dis);' +
+                        '}, 400);' +
+                        'var com = await wait("complemento") || await wait("direccion"); if (com) set(com, c.com);' +
+                    '}, 400);' +
+                '}' +
+            '})();' +
+            'return true;' +
+        '})();';
+
+        wv.executeJavaScript(fillScript, true).catch(function(e) {
+            console.warn('[Facturación Electrónica][Clientes] Error al llenar el formulario:', e);
+        });
+        _feClientesCerrarDropdown();
+    }
+
+    // ── Agregado 01 — Atajo Ctrl+B para búsqueda rápida de clientes ─────
+    // AGREGADO NUEVO: panel flotante independiente del apartado de
+    // Clientes (#feClientesDropdown), pensado como un atajo para no tener
+    // que abrir ese panel solo para buscar un cliente y usar "Rellenar".
+    // No modifica nada de #feClientesDropdown ni de las funciones que ya
+    // existían para él (_feClientesCargar, _feClientesCache,
+    // _feDetectarModoPorUrlWebview, _feClientesLlenar): las reutiliza tal
+    // cual para que el botón "Rellenar" de aquí haga EXACTAMENTE lo mismo
+    // que el botón "Rellenar" de la Lista de Clientes.
+    function _feBusquedaRapidaAbrir() {
+        // Solo tiene sentido dentro de la pantalla de Facturación
+        // Electrónica (con una empresa/webview activa); si se presiona
+        // Ctrl+B en cualquier otra pantalla de la app, no hace nada (ver
+        // el listener de "keydown" más abajo, que ya filtra por esto antes
+        // de llamar a esta función, pero se revalida aquí por seguridad).
+        var screen = document.getElementById('facturacionElectronicaScreen');
+        if (!screen || !screen.classList.contains('active')) return;
+        var panel = document.getElementById('feBusquedaRapida');
+        if (!panel) return;
+        var input = document.getElementById('feBusquedaRapidaInput');
+        if (input) input.value = "";
+        // Se cierra el panel de Clientes si estuviera abierto, para no
+        // tener dos paneles flotantes superpuestos a la vez.
+        _feClientesCerrarDropdown();
+        // Misma fuente de datos que la Lista de Clientes (_feClientesCache);
+        // se recarga por si se abrió esta búsqueda rápida sin haber entrado
+        // antes al apartado de Clientes en esta sesión.
+        _feClientesCargar();
+        // Corrección 01 (Ctrl+B): al abrir, el panel debe quedar SOLO con
+        // la barra de búsqueda — sin listar todos los clientes de una vez.
+        // La lista empieza vacía y solo se llena cuando el usuario escribe
+        // (ver _feBusquedaRapidaRender, que ahora exige texto no vacío).
+        var listaInicial = document.getElementById('feBusquedaRapidaLista');
+        if (listaInicial) listaInicial.innerHTML = '';
+        panel.classList.add('open');
+        // Corrección 02 (bug: no dejaba escribir en la barra): el <webview>
+        // de Hacienda es un WebContents aparte y retiene el foco del
+        // teclado aunque este panel se muestre encima; si no se le quita
+        // el foco explícitamente, las teclas le siguen llegando a Hacienda
+        // en vez de a "input" (mismo patrón defensivo que ya usa
+        // _ocultarFacturacionElec al cambiar de pantalla).
+        if (_facturacionElecActiva.webview && _facturacionElecActiva.webview.blur) {
+            try { _facturacionElecActiva.webview.blur(); } catch (e) {}
+        }
+        if (document.activeElement && document.activeElement.blur) {
+            try { document.activeElement.blur(); } catch (e) {}
+        }
+        setTimeout(function() { if (input) input.focus(); }, 10);
+    }
+
+    function _feBusquedaRapidaCerrar() {
+        var panel = document.getElementById('feBusquedaRapida');
+        if (panel) panel.classList.remove('open');
+    }
+
+    // Muestra únicamente nombre + botón "Rellenar" por cliente (sin Tipo
+    // Doc/Número, sin badges de documentos, sin Editar/Borrar) — a
+    // diferencia de _feClientesRender, que sí muestra toda esa información
+    // en la Lista de Clientes del apartado de Clientes (sin tocar esa
+    // función). La búsqueda es solo por nombre, tal como se pidió.
+    function _feBusquedaRapidaRender(filtro) {
+        var div = document.getElementById('feBusquedaRapidaLista');
+        if (!div) return;
+        var input = document.getElementById('feBusquedaRapidaInput');
+        filtro = (filtro !== undefined ? filtro : (input ? input.value : "")).toLowerCase();
+        // Corrección 01 (Ctrl+B): mientras no se haya escrito nada, no se
+        // muestra ningún cliente debajo de la barra (ni la lista completa
+        // ni el mensaje de "sin clientes") — la lista solo aparece a
+        // partir de la primera letra escrita.
+        if (!filtro) { div.innerHTML = ''; return; }
+        var modoActual = _feDetectarModoPorUrlWebview();
+        var vis = (_feClientesCache || []).filter(function(c) {
+            return (c.nom || "").toLowerCase().indexOf(filtro) !== -1;
+        });
+        if (!vis.length) {
+            div.innerHTML = '<p style="text-align:center;color:var(--rp-text-secondary);font-size:12px;margin:10px 0;">Sin clientes' + (filtro ? ' que coincidan' : '') + '.</p>';
+            return;
+        }
+        div.innerHTML = vis.map(function(c) {
+            var idx = _feClientesCache.indexOf(c);
+            // Mismo criterio que en _feClientesRender: el botón "Rellenar"
+            // solo se habilita si el cliente tiene configurado el tipo de
+            // documento que está abierto ahora mismo en Hacienda.
+            var modos = _feModosDe(c);
+            var puedeLlenar = !!modoActual && modos.indexOf(modoActual) !== -1;
+            var tipoActual = modoActual ? (FE_TIPOS_DOC[modoActual] || { label: modoActual, color: "#22C55E" }) : null;
+            var tituloDeshabilitado = !modoActual
+                ? 'Abre esta acción desde una pantalla de Hacienda (Factura, CCF, FSE o Nota de Crédito)'
+                : ('Este cliente no tiene habilitado ' + tipoActual.label);
+            var btnFill = puedeLlenar
+                ? '<button onclick="_feBusquedaRapidaLlenar(' + idx + ')" style="background:' + tipoActual.color + ';cursor:pointer;">Rellenar</button>'
+                : '<button disabled title="' + tituloDeshabilitado + '" style="background:#cbd5e1;cursor:not-allowed;">Rellenar</button>';
+            return '<div class="fe-bq-item">' +
+                '<span title="' + (c.nom || '') + '">' + (c.nom || '(sin nombre)') + '</span>' +
+                btnFill +
+            '</div>';
+        }).join('');
+    }
+
+    // AGREGADO NUEVO: reutiliza _feClientesLlenar EXACTAMENTE igual que el
+    // botón "Rellenar" del apartado de Clientes (misma función, mismos
+    // datos, mismo resultado sobre el formulario de Hacienda); lo único
+    // que se agrega es cerrar este panel flotante después, tal como se
+    // pidió ("Rellenar" → la barra flotante se oculta automáticamente).
+    function _feBusquedaRapidaLlenar(idx) {
+        _feClientesLlenar(idx);
+        _feBusquedaRapidaCerrar();
+    }
+
+    // Atajo de teclado Ctrl+B: abre la búsqueda rápida flotante. Se
+    // registra sobre "document" (no dentro del <webview>, que es contenido
+    // ajeno de Hacienda) y se descarta de inmediato si la pantalla de
+    // Facturación Electrónica no está activa, para no interferir con
+    // ningún otro atajo del resto de la app.
+    document.addEventListener('keydown', function(e) {
+        if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+        if ((e.key || "").toLowerCase() !== 'b') return;
+        var screen = document.getElementById('facturacionElectronicaScreen');
+        if (!screen || !screen.classList.contains('active')) return;
+        e.preventDefault();
+        var panel = document.getElementById('feBusquedaRapida');
+        if (panel && panel.classList.contains('open')) {
+            _feBusquedaRapidaCerrar();
+        } else {
+            _feBusquedaRapidaAbrir();
+        }
+    });
 
     // Contiene EXACTAMENTE la misma lógica que antes tenía ingresarEmpresa()
     // — solo se le agregó el parámetro idPantallaOrigen para poder llegar

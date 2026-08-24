@@ -127,7 +127,34 @@ contextBridge.exposeInMainWorld('fiscalAPI', {
     // cb(info) — info: { ok, state, ext, path } — se dispara cuando main.js
     // termina de guardar un JSON o PDF de Facturación Electrónica en su
     // carpeta correspondiente (ver evento 'fe-descarga-completada' en main.js)
-    onFacturacionDescarga: (callback) => ipcRenderer.on('fe-descarga-completada', (event, data) => callback(data))
+    onFacturacionDescarga: (callback) => ipcRenderer.on('fe-descarga-completada', (event, data) => callback(data)),
+
+    // AGREGADO NUEVO (Agregado 01 — Atajo Ctrl+B para búsqueda rápida de
+    // clientes): cb() se dispara cuando main.js detecta Ctrl+B presionado
+    // DENTRO del <webview> de Facturación Electrónica (ver
+    // contents.on('before-input-event', …) en 'did-attach-webview',
+    // dentro de main.js) — ese es el único lugar donde se puede
+    // interceptar esa tecla, ya que el foco normalmente está dentro del
+    // portal de Hacienda, un WebContents aparte del de esta ventana.
+    onAtajoBusquedaRapidaFE: (callback) => ipcRenderer.on('fe-atajo-busqueda-rapida', () => callback()),
+
+    // ── Implementación 02 — Facturación Electrónica: Clientes ──────────
+    // Lista de clientes para autocompletar los formularios del portal de
+    // Hacienda (independiente del catálogo de Clientes de Gestión/Escaneo
+    // QR). Persistida en disco, un archivo por empresa (ver main.js).
+    // Devuelve/recibe: { ok, clientes } | { error }
+    leerClientesFE: (empresaId) => ipcRenderer.invoke('fe-clientes-leer', { empresaId }),
+
+    // clientes: array completo (ya con la alta/edición/borrado aplicados)
+    guardarClientesFE: (empresaId, clientes) => ipcRenderer.invoke('fe-clientes-guardar', { empresaId, clientes }),
+
+    // Abre diálogo nativo para elegir un .csv; se agrega a lo ya existente.
+    // Devuelve { ok, clientes, agregados } | { canceled: true } | { error }
+    importarClientesFE: (empresaId) => ipcRenderer.invoke('fe-clientes-importar-csv', { empresaId }),
+
+    // Abre diálogo nativo para elegir dónde guardar el .csv exportado.
+    // Devuelve { ok, path } | { canceled: true } | { error }
+    exportarClientesFE: (empresaId, empresaNombre) => ipcRenderer.invoke('fe-clientes-exportar-csv', { empresaId, empresaNombre })
 });
 
 // ── CAMBIO 01: Escaneo de Documentos Físicos vía QR ─────────────────
