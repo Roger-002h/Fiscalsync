@@ -1333,6 +1333,183 @@ ipcMain.handle('fs-write-store', async (event, jsonStr) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════
+// Corrección 02 — Imprimir Libro Legal desde HTML aislado
+//
+// El renderer NO usa window.print() sobre la ventana principal.
+// Recibe exactamente el mismo snapshot HTML que usa save-libro-pdf,
+// lo carga en una BrowserWindow independiente y solo imprime cuando
+// Chromium confirma que el documento y la tabla están renderizados.
+//
+// No se utiliza un delay fijo como condición de renderizado.
+// La espera se basa en:
+//   1) did-finish-load
+//   2) document.readyState
+//   3) document.fonts.ready (si existe)
+//   4) dos requestAnimationFrame consecutivos
+//   5) verificación real de la tabla y de sus dimensiones
+// ══════════════════════════════════════════════════════════════════════
+ipcMain.handle('print-libro-html', async (event, { htmlContent, tipo }) => {
+  if (typeof htmlContent !== 'string' || !htmlContent.trim()) {
+    return { error: 'No se recibió contenido HTML para imprimir.' };
+  }
+
+  const tiposValidos = new Set(['compras', 'cf', 'ccf']);
+  if (!tiposValidos.has(tipo)) {
+    return { error: 'Tipo de Libro Legal no válido: ' + tipo };
+  }
+
+  const tableIds = {
+    compras: 'llComprasTable',
+    cf: 'llCfTable',
+    ccf: 'llCcfTable'
+  };
+  const expectedTableId = tableIds[tipo];
+
+  return await new Promise((resolve) => {
+    let printWin = null;
+    let settled = false;
+    let globalTimeout = null;
+
+    const settle = (result) => {
+      if (settled) return;
+      settled = true;
+      if (globalTimeout) clearTimeout(globalTimeout);
+
+      if (printWin && !printWin.isDestroyed()) {
+        try { printWin.destroy(); } catch (_) {}
+      }
+      printWin = null;
+      resolve(result);
+    };
+
+    globalTimeout = setTimeout(() => {
+      settle({ error: 'Tiempo de espera agotado al preparar el Libro Legal para impresión.' });
+    }, 60000);
+
+    try {
+      printWin = new BrowserWindow({
+        show: false,
+        width: 1400,
+        height: 1000,
+        minWidth: 800,
+        minHeight: 600,
+        backgroundColor: '#ffffff',
+        autoHideMenuBar: true,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          sandbox: true,
+          javascript: true,
+          webSecurity: true
+        }
+      });
+
+      // Cargar el MISMO documento HTML aislado que se usa para generar el PDF.
+      printWin.loadURL(
+        'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent)
+      );
+
+      printWin.webContents.once('did-fail-load', (loadEvent, errorCode, errorDescription) => {
+        settle({
+          error: 'No se pudo cargar el documento de impresión: ' +
+            (errorDescription || errorCode || 'error desconocido')
+        });
+      });
+
+      printWin.webContents.once('did-finish-load', async () => {
+        if (!printWin || printWin.isDestroyed()) return;
+
+        try {
+          // Espera basada en el estado real del documento, no en un
+          // número arbitrario de milisegundos.
+          const readiness = await printWin.webContents.executeJavaScript(
+            `(async function() {
+              if (document.readyState !== 'complete') {
+                await new Promise(function(resolve) {
+                  if (document.readyState === 'complete') {
+                    resolve();
+                    return;
+                  }
+                  window.addEventListener('load', resolve, { once: true });
+                });
+              }
+
+              if (document.fonts && document.fonts.ready) {
+                try { await document.fonts.ready; } catch (_) {}
+              }
+
+              await new Promise(function(resolve) {
+                requestAnimationFrame(function() {
+                  requestAnimationFrame(resolve);
+                });
+              });
+
+              var table = document.getElementById(${JSON.stringify(expectedTableId)});
+              if (!table) {
+                return {
+                  ok: false,
+                  error: 'La tabla ' + ${JSON.stringify(expectedTableId)} + ' no existe en el documento de impresión.'
+                };
+              }
+
+              var rect = table.getBoundingClientRect();
+              var rows = table.querySelectorAll('tr').length;
+              var textLength = (table.innerText || table.textContent || '').trim().length;
+
+              return {
+                ok: rect.width > 0 && rect.height > 0 && rows > 0 && textLength > 0,
+                width: rect.width,
+                height: rect.height,
+                rows: rows,
+                textLength: textLength
+              };
+            })()`,
+            true
+          );
+
+          if (!readiness || !readiness.ok) {
+            settle({
+              error: (readiness && readiness.error) ||
+                'El contenido del Libro Legal no terminó de renderizarse correctamente.'
+            });
+            return;
+          }
+
+          if (!printWin || printWin.isDestroyed()) return;
+
+          // Imprimir el contenido de la BrowserWindow independiente.
+          // silent:false mantiene el diálogo nativo de impresión.
+          // La orientación coincide con la configuración del Libro:
+          // CF = vertical; Compras/CCF = horizontal.
+          printWin.webContents.print(
+            {
+              silent: false,
+              printBackground: true,
+              landscape: tipo !== 'cf',
+              pageSize: 'Letter',
+              margins: { marginType: 'none' }
+            },
+            (success, reason) => {
+              if (success) {
+                settle({ ok: true });
+              } else if (reason === 'Print job canceled' || reason === 'User canceled') {
+                settle({ canceled: true });
+              } else {
+                settle({ error: reason || 'El proceso de impresión fue cancelado o falló.' });
+              }
+            }
+          );
+        } catch (err) {
+          settle({ error: err.message || 'Error preparando el contenido de impresión.' });
+        }
+      });
+    } catch (err) {
+      settle({ error: err.message || 'No se pudo crear la ventana de impresión.' });
+    }
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════
 // save-libro-pdf — Genera PDF silencioso desde HTML del libro contable
 // Recibe: { htmlContent: string, fileName: string, mes: string, empresa: string }
 // Guarda automáticamente en: [Raíz]/FiscalSync/FiscalSync [Año]/FiscalSync - [Mes]/[Empresa]/<fileName>.pdf

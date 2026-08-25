@@ -47,6 +47,11 @@ contextBridge.exposeInMainWorld('fiscalAPI', {
     // Guarda automáticamente en Escritorio/FiscalSync - [Mes]/[Empresa]/<fileName>.pdf
     saveLibroPdf: (htmlContent, fileName, mes, empresa) => ipcRenderer.invoke('save-libro-pdf', { htmlContent, fileName, mes, empresa }),
 
+    // Corrección 02 — Imprimir Libro Legal desde una BrowserWindow
+    // independiente. Recibe el mismo snapshot HTML utilizado por
+    // "Descargar PDF" y el tipo ("compras"|"cf"|"ccf").
+    printLibroHtml: (htmlContent, tipo) => ipcRenderer.invoke('print-libro-html', { htmlContent, tipo }),
+
     // ── Exportación automática organizada por mes y empresa ──────────────
     // Guarda cualquier archivo exportado (CSV, XLS, JSON, etc.) directamente en
     // Escritorio/FiscalSync - [Mes]/[Empresa]/<fileName> sin mostrar ningún diálogo.

@@ -801,6 +801,23 @@
             color: var(--rp-indigo);
         }
         #feClientesDropdown .fe-cli-export:hover { background: rgba(99,102,241,0.2); }
+        /* AJUSTADO (Cambio 01 — Actualizar clientes importados): ya no es un
+           botón con texto en la barra de Importar/Exportar/Agregar, sino un
+           botón cuadrado solo con ícono, del mismo alto que la barra de
+           búsqueda de clientes, junto a la cual quedó reubicado. */
+        #feClientesDropdown .fe-cli-update-icon-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 34px;
+            background: rgba(245,158,11,0.12);
+            border: 1px solid rgba(245,158,11,0.4);
+            border-radius: 8px;
+            color: #F59E0B;
+            cursor: pointer;
+        }
+        #feClientesDropdown .fe-cli-update-icon-btn:hover { background: rgba(245,158,11,0.2); }
         #feClientesDropdown .fe-cli-section-label {
             font-size: 9.5px;
             font-weight: 700;
@@ -1762,6 +1779,29 @@
             header button,
             .empresa-hero,
             .empresa-list-wrapper {
+                display: none !important;
+            }
+            /* CORRECCIÓN (Cambio 02): cualquier modal abierto o en proceso de
+               cierre animado en el instante en que se dispara window.print()
+               es un <div class="fixed inset-0 modal-overlay z-50 ...">, es
+               decir que cubre TODO el viewport y, al ser position:fixed,
+               también se imprime sobre cada página. Como la regla
+               "* { background:#fff !important }" de arriba lo vuelve blanco,
+               el resultado es una hoja en blanco tapando el contenido real
+               del Libro Legal. Antes solo #backupRestoreModal tenía esta
+               protección; se generaliza a la clase .modal-overlay para que
+               cubra también #firmaModalForm (el modal "¿Quién firma el
+               Libro?", que SIEMPRE está abierto justo antes de imprimir) y
+               cualquier otro modal del sistema, sin depender del timing de
+               la animación de cierre (_cerrarModalAnimado tarda 150ms en
+               fijar display:none, y ejecutarImpresion() solo espera 200ms
+               antes de llamar a window.print() — margen insuficiente en
+               equipos más lentos o con la tabla del libro muy larga). Esta
+               regla, por ser de hoja de estilos con !important, gana siempre
+               sobre cualquier display inline que el JS no haya alcanzado a
+               limpiar a tiempo. No afecta a "Descargar PDF", que no usa
+               window.print() ni depende del estado de este modal. */
+            .modal-overlay {
                 display: none !important;
             }
             #workspaceContainer {
@@ -3583,11 +3623,24 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                      de alta/edición que aparece más abajo cuando se usa. -->
                 <div class="fe-cli-lista-section" id="feClientesListaSection">
                     <div class="fe-cli-section-label">Lista de Clientes</div>
-                    <input type="text" id="feClientesBuscar" placeholder="Buscar cliente..." oninput="_feClientesRender(this.value)" style="margin-bottom:8px;">
+                    <div style="display:flex;gap:6px;margin-bottom:8px;">
+                        <input type="text" id="feClientesBuscar" placeholder="Buscar cliente..." oninput="_feClientesRender(this.value)" style="flex:1;margin:0;">
+                        <!-- AJUSTADO (Cambio 01 — Actualizar clientes importados):
+                             reubicado desde la barra de Importar/Exportar/Agregar
+                             hacia la barra de búsqueda, ahora solo con el ícono (sin
+                             texto), para recorrer todos los clientes ya registrados
+                             y aplicarles automáticamente el mismo proceso de
+                             Editar → Guardar cambios, sin tener que abrir cada uno
+                             manualmente (ver _feClientesActualizarTodos). -->
+                        <button onclick="_feClientesActualizarTodos()" title="Actualizar todos los clientes (mismo proceso que Editar y Guardar cambios, aplicado a todos)" class="fe-cli-update-icon-btn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M23 4v6h-6"/><path stroke-linecap="round" stroke-linejoin="round" d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+                        </button>
+                    </div>
 
                     <!-- Lista de clientes -->
                     <div id="feClientesLista"></div>
                 </div>
+
 
                 <!-- Formulario alta/edición (oculto por defecto).
                      AGREGADO NUEVO (Corrección 04 — Diseño del apartado de
@@ -9863,7 +9916,20 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         var necesitaComercial = modoActivo === "CCF" || modoActivo === "NC";
         var necesitaActividad = modoActivo === "CCF" || modoActivo === "NC" || modoActivo === "FCF";
         var necesitaActividadFse = modoActivo === "FSE";
-        document.getElementById('fecli_cont_tipoNum').classList.toggle('hidden', !necesitaTipoNum);
+        // Corrección 05 (parte 2) — CAUSA RAÍZ de que Tipo Doc/Número
+        // siguieran visibles al elegir Crédito Fiscal: este contenedor
+        // tiene en el HTML un style="display:flex;..." puesto directamente
+        // inline (para el layout en fila de sus dos campos). Un estilo
+        // inline siempre gana por especificidad sobre la clase CSS
+        // ".hidden{display:none}", así que aunque classList.toggle('hidden',
+        // ...) sí agregaba la clase correctamente, el display:flex inline
+        // la seguía pisando y el bloque nunca llegaba a ocultarse. Se fija
+        // el display explícitamente desde JS (que sí tiene la misma
+        // especificidad que el inline existente y lo reemplaza) además de
+        // la clase, para que ambos coincidan con el estado real.
+        var contTipoNum = document.getElementById('fecli_cont_tipoNum');
+        contTipoNum.classList.toggle('hidden', !necesitaTipoNum);
+        contTipoNum.style.display = necesitaTipoNum ? 'flex' : 'none';
         document.getElementById('fecli_cont_nit_ccf').classList.toggle('hidden', !necesitaNitCcf);
         document.getElementById('fecli_cont_nrc').classList.toggle('hidden', !necesitaNrc);
         document.getElementById('fecli_cont_comercial').classList.toggle('hidden', !necesitaComercial);
@@ -10004,7 +10070,20 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     function _feLlenarDeptos() {
         var sel = document.getElementById('fecli_depto');
         if (!sel || typeof FISCALSYNC_UBICACIONES === 'undefined') return;
-        sel.innerHTML = Object.keys(FISCALSYNC_UBICACIONES).map(function(dep) {
+        // Corrección 03 — Object.keys() no respeta el orden de escritura del
+        // objeto para claves de este tipo: motores JS reordenan primero,
+        // en orden numérico ascendente, cualquier clave que sea un "índice
+        // entero canónico" (p.ej. "10".."14", que sí coinciden con su propia
+        // representación numérica), y solo DESPUÉS agregan las demás claves
+        // en su orden original ("01".."09", que no son canónicas por el cero
+        // a la izquierda). El resultado real era 10,11,12,13,14,01,02,...,09
+        // — el desorden que se reportó. Se ordena aquí explícitamente por
+        // valor numérico para garantizar 01→14 sin depender de ese detalle
+        // del motor JS.
+        var deptos = Object.keys(FISCALSYNC_UBICACIONES).sort(function(a, b) {
+            return parseInt(a, 10) - parseInt(b, 10);
+        });
+        sel.innerHTML = deptos.map(function(dep) {
             var nombre = FE_DEPARTAMENTOS_NOMBRES[dep] || dep;
             return '<option value="' + dep + '">' + dep + ' - ' + nombre + '</option>';
         }).join('');
@@ -10274,8 +10353,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     // tipos configurados en el formulario (_feModosConfigurados), se hayan
     // marcado o no como válidos — así no se pierde nada de lo ya llenado
     // si luego se vuelve a habilitar ese documento.
-    function _feClientesGuardarFormFinal(modosValidos) {
-        var idx = parseInt(document.getElementById('fecli_index').value, 10);
+    // AGREGADO NUEVO (Cambio 01 — Actualizar clientes importados): se
+    // extrae de _feClientesGuardarFormFinal la construcción del objeto
+    // "cliente" final a partir de lo que esté AHORA MISMO cargado en el
+    // formulario (_feModosConfigurados / _feDatosPorModo y los campos
+    // comunes del DOM), sin tocar _feClientesCache ni persistir nada. Así,
+    // tanto el Guardar manual (un cliente a la vez) como el botón
+    // "Actualizar clientes importados" (todos, uno por uno, ver
+    // _feClientesActualizarTodos) ejecutan EXACTAMENTE el mismo cálculo,
+    // sin duplicar la lógica.
+    function _feConstruirClienteDesdeFormulario(modosValidos) {
         var nombre = document.getElementById('fecli_nombre').value.trim();
 
         // AGREGADO NUEVO (Corrección 01): cada tipo de documento guarda sus
@@ -10296,21 +10383,42 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 actFse: d.actFse || ""
             };
         });
-        // Tipo de documento "principal" (CCF si está configurado y es
-        // válido, si no el primero de los válidos) — sus datos se replican
-        // también en los campos "planos" de nivel superior
-        // (tDoc/num/nitCcf/nrc/nomCom/act/actFse) para no romper la
-        // exportación/importación CSV existente, que no conoce la nueva
-        // estructura "porModo". El detalle real e independiente de cada
-        // tipo de documento vive únicamente en "porModo".
-        var modoPrincipal = modosValidos.indexOf("CCF") !== -1 ? "CCF" : modosValidos[0];
+        // Tipo de documento "principal" — sus datos se replican también en
+        // los campos "planos" de nivel superior (tDoc/num/nitCcf/nrc/
+        // nomCom/act/actFse) para no romper la exportación/importación CSV
+        // existente, que no conoce la nueva estructura "porModo". El
+        // detalle real e independiente de cada tipo de documento vive
+        // únicamente en "porModo".
+        //
+        // Corrección 05 — Crédito Fiscal (CCF) se identifica solo con el
+        // NIT del campo "NIT (para Crédito Fiscal)"; NUNCA usa Tipo
+        // Doc/Número. Antes, cuando había selección múltiple de tipos de
+        // documento y CCF estaba entre los válidos, SIEMPRE se elegía como
+        // "modoPrincipal" — y como CCF no tiene Tipo Doc/Número, esos
+        // campos quedaban vacíos ("") a nivel superior, sobrescribiendo/
+        // perdiendo los que sí aplicaban y estaban llenos para los demás
+        // tipos configurados (p. ej. Consumidor Final). Ahora se prioriza
+        // como principal el primer tipo VÁLIDO que sí use Tipo Doc/Número;
+        // CCF solo se usa como principal cuando es el ÚNICO tipo válido del
+        // cliente, y en ese caso sigue sin exigir ni mostrar esos campos
+        // (ver necesitaTipoNum en _feActualizarVisibilidadCampos).
+        var modoPrincipal = modosValidos[0];
+        for (var mvi = 0; mvi < modosValidos.length; mvi++) {
+            if (modosValidos[mvi] !== "CCF") { modoPrincipal = modosValidos[mvi]; break; }
+        }
         var dPrincipal = porModo[modoPrincipal] || {};
-        var cliente = {
+        // El NIT de Crédito Fiscal se toma siempre de los propios datos de
+        // CCF (si el cliente lo tiene configurado, esté o no marcado como
+        // "modoPrincipal"), en vez de depender de cuál tipo haya quedado
+        // como principal arriba — así queda disponible igual sin afectar
+        // ni ser afectado por el Tipo Doc/Número de los demás tipos.
+        var nitCcfPrincipal = (porModo.CCF && porModo.CCF.nitCcf) || dPrincipal.nitCcf || "";
+        return {
             modos: modosValidos,
             nom: nombre,
             tDoc: dPrincipal.tDoc,
             num: dPrincipal.num,
-            nitCcf: dPrincipal.nitCcf,
+            nitCcf: nitCcfPrincipal,
             nrc: dPrincipal.nrc,
             nomCom: dPrincipal.nomCom,
             act: dPrincipal.act,
@@ -10323,10 +10431,69 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             tel: document.getElementById('fecli_tel').value.trim(),
             cor: document.getElementById('fecli_correo').value.trim()
         };
+    }
+
+    function _feClientesGuardarFormFinal(modosValidos) {
+        var idx = parseInt(document.getElementById('fecli_index').value, 10);
+        var cliente = _feConstruirClienteDesdeFormulario(modosValidos);
         if (idx >= 0) { _feClientesCache[idx] = cliente; } else { _feClientesCache.push(cliente); }
         _feClientesPersistir(function() {
             _feClientesMostrarVista('lista');
             _feClientesRender();
+        });
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Cambio 01 — Actualizar clientes importados
+    // ────────────────────────────────────────────────────────────────────
+    // Recorre TODOS los clientes ya registrados y le aplica a cada uno,
+    // automáticamente y en segundo plano, el MISMO proceso que ocurre al
+    // entrar a ese cliente, presionar "Editar" y luego "Guardar cambios":
+    // reutiliza _feClientesEditar (repuebla el formulario con los datos de
+    // ese cliente, igual que "Editar") y _feConstruirClienteDesdeFormulario
+    // (recalcula el registro final con esos mismos datos ya cargados,
+    // igual que "Guardar cambios"), cliente por cliente, sin abrir el
+    // formulario visualmente para el usuario ni pedir confirmación por
+    // cada uno. No cambia qué documentos quedan válidos ni ningún dato que
+    // el propio Editar → Guardar no cambiaría por sí mismo — solo vuelve a
+    // calcular/normalizar cada registro con la lógica ACTUAL del programa
+    // (por ejemplo, ya no arrastra el Tipo Doc/Número vacío de Crédito
+    // Fiscal sobre los demás tipos de documento, ver Corrección 05), lo
+    // cual es especialmente útil justo después de importar un catálogo de
+    // clientes desde CSV.
+    // ════════════════════════════════════════════════════════════════════
+    function _feClientesActualizarTodos() {
+        var ctx = _feClientesEmpresaActual();
+        if (!ctx) return;
+        var total = _feClientesCache.length;
+        if (!total) { fsAlert('No hay clientes registrados para actualizar.'); return; }
+
+        // Se recuerda en qué vista estaba el panel (Lista o
+        // Registrar/Editar Cliente) antes de iniciar, para dejarlo igual
+        // al terminar — el proceso repuebla el formulario internamente
+        // para cada cliente, pero eso no debe notarse como un cambio de
+        // pantalla para quien presionó el botón.
+        var formSection = document.getElementById('feClientesForm');
+        var vistaOriginal = (formSection && !formSection.classList.contains('hidden')) ? 'form' : 'lista';
+
+        for (var i = 0; i < total; i++) {
+            // "modos" (los tipos de documento en los que el cliente ya
+            // está marcado como VÁLIDO) no lo decide este proceso — se
+            // conserva tal cual estaba, exactamente igual que si el
+            // usuario editara y guardara sin tocar el toggle de "Tipo(s)
+            // de Documento que aplican a este cliente".
+            var modosValidos = _feModosDe(_feClientesCache[i]).slice();
+            _feClientesEditar(i);
+            if (!modosValidos.length) modosValidos = _feModosConfigurados.slice();
+            _feClientesCache[i] = _feConstruirClienteDesdeFormulario(modosValidos);
+        }
+
+        _feClientesMostrarVista(vistaOriginal);
+        _feClientesPersistir(function() {
+            _feClientesRender();
+            if (typeof showToast === 'function') {
+                showToast('Clientes actualizados: ' + total, 'success');
+            }
         });
     }
 
@@ -10414,15 +10581,44 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             'var datos = ' + datosJson + ';' +
             'var c = datos.c; var modo = datos.modo;' +
             'var actividadParaLlenar = modo === "FSE" ? (c.actFse || c.act) : c.act;' +
+            // Corrección 04 — CAUSA RAÍZ del campo "Distrito" vacío de forma
+            // intermitente, específicamente en Consumidor Final: find()
+            // solo excluía los campos del EMISOR en el último recurso (el
+            // fallback por [formcontrolname]), pero el primer intento —
+            // document.getElementById(selector) || document.querySelector
+            // ('[id*="' + selector + '"]') — no aplicaba ese mismo filtro.
+            // El formulario de Consumidor Final en el portal de Hacienda
+            // incluye, además del campo de distrito del receptor, uno del
+            // EMISOR cuyo id también contiene "distrito" (de solo lectura,
+            // precargado desde el certificado); ese era el que a veces
+            // encontraba primero — el orden en que el navegador devuelve
+            // los nodos del DOM no es determinístico frente a cargas
+            // asíncronas del portal, de ahí la intermitencia — y al
+            // intentar asignarle el valor, el campo real del receptor
+            // quedaba sin llenar. Ahora se descarta cualquier candidato del
+            // emisor en TODAS las rutas de búsqueda por igual, no solo en
+            // la última.
             'function find(selector) {' +
-                'var el = document.getElementById(selector) || document.querySelector("[id*=\\"" + selector + "\\"]");' +
-                'if (el) return el;' +
-                'var byControl = document.querySelectorAll("[formcontrolname=\\"" + selector + "\\"]");' +
-                'for (var i = 0; i < byControl.length; i++) {' +
-                    'var candidate = byControl[i];' +
-                    'if ((candidate.id || "").toLowerCase().indexOf("emisor") === -1) return candidate;' +
+                'function esEmisor(el) {' +
+                    'var idFc = ((el.id || "") + " " + (el.getAttribute("formcontrolname") || "")).toLowerCase();' +
+                    'return idFc.indexOf("emisor") !== -1;' +
                 '}' +
-                'return null;' +
+                'var exacto = document.getElementById(selector);' +
+                'if (exacto && !esEmisor(exacto)) return exacto;' +
+                'var porId = document.querySelectorAll("[id*=\\"" + selector + "\\"]");' +
+                'for (var i = 0; i < porId.length; i++) {' +
+                    'if (!esEmisor(porId[i])) return porId[i];' +
+                '}' +
+                'var byControl = document.querySelectorAll("[formcontrolname=\\"" + selector + "\\"]");' +
+                'for (var j = 0; j < byControl.length; j++) {' +
+                    'if (!esEmisor(byControl[j])) return byControl[j];' +
+                '}' +
+                // Último recurso: si el único candidato encontrado
+                // pertenece al emisor (formulario sin un campo de receptor
+                // separado para este selector), se devuelve igual — para
+                // no romper ningún caso en el que este filtro resulte
+                // demasiado estricto.
+                'return exacto || porId[0] || byControl[0] || null;' +
             '}' +
             'function set(el, val) {' +
                 'if (!el || val === undefined || val === null) return;' +
@@ -10440,6 +10636,36 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                         'var target = find(sel); counter++;' +
                         'if (target || counter > 15) { clearInterval(interval); r(target); }' +
                     '}, 200);' +
+                '});' +
+            '}' +
+            // Corrección 01 — CAUSA RAÍZ del campo "Distrito" vacío de forma
+            // intermitente: el <select> de municipio/distrito ya existe en
+            // el DOM desde el inicio (por eso wait() lo encontraba de
+            // inmediato), pero sus <option> las llena el portal de Hacienda
+            // de forma asíncrona (vía su propia llamada al backend) recién
+            // DESPUÉS de disparar el evento "change" del campo anterior
+            // (departamento → municipio → distrito). set() asignaba el
+            // valor con un setTimeout de 400ms fijo que no tiene relación
+            // con cuánto tarde esa carga real: a veces alcanzaba, a veces
+            // no, y si no alcanzaba, el valor no coincidía con ninguna
+            // <option> todavía cargada y el campo quedaba vacío. Se
+            // reemplaza por una espera real de las opciones del propio
+            // <select> antes de asignar su valor.
+            'function waitForOption(sel, val) {' +
+                'return new Promise(function(r) {' +
+                    'function tieneOpcion() {' +
+                        'if (!sel || !val) return true;' +
+                        'for (var i = 0; i < sel.options.length; i++) {' +
+                            'if (sel.options[i].value === val) return true;' +
+                        '}' +
+                        'return false;' +
+                    '}' +
+                    'if (tieneOpcion()) return r(true);' +
+                    'var counter = 0;' +
+                    'var interval = setInterval(function() {' +
+                        'counter++;' +
+                        'if (tieneOpcion() || counter > 20) { clearInterval(interval); r(tieneOpcion()); }' +
+                    '}, 150);' +
                 '});' +
             '}' +
             '(async function flow(){' +
@@ -10512,13 +10738,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 'var dep = await wait("departamento");' +
                 'if (dep) {' +
                     'set(dep, c.dep);' +
-                    'setTimeout(async function() {' +
-                        'var mun = await wait("municipio"); if (mun) set(mun, c.mun);' +
-                        'setTimeout(async function() {' +
-                            'var dis = await wait("distrito"); if (dis) set(dis, c.dis);' +
-                        '}, 400);' +
-                        'var com = await wait("complemento") || await wait("direccion"); if (com) set(com, c.com);' +
-                    '}, 400);' +
+                    'var mun = await wait("municipio");' +
+                    'if (mun) {' +
+                        'await waitForOption(mun, c.mun);' +
+                        'set(mun, c.mun);' +
+                        'var dis = await wait("distrito");' +
+                        'if (dis) {' +
+                            'await waitForOption(dis, c.dis);' +
+                            'set(dis, c.dis);' +
+                        '}' +
+                    '}' +
+                    'var com = await wait("complemento") || await wait("direccion"); if (com) set(com, c.com);' +
                 '}' +
             '})();' +
             'return true;' +
@@ -13095,8 +13325,29 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     }
 
     // ── Envío ──
+    // Corrección 02 — CAUSA RAÍZ de "el correo no está configurado" al
+    // enviar desde Facturación Electrónica: esta función usaba siempre
+    // activeEmpresaId, pero _entrarModoFacturacionElectronica() NUNCA
+    // asigna activeEmpresaId (esa variable es propia de Gestión — ver
+    // _entrarModoGestion). Si el usuario entraba a Facturación Electrónica
+    // sin haber entrado antes a Gestión para esa misma empresa en la
+    // sesión, activeEmpresaId quedaba en null (o apuntando a otra
+    // empresa), así que aquí no se encontraba la empresa correcta aunque
+    // sí tuviera correo configurado — de ahí el mensaje de error. Ejecutar
+    // "Probar Conexión" (que se hace desde Gestión → Correos) de casualidad
+    // dejaba activeEmpresaId ya apuntando a la empresa correcta, y por eso
+    // "arreglaba" el problema hasta la próxima vez.
+    // _correosContextoActivo() (ya usado para las claves de
+    // almacenamiento de documentos/historial) ya resuelve exactamente esto:
+    // usa la empresa de Facturación Electrónica (_facturacionElecActiva)
+    // cuando esa pantalla está activa, y activeEmpresaId en cualquier otro
+    // caso (Gestión → Correos, comportamiento igual que siempre). Se
+    // reutiliza aquí para que el envío de correos siempre encuentre la
+    // configuración de la empresa correcta, sin necesidad del Test de
+    // Conexión como paso previo.
     function _correosGetEmpresaActiva() {
-        return empresas.find(function(e) { return e.id === activeEmpresaId; });
+        var empresaId = _correosContextoActivo().empresaId;
+        return empresas.find(function(e) { return e.id === empresaId; });
     }
 
     function _correosEnviarDoc(doc, idx, onDone) {
@@ -14285,12 +14536,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             return;
         }
 
-        // ── AGREGADO NUEVO: guardar la firma para no volver a preguntarla ──
         saveFirmaConfig(nombreFirmante, cargoFirmante);
-
         closeFirmaModal();
 
-        // ── AGREGADO NUEVO: si el modal fue abierto desde "Descargar PDF", generar el PDF ──
+        // "Descargar PDF" conserva su flujo actual sin cambios.
         if (_firmaModalMode === 'pdf') {
             generarPDFLibro(currentPrintType, nombreFirmante, cargoFirmante);
             _firmaModalMode = 'print';
@@ -14304,66 +14553,125 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             'ccf':     'LIBRO DE VENTAS A CONTRIBUYENTES (CRÉDITO FISCAL)'
         };
 
-        document.getElementById('llPrintTitle').innerText = titulos[currentPrintType] || '';
-        document.getElementById('llPrintEmpresa').innerText = emp ? emp.razon : '';
-        document.getElementById('llPrintNit').innerText = emp ? 'NRC: ' + (emp.nrc || '—') : '';
-        document.getElementById('llPrintNrc').innerText = emp ? 'NIT: ' + (emp.nit || '—') : '';
-        document.getElementById('llPrintPeriodo').innerText = 'Período: ' + MONTH_NAMES[currentMonth] + ' ' + currentYear;
-        document.getElementById('llPrintHeader').style.display = 'block';
+        var tipo = currentPrintType;
+        var titulo = titulos[tipo] || '';
 
-        // ── Poblar encabezado repetido en cada página (dentro del <thead> de la tabla) ──
-        var _hdrTitulo2  = titulos[currentPrintType] || '';
-        var _hdrEmpresa2 = emp ? emp.razon : '';
-        var _hdrDatos2   = (emp ? 'NRC: ' + (emp.nrc || '—') + '   NIT: ' + (emp.nit || '—') : '') +
-                           '   Período: ' + MONTH_NAMES[currentMonth] + ' ' + currentYear;
-        var _hdrMap2 = { compras: 'llCompras', cf: 'llCf', ccf: 'llCcf' };
-        var _hdrPfx2 = _hdrMap2[currentPrintType] || '';
-        if (_hdrPfx2) {
-            var _elT2 = document.getElementById(_hdrPfx2 + 'HeaderTitle');
-            var _elE2 = document.getElementById(_hdrPfx2 + 'HeaderEmpresa');
-            var _elD2 = document.getElementById(_hdrPfx2 + 'HeaderDatos');
-            if (_elT2) _elT2.innerText = _hdrTitulo2;
-            if (_elE2) _elE2.innerText = _hdrEmpresa2;
-            if (_elD2) _elD2.innerText = _hdrDatos2;
+        // El encabezado que ya existe dentro de la tabla es el que se
+        // imprimirá. No se depende del DOM principal ni de @media print
+        // globales para la salida final.
+        var hdrMap = { compras: 'llCompras', cf: 'llCf', ccf: 'llCcf' };
+        var hdrPfx = hdrMap[tipo] || '';
+        if (hdrPfx) {
+            var hdrTitulo  = document.getElementById(hdrPfx + 'HeaderTitle');
+            var hdrEmpresa = document.getElementById(hdrPfx + 'HeaderEmpresa');
+            var hdrDatos   = document.getElementById(hdrPfx + 'HeaderDatos');
+            if (hdrTitulo)  hdrTitulo.innerText  = titulo;
+            if (hdrEmpresa) hdrEmpresa.innerText = emp ? emp.razon : '';
+            if (hdrDatos) {
+                hdrDatos.innerText =
+                    (emp ? 'NRC: ' + (emp.nrc || '—') + '   NIT: ' + (emp.nit || '—') : '') +
+                    '   Período: ' + MONTH_NAMES[currentMonth] + ' ' + currentYear;
+            }
         }
 
-        // ── Bloque de firma ──
-        // Igual que en generarPDFLibro(): se agrega como última fila del <tfoot>
-        // de la tabla para heredar la paginación nativa (sin duplicar el
-        // encabezado cuando hay espacio; con salto de página completo —
-        // encabezado incluido — cuando no lo hay).
+        // La firma y el cuadro resumen se agregan a la misma tabla que usa
+        // "Descargar PDF", por lo que ambos caminos parten del mismo HTML real.
         ['llComprasFirma','llCfFirma','llCcfFirma'].forEach(function(id) {
-            document.getElementById(id).style.display = 'none';
-            document.getElementById(id).innerHTML = '';
+            var el = document.getElementById(id);
+            if (el) {
+                el.style.display = 'none';
+                el.innerHTML = '';
+            }
         });
         clearFirmaRows();
 
-        // ── Calcular totales para resumen CCF ──
-        var incluirResumen = shouldIncludeResumen(currentPrintType);
-        var resumenHtml = incluirResumen ? buildResumenHtml(currentPrintType) : '';
-        var firmaHtml = buildFirmaContentHtml(nombreFirmante, cargoFirmante, resumenHtml, '#fff', 'var(--rp-text-secondary)', 'var(--rp-text-secondary)');
-        appendFirmaRow(currentPrintType, firmaHtml);
-        setPrintOrientation(currentPrintType);
+        var incluirResumen = shouldIncludeResumen(tipo);
+        var resumenHtml = incluirResumen ? buildResumenHtml(tipo) : '';
+        var firmaHtml = buildFirmaContentHtml(
+            nombreFirmante,
+            cargoFirmante,
+            resumenHtml,
+            '#000',
+            '#333',
+            '#555'
+        );
+        appendFirmaRow(tipo, firmaHtml);
+        setPrintOrientation(tipo);
 
-        var mainEl = document.querySelector('main');
-        var origMainStyle = mainEl.getAttribute('style') || '';
-        mainEl.style.overflow = 'visible';
-        mainEl.style.height = 'auto';
-        mainEl.style.maxHeight = 'none';
+        // ================================================================
+        // CORRECCIÓN 02 — IMPRESIÓN REAL DEL LIBRO LEGAL
+        //
+        // Ya NO se utiliza window.print() sobre la ventana principal.
+        // Se construye exactamente el mismo snapshot HTML que funciona
+        // correctamente en "Descargar PDF" y se envía al proceso principal.
+        // main.js crea una BrowserWindow de impresión independiente y
+        // ejecuta webContents.print() sobre ese documento aislado.
+        // ================================================================
+        var tableEl = document.getElementById(LL_TABLE_IDS[tipo]);
+        if (!tableEl) {
+            clearFirmaRows();
+            showToast('No se encontró la tabla del Libro Legal seleccionado.', 'error');
+            return;
+        }
 
-        setTimeout(function() {
-            window.print();
-            setTimeout(function() {
-                document.getElementById('llPrintHeader').style.display = 'none';
-                clearFirmaRows();
-                if (origMainStyle) {
-                    mainEl.setAttribute('style', origMainStyle);
+        var pcfg = getPrintConfigFor(tipo);
+        var colWidths = pceColWidthsCss(tipo);
+        var orientacion = getLlOrientacion(tipo);
+
+        // MISMO CSS base que usa generarPDFLibro().
+        // Esto evita depender de las reglas @media print de la aplicación
+        // principal, incluyendo .modal-overlay, #workspaceContainer, etc.
+        var htmlSnapshot =
+            '<!DOCTYPE html>' +
+            '<html lang="es">' +
+            '<head>' +
+            '<meta charset="UTF-8">' +
+            '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+            '<style>' +
+            pceLibroPrintCss(pcfg, orientacion, colWidths) +
+            '</style>' +
+            '</head>' +
+            '<body>' +
+            tableEl.outerHTML +
+            '</body>' +
+            '</html>';
+
+        // La limpieza ocurre únicamente cuando el proceso de impresión
+        // independiente termina (imprimió o canceló). No se usa ningún
+        // timeout fijo para decidir cuándo limpiar el contenido.
+        var limpiar = function() {
+            clearFirmaRows();
+        };
+
+        if (window.fiscalAPI && window.fiscalAPI.printLibroHtml) {
+            window.fiscalAPI.printLibroHtml(htmlSnapshot, tipo).then(function(res) {
+                limpiar();
+
+                if (res && res.ok) {
+                    showToast('Libro enviado a impresión correctamente.', 'success');
+                } else if (res && res.canceled) {
+                    // Cancelación normal: no mostrar error.
                 } else {
-                    mainEl.removeAttribute('style');
+                    showToast(
+                        'Error al imprimir el Libro Legal: ' +
+                        (res && res.error ? res.error : 'desconocido'),
+                        'error'
+                    );
                 }
-            }, 500);
-        }, 200);
+            }).catch(function(err) {
+                limpiar();
+                console.error('[Libros Legales] Error en impresión independiente:', err);
+                showToast('Error al imprimir el Libro Legal.', 'error');
+            });
+            return;
+        }
+
+        // Fallback únicamente para navegador sin Electron. En Electron,
+        // el flujo anterior siempre debe estar disponible.
+        limpiar();
+        window.print();
     }
+
 
     // ══════════════════════════════════════════════
     // TABS
