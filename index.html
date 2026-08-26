@@ -661,6 +661,117 @@
            sobre el webview solo mientras está abierto. El webview sigue
            ocupando el 100% de #facturacionElecWebviewContainer todo el
            tiempo, sin importar si el panel está abierto o cerrado. */
+        /* AGREGADO NUEVO — Configuración de Facturación Electrónica: panel
+           #feConfigDropdown. MISMA estructura, medidas y comportamiento
+           visual que #feCorreoDropdown / #feClientesDropdown (arriba/abajo)
+           — vive en el DOM de la app, nunca dentro del <webview>. Se ubica
+           más a la izquierda (right:792px = 402px de #feCorreoDropdown +
+           380px de ancho + 10px de separación) para que los tres paneles
+           puedan convivir sin superponerse. */
+        #feConfigDropdown {
+            position: absolute;
+            top: 10px;
+            right: 792px;
+            width: 380px;
+            max-height: calc(100vh - 100px);
+            background: var(--rp-surface);
+            border: 1px solid var(--rp-border-strong);
+            border-radius: 14px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.28);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 50;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-6px) scale(0.98);
+            transition: opacity .15s ease, transform .15s ease, visibility .15s, right .15s ease;
+        }
+        #feConfigDropdown.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0) scale(1);
+        }
+        /* AGREGADO NUEVO (Cambio 03) — cuando "Correo" está cerrado y solo
+           quedan abiertos Configuración + Clientes, Configuración se corre
+           al slot que normalmente ocupa Correo (right:402px) para quedar
+           pegado a Clientes sin el hueco intermedio. Clientes NO se toca.
+           Ver _feConfigActualizarPosicion(). */
+        #feConfigDropdown.fe-cfg-shifted {
+            right: 402px;
+        }
+        #feConfigDropdown .fe-cfg-header {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--rp-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        #feConfigDropdown .fe-cfg-body {
+            padding: 12px 14px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        #feConfigDropdown .fe-cfg-item {
+            background: var(--rp-inset);
+            border: 1px solid var(--rp-border);
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        #feConfigDropdown .fe-cfg-item-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+        #feConfigDropdown .fe-cfg-item-top p {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--rp-text-primary);
+            margin: 0;
+        }
+        #feConfigDropdown .fe-cfg-toggle {
+            width: 36px;
+            height: 20px;
+            border-radius: 999px;
+            background: var(--rp-border-strong);
+            position: relative;
+            cursor: pointer;
+            transition: background .2s;
+            flex-shrink: 0;
+        }
+        #feConfigDropdown .fe-cfg-toggle .fe-cfg-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--rp-text-secondary);
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: all .2s;
+        }
+        #feConfigDropdown input,
+        #feConfigDropdown select,
+        #feConfigDropdown textarea {
+            width: 100%;
+            padding: 8px 9px;
+            margin: 4px 0 0 0;
+            border: 1px solid var(--rp-border-strong);
+            border-radius: 8px;
+            font-size: 12.5px;
+            background: var(--rp-surface);
+            color: var(--rp-text-primary);
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+        #feConfigDropdown .fe-cfg-item.disabled input,
+        #feConfigDropdown .fe-cfg-item.disabled select,
+        #feConfigDropdown .fe-cfg-item.disabled textarea {
+            opacity: .5;
+            pointer-events: none;
+        }
         #feClientesDropdown {
             position: absolute;
             top: 10px;
@@ -876,12 +987,19 @@
             opacity: 0;
             visibility: hidden;
             transform: translateY(-6px) scale(0.98);
-            transition: opacity .15s ease, transform .15s ease, visibility .15s;
+            transition: opacity .15s ease, transform .15s ease, visibility .15s, right .15s ease;
         }
         #feCorreoDropdown.open {
             opacity: 1;
             visibility: visible;
             transform: translateY(0) scale(1);
+        }
+        /* AGREGADO NUEVO (Cambio 03, Caso 2) — cuando "Clientes" está
+           cerrado, Correo se corre al slot que normalmente ocupa Clientes
+           (right:12px) para no dejar espacio vacío a su derecha. Ver
+           _feCorreoActualizarPosicion(). */
+        #feCorreoDropdown.fe-cor-shifted {
+            right: 12px;
         }
         #feCorreoDropdown .fe-cor-header {
             padding: 12px 14px;
@@ -3556,7 +3674,18 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
              primero de los dos), para que "Clientes" quede pegado
              exactamente donde estaba siempre, justo a la izquierda del
              selector de "Mes de trabajo". -->
-        <button onclick="_feCorreoToggleDropdown(event)" class="electron-no-drag" title="Correo" id="btnFeCorreo" style="display:flex;align-items:center;justify-content:center;gap:6px;height:42px;padding:0 14px;border-radius:10px;background:var(--rp-inset);border:1px solid var(--rp-border-strong);color:var(--rp-text-secondary);cursor:pointer;flex-shrink:0;font-size:12px;font-weight:600;margin-left:auto;">
+        <!-- AGREGADO NUEVO — Configuración de Facturación Electrónica: botón
+             INMEDIATAMENTE A LA IZQUIERDA de "Correo" (mismo patrón visual
+             que los botones "Correo"/"Clientes" de al lado). El
+             margin-left:auto que empuja este grupo de botones hacia la
+             derecha se movió a este botón (el primero del grupo ahora),
+             para que "Correo" y "Clientes" queden exactamente donde
+             estaban. No modifica esos botones ni su comportamiento. -->
+        <button onclick="_feConfigToggleDropdown(event)" class="electron-no-drag" title="Configuración" id="btnFeConfig" style="display:flex;align-items:center;justify-content:center;gap:6px;height:42px;padding:0 14px;border-radius:10px;background:var(--rp-inset);border:1px solid var(--rp-border-strong);color:var(--rp-text-secondary);cursor:pointer;flex-shrink:0;font-size:12px;font-weight:600;margin-left:auto;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09A1.65 1.65 0 0015 4.6a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+            Configuración
+        </button>
+        <button onclick="_feCorreoToggleDropdown(event)" class="electron-no-drag" title="Correo" id="btnFeCorreo" style="display:flex;align-items:center;justify-content:center;gap:6px;height:42px;padding:0 14px;border-radius:10px;background:var(--rp-inset);border:1px solid var(--rp-border-strong);color:var(--rp-text-secondary);cursor:pointer;flex-shrink:0;font-size:12px;font-weight:600;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path stroke-linecap="round" stroke-linejoin="round" d="M22 6l-10 7L2 6"/></svg>
             Correo
             <span id="feCorreoBadgePendientes" style="display:none;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--rp-warning);color:#1a1200;font-size:9.5px;font-weight:800;align-items:center;justify-content:center;line-height:1;"></span>
@@ -3597,6 +3726,58 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
              mientras está abierto; se cierra solo al elegir un cliente o
              al hacer clic fuera (ver _feClientesToggleDropdown /
              listener global de cierre en el bloque JS). -->
+        <!-- AGREGADO NUEVO — Configuración de Facturación Electrónica: panel
+             flotante (#feConfigDropdown), mismo patrón que #feClientesDropdown
+             de abajo (flota sobre el <webview>, nunca lo toca). Guarda
+             fecha/tipo/cantidad/producto predeterminados por empresa y los
+             aplica en el portal de Hacienda vía webview.executeJavaScript,
+             igual que el resto de automatizaciones ya existentes
+             (_instalarAutoLoginFacturacion / _instalarAutoClavePrivada). -->
+        <div id="feConfigDropdown">
+            <div class="fe-cfg-header">
+                <strong style="font-size:13px;color:var(--rp-text-primary);">Configuración</strong>
+            </div>
+            <div class="fe-cfg-body">
+                <p style="font-size:11px;color:var(--rp-text-secondary);margin:0 0 10px 0;">Valores que se aplican automáticamente al generar documentos. Actívalos o desactívalos sin perder el valor guardado.</p>
+
+                <div class="fe-cfg-item" id="feCfgItem_fecha">
+                    <div class="fe-cfg-item-top">
+                        <p>Fecha de emisión</p>
+                        <div class="fe-cfg-toggle" id="feCfgToggle_fecha" onclick="_feConfigToggleCampo('fecha')"><div class="fe-cfg-thumb"></div></div>
+                    </div>
+                    <input type="date" id="feCfgValor_fecha" onchange="_feConfigGuardar()">
+                </div>
+
+                <div class="fe-cfg-item" id="feCfgItem_tipo">
+                    <div class="fe-cfg-item-top">
+                        <p>Tipo de Producto/Servicio</p>
+                        <div class="fe-cfg-toggle" id="feCfgToggle_tipo" onclick="_feConfigToggleCampo('tipo')"><div class="fe-cfg-thumb"></div></div>
+                    </div>
+                    <select id="feCfgValor_tipo" onchange="_feConfigGuardar()">
+                        <option value="1">1 - Bien</option>
+                        <option value="2">2 - Servicio</option>
+                        <option value="3">3 - Bien y servicio</option>
+                    </select>
+                </div>
+
+                <div class="fe-cfg-item" id="feCfgItem_cantidad">
+                    <div class="fe-cfg-item-top">
+                        <p>Cantidad</p>
+                        <div class="fe-cfg-toggle" id="feCfgToggle_cantidad" onclick="_feConfigToggleCampo('cantidad')"><div class="fe-cfg-thumb"></div></div>
+                    </div>
+                    <input type="text" id="feCfgValor_cantidad" placeholder="Ej. 1" onchange="_feConfigGuardar()">
+                </div>
+
+                <div class="fe-cfg-item" id="feCfgItem_producto">
+                    <div class="fe-cfg-item-top">
+                        <p>Producto/Descripción</p>
+                        <div class="fe-cfg-toggle" id="feCfgToggle_producto" onclick="_feConfigToggleCampo('producto')"><div class="fe-cfg-thumb"></div></div>
+                    </div>
+                    <textarea id="feCfgValor_producto" rows="2" placeholder="Ej. Servicio de asesoría contable" onchange="_feConfigGuardar()"></textarea>
+                </div>
+            </div>
+        </div>
+
         <div id="feClientesDropdown">
             <div class="fe-cli-header">
                 <strong style="font-size:13px;color:var(--rp-text-primary);">Clientes</strong>
@@ -8591,11 +8772,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         dd.classList.add('open');
         _feCorreoShowTab('docs');
         _feCorreoActualizarStats();
+        _feCorreoActualizarPosicion(); // AGREGADO (Cambio 03, Caso 2)
+        _feConfigActualizarPosicion(); // AGREGADO (Cambio 03)
     }
 
     function _feCorreoCerrarDropdown() {
         var dd = document.getElementById('feCorreoDropdown');
         if (dd) dd.classList.remove('open');
+        _feConfigActualizarPosicion(); // AGREGADO (Cambio 03)
     }
 
     // Cierra el panel al hacer clic fuera de él (mismo criterio que ya
@@ -9312,6 +9496,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         }
         _mostrarPantalla('empresaScreen', 'facturacionSelectScreen');
         renderEmpresaList();
+        _restaurarBusquedaEmpresas(); // AGREGADO (Cambio 04)
         lucide.createIcons();
     }
 
@@ -9528,6 +9713,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         wv.addEventListener('dom-ready', function() {
             _instalarAutoLoginFacturacion(wv, empresaId);
             _instalarAutoClavePrivada(wv, empresaId);
+            // AGREGADO NUEVO — Configuración de Facturación Electrónica:
+            // mismo patrón que las dos líneas de arriba, se reinstala en
+            // cada dom-ready (login inicial, recarga o navegación dentro
+            // del portal) para partir siempre de la configuración vigente.
+            _instalarAutoConfigFE(wv, empresaId);
         });
 
         cont.appendChild(wv);
@@ -9734,6 +9924,247 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         }
     }
 
+    // ════════════════════════════════════════════════════════════════════
+    // AGREGADO NUEVO — Configuración de Facturación Electrónica
+    // ────────────────────────────────────────────────────────────────────
+    // Guarda fecha/tipo/cantidad/producto predeterminados, por empresa,
+    // usando fsStore (el MISMO mecanismo de almacenamiento que ya usa
+    // FiscalSync para el resto de la app — ver "CAMBIO 7 — fsStore" más
+    // arriba). No crea un sistema de almacenamiento nuevo ni toca
+    // fiscalAPI.leerClientesFE/guardarClientesFE (eso sigue siendo
+    // exclusivo de Clientes). Reutiliza _feClientesEmpresaActual() ya
+    // existente para saber a qué empresa asociar la configuración.
+    //
+    // Cada campo se guarda como {activo, valor}. Desactivar un campo NO
+    // borra su valor — solo dejar de aplicarlo (ver _instalarAutoConfigFE).
+    // ════════════════════════════════════════════════════════════════════
+
+    var FE_CONFIG_CAMPOS = ['fecha', 'tipo', 'cantidad', 'producto'];
+
+    function _feConfigStorageKey(empresaId) {
+        return 'fs_feConfig_' + empresaId;
+    }
+
+    function _feConfigDefaults() {
+        return {
+            fecha:    { activo: false, valor: '' },
+            tipo:     { activo: false, valor: '1' },
+            cantidad: { activo: false, valor: '' },
+            producto: { activo: false, valor: '' }
+        };
+    }
+
+    function _feConfigLeer(empresaId) {
+        var def = _feConfigDefaults();
+        if (!empresaId) return def;
+        try {
+            var raw = fsStore.getItem(_feConfigStorageKey(empresaId));
+            if (!raw) return def;
+            var parsed = JSON.parse(raw);
+            FE_CONFIG_CAMPOS.forEach(function(c) {
+                if (!parsed[c]) parsed[c] = def[c];
+            });
+            return parsed;
+        } catch (e) {
+            return def;
+        }
+    }
+
+    function _feConfigGuardarObjeto(empresaId, cfg) {
+        if (!empresaId) return;
+        fsStore.setItem(_feConfigStorageKey(empresaId), JSON.stringify(cfg));
+    }
+
+    function _feConfigSetToggleUI(campo, on) {
+        var tog  = document.getElementById('feCfgToggle_' + campo);
+        var item = document.getElementById('feCfgItem_' + campo);
+        if (!tog) return;
+        var thumb = tog.querySelector('.fe-cfg-thumb');
+        if (on) {
+            tog.style.background = '#4f46e5';
+            if (thumb) { thumb.style.left = '18px'; thumb.style.background = '#fff'; }
+            if (item) item.classList.remove('disabled');
+        } else {
+            tog.style.background = 'var(--rp-border-strong)';
+            if (thumb) { thumb.style.left = '2px'; thumb.style.background = 'var(--rp-text-secondary)'; }
+            if (item) item.classList.add('disabled');
+        }
+    }
+
+    function _feConfigCargarUI() {
+        var ctx = _feClientesEmpresaActual();
+        var cfg = _feConfigLeer(ctx && ctx.id);
+        FE_CONFIG_CAMPOS.forEach(function(campo) {
+            var el = document.getElementById('feCfgValor_' + campo);
+            if (el) el.value = cfg[campo].valor || (campo === 'tipo' ? '1' : '');
+            _feConfigSetToggleUI(campo, !!cfg[campo].activo);
+        });
+    }
+
+    function _feConfigToggleCampo(campo) {
+        var ctx = _feClientesEmpresaActual();
+        if (!ctx) return;
+        var cfg = _feConfigLeer(ctx.id);
+        cfg[campo].activo = !cfg[campo].activo;
+        _feConfigGuardarObjeto(ctx.id, cfg);
+        _feConfigSetToggleUI(campo, cfg[campo].activo);
+        _feConfigReinstalar();
+    }
+
+    function _feConfigGuardar() {
+        var ctx = _feClientesEmpresaActual();
+        if (!ctx) return;
+        var cfg = _feConfigLeer(ctx.id);
+        FE_CONFIG_CAMPOS.forEach(function(campo) {
+            var el = document.getElementById('feCfgValor_' + campo);
+            if (el) cfg[campo].valor = el.value || '';
+        });
+        _feConfigGuardarObjeto(ctx.id, cfg);
+        _feConfigReinstalar();
+    }
+
+    // Vuelve a inyectar la configuración vigente en el <webview> activo
+    // (si lo hay), para que un cambio hecho desde el panel se refleje sin
+    // esperar a la próxima recarga/navegación del portal.
+    function _feConfigReinstalar() {
+        var ctx = _feClientesEmpresaActual();
+        var wv = _facturacionElecActiva && _facturacionElecActiva.webview;
+        if (!ctx || !wv) return;
+        _instalarAutoConfigFE(wv, ctx.id);
+    }
+
+    function _feConfigAbrirDropdown() {
+        var dd = document.getElementById('feConfigDropdown');
+        if (!dd) return;
+        _feConfigCargarUI();
+        dd.classList.add('open');
+        _feConfigActualizarPosicion();
+    }
+
+    // AGREGADO NUEVO (Cambio 03, Caso 2) — mueve Correo al slot de Clientes
+    // (right:12px) cuando Clientes está cerrado, o lo regresa a su
+    // posición original (right:402px, por CSS base) cuando Clientes está
+    // abierto. Solo actúa sobre #feCorreoDropdown; no toca Clientes.
+    function _feCorreoActualizarPosicion() {
+        var dd = document.getElementById('feCorreoDropdown');
+        if (!dd) return;
+        var clientes = document.getElementById('feClientesDropdown');
+        var clientesAbierto = !!(clientes && clientes.classList.contains('open'));
+        dd.classList.toggle('fe-cor-shifted', !clientesAbierto);
+    }
+
+    // AJUSTADO — Configuración se corre a right:402px salvo cuando Correo Y
+    // Clientes están AMBOS abiertos (los tres módulos completos): eso
+    // cubre Configuración sola, Configuración+Correo y Configuración+
+    // Clientes, en los tres casos pegada al módulo vecino (o al slot de
+    // Correo si no hay ningún otro abierto). Solo con los tres abiertos
+    // permanece en su posición original (right:792px, por CSS base).
+    function _feConfigActualizarPosicion() {
+        var dd = document.getElementById('feConfigDropdown');
+        if (!dd) return;
+        var correo = document.getElementById('feCorreoDropdown');
+        var clientes = document.getElementById('feClientesDropdown');
+        var correoAbierto = !!(correo && correo.classList.contains('open'));
+        var clientesAbierto = !!(clientes && clientes.classList.contains('open'));
+        dd.classList.toggle('fe-cfg-shifted', !(correoAbierto && clientesAbierto));
+    }
+
+    function _feConfigCerrarDropdown() {
+        var dd = document.getElementById('feConfigDropdown');
+        if (dd) dd.classList.remove('open');
+    }
+
+    function _feConfigToggleDropdown(ev) {
+        if (ev) ev.stopPropagation();
+        var dd = document.getElementById('feConfigDropdown');
+        if (!dd) return;
+        if (dd.classList.contains('open')) {
+            _feConfigCerrarDropdown();
+        } else {
+            _feConfigAbrirDropdown();
+        }
+    }
+
+    // Cierra el panel de Configuración al hacer clic fuera de él (mismo
+    // patrón que el listener de #feClientesDropdown, justo abajo).
+    document.addEventListener('click', function(e) {
+        var dd = document.getElementById('feConfigDropdown');
+        var btn = document.getElementById('btnFeConfig');
+        if (!dd || !dd.classList.contains('open')) return;
+        if (dd.contains(e.target) || (btn && btn.contains(e.target))) return;
+        _feConfigCerrarDropdown();
+    });
+
+    // ── Aplicación en el portal de Hacienda (webview.executeJavaScript) ──
+    // Mismo mecanismo que _instalarAutoLoginFacturacion/_instalarAutoClavePrivada
+    // (arriba): nunca toca el <webview> por dentro salvo con executeJavaScript,
+    // no hace click ni selecciona nada por el usuario, y solo coloca un valor
+    // en un campo la primera vez que ese campo concreto aparece (dataset
+    // fsAutoLlenado), por lo que si el usuario edita el campo después, esta
+    // rutina no vuelve a pisar lo que el usuario escribió.
+    //
+    // - fecEmi: se coloca automáticamente al aparecer el campo de fecha del
+    //   documento (Regla 5). NO se auto-selecciona "Agregar Detalle" ni
+    //   "Producto o Servicio" (Regla 6) — tipo/cantidad/producto solo se
+    //   colocan cuando esos campos ya existen en el DOM, es decir, después
+    //   de que el usuario los haya abierto manualmente (Reglas 7-10).
+    function _instalarAutoConfigFE(wv, empresaId) {
+        var cfg = _feConfigLeer(empresaId);
+        var script = '(function(){\n' +
+            'var CFG = ' + JSON.stringify(cfg) + ';\n' +
+            'function setValor(input, valor){\n' +
+            '  if (!input || input.dataset.fsAutoLlenado) return;\n' +
+            '  input.dataset.fsAutoLlenado = "1";\n' +
+            '  var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;\n' +
+            '  setter.call(input, valor);\n' +
+            '  input.dispatchEvent(new Event("input", {bubbles:true}));\n' +
+            '  input.dispatchEvent(new Event("change", {bubbles:true}));\n' +
+            '}\n' +
+            'function setTextarea(el, valor){\n' +
+            '  if (!el || el.dataset.fsAutoLlenado) return;\n' +
+            '  el.dataset.fsAutoLlenado = "1";\n' +
+            '  var setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;\n' +
+            '  setter.call(el, valor);\n' +
+            '  el.dispatchEvent(new Event("input", {bubbles:true}));\n' +
+            '  el.dispatchEvent(new Event("change", {bubbles:true}));\n' +
+            '}\n' +
+            'function setSelect(el, valor){\n' +
+            '  if (!el || el.dataset.fsAutoLlenado) return;\n' +
+            '  el.dataset.fsAutoLlenado = "1";\n' +
+            '  var setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value").set;\n' +
+            '  setter.call(el, valor);\n' +
+            '  el.dispatchEvent(new Event("change", {bubbles:true}));\n' +
+            '  el.dispatchEvent(new Event("input", {bubbles:true}));\n' +
+            '}\n' +
+            'function buscar(){\n' +
+            '  if (CFG.fecha && CFG.fecha.activo && CFG.fecha.valor) {\n' +
+            '    var f = document.getElementById("fecEmi");\n' +
+            '    if (f) setValor(f, CFG.fecha.valor);\n' +
+            '  }\n' +
+            '  if (CFG.tipo && CFG.tipo.activo && CFG.tipo.valor) {\n' +
+            '    var t = document.querySelector(\'select[formcontrolname="tipo"]\');\n' +
+            '    if (t) setSelect(t, CFG.tipo.valor);\n' +
+            '  }\n' +
+            '  if (CFG.cantidad && CFG.cantidad.activo && CFG.cantidad.valor) {\n' +
+            '    var c = document.getElementById("inputCantidad");\n' +
+            '    if (c) setValor(c, CFG.cantidad.valor);\n' +
+            '  }\n' +
+            '  if (CFG.producto && CFG.producto.activo && CFG.producto.valor) {\n' +
+            '    var p = document.querySelector(\'input[formcontrolname="producto"], textarea[formcontrolname="producto"]\');\n' +
+            '    if (p) { if (p.tagName === "TEXTAREA") setTextarea(p, CFG.producto.valor); else setValor(p, CFG.producto.valor); }\n' +
+            '  }\n' +
+            '}\n' +
+            'if (window.__fsConfigFEObserver) { window.__fsConfigFEObserver.disconnect(); }\n' +
+            'window.__fsConfigFEObserver = new MutationObserver(buscar);\n' +
+            'window.__fsConfigFEObserver.observe(document.documentElement, {childList:true, subtree:true});\n' +
+            'buscar();\n' +
+            '})();';
+
+        if (wv.executeJavaScript) {
+            wv.executeJavaScript(script).catch(function() {});
+        }
+    }
+
     function _feClientesToggleDropdown(ev) {
         if (ev) ev.stopPropagation();
         var dd = document.getElementById('feClientesDropdown');
@@ -9757,11 +10188,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         document.getElementById('feClientesBuscar').value = "";
         dd.classList.add('open');
         _feClientesCargar();
+        _feCorreoActualizarPosicion();  // AGREGADO (Cambio 03, Caso 2)
+        _feConfigActualizarPosicion();  // AGREGADO (Cambio 03, Caso 2)
     }
 
     function _feClientesCerrarDropdown() {
         var dd = document.getElementById('feClientesDropdown');
         if (dd) dd.classList.remove('open');
+        _feCorreoActualizarPosicion();  // AGREGADO (Cambio 03, Caso 2)
+        _feConfigActualizarPosicion();  // AGREGADO (Cambio 03, Caso 2)
     }
 
     // Cierra el dropdown al hacer clic fuera de él (pero no al hacer clic
@@ -10982,6 +11417,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         _mostrarPantalla('empresaScreen', 'workspaceContainer');
 
         renderEmpresaList();
+        _restaurarBusquedaEmpresas(); // AGREGADO (Cambio 04)
         lucide.createIcons();
 
         // CAMBIO — Actualización dinámica de empresa: si el módulo de
@@ -19593,6 +20029,50 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         _cerrarModalAnimado('restoreNamesModal');
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // AGREGADO (Cambio 01 — Incluir clientes de Facturación Electrónica
+    // en el Backup): este catálogo vive en disco por empresa
+    // (fiscalAPI.leerClientesFE / guardarClientesFE, ver main.js) y es
+    // completamente independiente del catálogo de Clientes de Gestión
+    // (claves 'fs_clientes_v...' de localStorage) — nunca se combinan.
+    // Estas claves con prefijo FE_CLIENTES_BACKUP_PREFIX solo se usan
+    // para transportar ese catálogo dentro del archivo de Backup/Restore.
+    // ══════════════════════════════════════════════════════════════════
+    var FE_CLIENTES_BACKUP_PREFIX = 'fs_feclientes_v' + APP_VERSION + '_emp_';
+
+    function _feClientesBackupRecolectar() {
+        // Devuelve una Promise que resuelve a { clave: arrayDeClientes }
+        // con los Clientes de Facturación Electrónica de todas las
+        // empresas, para incorporarlos al Backup completo.
+        if (!window.fiscalAPI || !window.fiscalAPI.leerClientesFE || !Array.isArray(empresas) || !empresas.length) {
+            return Promise.resolve({});
+        }
+        var out = {};
+        var promesas = empresas.map(function(emp) {
+            return window.fiscalAPI.leerClientesFE(emp.id).then(function(res) {
+                out[FE_CLIENTES_BACKUP_PREFIX + emp.id] = (res && res.ok && Array.isArray(res.clientes)) ? res.clientes : [];
+            }).catch(function() {
+                out[FE_CLIENTES_BACKUP_PREFIX + emp.id] = [];
+            });
+        });
+        return Promise.all(promesas).then(function() { return out; });
+    }
+
+    function _feClientesBackupRestaurar(data) {
+        // Recorre las claves del Backup restaurado que correspondan a
+        // Clientes de Facturación Electrónica y las guarda en su propio
+        // almacenamiento (fiscalAPI.guardarClientesFE), SIN convertirlas
+        // en Clientes de Gestión ni sobrescribir ese catálogo.
+        if (!window.fiscalAPI || !window.fiscalAPI.guardarClientesFE) return;
+        Object.keys(data).forEach(function(key) {
+            if (key.indexOf(FE_CLIENTES_BACKUP_PREFIX) === 0) {
+                var empresaId = key.substring(FE_CLIENTES_BACKUP_PREFIX.length);
+                var arr = Array.isArray(data[key]) ? data[key] : [];
+                try { window.fiscalAPI.guardarClientesFE(empresaId, arr); } catch(e) {}
+            }
+        });
+    }
+
     function renderBackupStats() {
         var statsEl = document.getElementById('brBackupStats');
         if (!statsEl) return;
@@ -19662,9 +20142,29 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             '<div class="backup-stat-card"><span class="bsc-label">Doc. Revisados</span><span class="bsc-value" style="color:var(--rp-success);">' + totalRevStates + '</span></div>' +
             '<div class="backup-stat-card"><span class="bsc-label">Anulados</span><span class="bsc-value" style="color:var(--rp-warning);">' + totalAnulados + '</span></div>' +
             '<div class="backup-stat-card"><span class="bsc-label">Proveedores</span><span class="bsc-value">' + totalProveedores + '</span></div>' +
-            '<div class="backup-stat-card"><span class="bsc-label">Clientes</span><span class="bsc-value">' + totalClientes + '</span></div>' +
+            '<div class="backup-stat-card"><span class="bsc-label">Clientes — Gestión</span><span class="bsc-value">' + totalClientes + '</span></div>' +
             '<div class="backup-stat-card"><span class="bsc-label">Empleados</span><span class="bsc-value">' + totalEmpleados + '</span></div>' +
             '<div class="backup-stat-card"><span class="bsc-label">Correos Generados</span><span class="bsc-value">' + totalCorreosDocs + '</span></div>';
+
+        // AGREGADO (Cambio 01): mostrar por separado el conteo de Clientes
+        // de Facturación Electrónica (catálogo independiente del de
+        // Gestión de arriba). Se agrega de forma asíncrona porque este
+        // catálogo vive en disco por empresa (fiscalAPI.leerClientesFE).
+        if (window.fiscalAPI && window.fiscalAPI.leerClientesFE && Array.isArray(empresas) && empresas.length) {
+            Promise.all(empresas.map(function(emp) {
+                return window.fiscalAPI.leerClientesFE(emp.id).then(function(res) {
+                    return (res && res.ok && Array.isArray(res.clientes)) ? res.clientes.length : 0;
+                }).catch(function() { return 0; });
+            })).then(function(counts) {
+                var totalClientesFE = counts.reduce(function(a, b) { return a + b; }, 0);
+                var elNow = document.getElementById('brBackupStats');
+                if (!elNow) return;
+                var feCard = document.createElement('div');
+                feCard.className = 'backup-stat-card';
+                feCard.innerHTML = '<span class="bsc-label">Clientes — Fact. Electrónica</span><span class="bsc-value">' + totalClientesFE + '</span>';
+                elNow.appendChild(feCard);
+            });
+        }
     }
 
     function generarBackup() {
@@ -19694,30 +20194,37 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             }
         }
 
-        var now = new Date();
-        var pad = function(n) { return String(n).padStart(2,'0'); };
-        var timestamp = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate()) +
-                        'T' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+        // AGREGADO (Cambio 01): incorporar al Backup completo el catálogo
+        // de Clientes de Facturación Electrónica (independiente del de
+        // Gestión, ya incluido arriba en allData).
+        _feClientesBackupRecolectar().then(function(feData) {
+            Object.keys(feData).forEach(function(k) { allData[k] = feData[k]; });
 
-        var backup = {
-            _fiscalSyncBackup: true,
-            _version: '1.0',
-            _createdAt: timestamp,
-            _empresaCount: empresas.length,
-            _userCount: loadFsUsers().length,
-            data: allData
-        };
+            var now = new Date();
+            var pad = function(n) { return String(n).padStart(2,'0'); };
+            var timestamp = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate()) +
+                            'T' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
 
-        var json = JSON.stringify(backup, null, 2);
-        var blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = url;
-        a.download = 'FiscalSync_Backup_' + now.getFullYear() + pad(now.getMonth()+1) + pad(now.getDate()) + '_' + pad(now.getHours()) + pad(now.getMinutes()) + '.json';
-        a.click();
-        setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+            var backup = {
+                _fiscalSyncBackup: true,
+                _version: '1.0',
+                _createdAt: timestamp,
+                _empresaCount: empresas.length,
+                _userCount: loadFsUsers().length,
+                data: allData
+            };
 
-        showToast('Backup descargado exitosamente', 'success');
+            var json = JSON.stringify(backup, null, 2);
+            var blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'FiscalSync_Backup_' + now.getFullYear() + pad(now.getMonth()+1) + pad(now.getDate()) + '_' + pad(now.getHours()) + pad(now.getMinutes()) + '.json';
+            a.click();
+            setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+
+            showToast('Backup descargado exitosamente', 'success');
+        });
     }
 
     function handleBackupDrop(event) {
@@ -19818,6 +20325,18 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                     }
                 });
 
+                // AGREGADO (Cambio 01): contar Clientes de Facturación
+                // Electrónica presentes en el Backup cargado (catálogo
+                // independiente de Clientes de Gestión). Un Backup antiguo
+                // que no tenga este dato simplemente cuenta 0, sin error.
+                var clientesFECount = 0;
+                Object.keys(parsed.data).forEach(function(key) {
+                    if (key.indexOf(FE_CLIENTES_BACKUP_PREFIX) === 0) {
+                        var feArr = parsed.data[key];
+                        if (Array.isArray(feArr)) clientesFECount += feArr.length;
+                    }
+                });
+
                 brPendingBackupData = parsed;
 
                 // Mostrar preview
@@ -19833,7 +20352,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                     '<div class="backup-stat-card"><span class="bsc-label">Total Registros</span><span class="bsc-value">' + recordCount + '</span></div>' +
                     '<div class="backup-stat-card"><span class="bsc-label">Doc. Revisados</span><span class="bsc-value" style="color:var(--rp-success);">' + revCount + '</span></div>' +
                     '<div class="backup-stat-card"><span class="bsc-label">Proveedores</span><span class="bsc-value">' + proveedoresCount + '</span></div>' +
-                    '<div class="backup-stat-card"><span class="bsc-label">Clientes</span><span class="bsc-value">' + clientesCount + '</span></div>' +
+                    '<div class="backup-stat-card"><span class="bsc-label">Clientes — Gestión</span><span class="bsc-value">' + clientesCount + '</span></div>' +
+                    '<div class="backup-stat-card"><span class="bsc-label">Clientes — Fact. Electrónica</span><span class="bsc-value">' + clientesFECount + '</span></div>' +
                     '<div class="backup-stat-card"><span class="bsc-label">Empleados</span><span class="bsc-value">' + empleadosCount + '</span></div>' +
                     '<div class="backup-stat-card"><span class="bsc-label">Correos Generados</span><span class="bsc-value">' + correosCount + '</span></div>';
 
@@ -19883,12 +20403,27 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                     key.startsWith('fs_empleados_v' + APP_VERSION + '_') ||
                     key.startsWith('fs_correos_docs_v' + APP_VERSION + '_') ||
                     key.startsWith('fs_correos_hist_v' + APP_VERSION + '_') ||
-                    key.startsWith('fs_correos_plant_v' + APP_VERSION + '_')
+                    key.startsWith('fs_correos_plant_v' + APP_VERSION + '_') ||
+                    // AGREGADO (Cambio 01): limpiar también el transporte de
+                    // Clientes de Facturación Electrónica antes de restaurar
+                    key.startsWith(FE_CLIENTES_BACKUP_PREFIX)
                 )) {
                     keysToRemove.push(key);
                 }
             }
             keysToRemove.forEach(function(k) { fsStore.removeItem(k); });
+
+            // AGREGADO (Cambio 01): limpiar los Clientes de Facturación
+            // Electrónica de las empresas actualmente cargadas en su
+            // propio almacenamiento (independiente del catálogo de
+            // Clientes de Gestión, que se limpia arriba sin cambios).
+            try {
+                if (window.fiscalAPI && window.fiscalAPI.guardarClientesFE && Array.isArray(empresas)) {
+                    empresas.forEach(function(emp) {
+                        try { window.fiscalAPI.guardarClientesFE(emp.id, []); } catch(e) {}
+                    });
+                }
+            } catch(feCleanErr) {}
 
             // Paso 2: Restaurar todos los datos del backup
             var restoredKeys = 0;
@@ -19900,6 +20435,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                     console.warn('No se pudo restaurar la clave: ' + key, e);
                 }
             });
+
+            // AGREGADO (Cambio 01): restaurar los Clientes de Facturación
+            // Electrónica en su propio almacenamiento (fiscalAPI.
+            // guardarClientesFE), SIN convertirlos en Clientes de Gestión
+            // ni sobrescribir ese catálogo, que ya se restauró arriba.
+            try { _feClientesBackupRestaurar(data); } catch(feRestoreErr) {
+                console.warn('No se pudieron restaurar los Clientes de Facturación Electrónica:', feRestoreErr);
+            }
 
             // Paso 2c: MIGRACIÓN DE CLAVES ANTIGUAS — renombrar claves sin versión al formato actual
             // Cubre: fs_data_emp_*, fs_revision_emp_*, fs_proveedores_emp_*, fs_resSeries_emp_*
@@ -23768,13 +24311,32 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     // ══════════════════════════════════════════════════════════════════
     // FILTRAR EMPRESAS EN PANTALLA DE SELECCIÓN
     // ══════════════════════════════════════════════════════════════════
+    // AGREGADO NUEVO (Cambio 04) — guarda el texto de búsqueda tal como se
+    // escribió, para poder restaurarlo al volver al listado de empresas
+    // (ver _restaurarBusquedaEmpresas más abajo). No afecta ninguna otra
+    // barra de búsqueda ni ningún otro filtro.
+    var _empresaSearchQuery = '';
+
     function filtrarEmpresas() {
-        var q = (document.getElementById('empresaSearch') ? document.getElementById('empresaSearch').value.toLowerCase() : '');
+        var inputEl = document.getElementById('empresaSearch');
+        _empresaSearchQuery = inputEl ? inputEl.value : ''; // AGREGADO (Cambio 04)
+        var q = (inputEl ? inputEl.value.toLowerCase() : '');
         var rows = document.querySelectorAll('#empresaList .empresa-row');
         rows.forEach(function(row) {
             var txt = row.textContent.toLowerCase();
             row.style.display = (!q || txt.indexOf(q) !== -1) ? '' : 'none';
         });
+    }
+
+    // AGREGADO NUEVO (Cambio 04) — restaura en la barra el texto guardado
+    // por filtrarEmpresas() y vuelve a aplicar el filtro sobre las filas
+    // recién generadas por renderEmpresaList(). Se llama únicamente en los
+    // puntos donde se regresa al listado de empresas después de haber
+    // entrado a una (volverAEmpresas / _volverAEmpresasDesdeSeleccion).
+    function _restaurarBusquedaEmpresas() {
+        var inputEl = document.getElementById('empresaSearch');
+        if (inputEl) inputEl.value = _empresaSearchQuery;
+        filtrarEmpresas();
     }
 
     // ══════════════════════════════════════════════════════════════════
