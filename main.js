@@ -1251,7 +1251,7 @@ ipcMain.handle('direct-print-to', async (event, folderPath, fileName, printerNam
 // ══════════════════════════════════════════════════════════════════════
 // send-email — Equivalente al VBA CDO/SMTP Gmail SSL 465
 // Requiere: npm install nodemailer  (en la raíz del proyecto)
-// mailOptions: { from, to, cc, bcc, subject, text, attachments:[{path}] }
+// mailOptions: { from, to, cc, bcc, subject, text, html, attachments:[{path}] }
 // smtpConfig:  { host, port, secure, auth:{ user, pass }, connectionTimeout }
 ipcMain.handle('send-email', async (event, { mailOptions, smtpConfig }) => {
   try {
@@ -1283,6 +1283,16 @@ ipcMain.handle('send-email', async (event, { mailOptions, smtpConfig }) => {
       subject: mailOptions.subject,
       text:    mailOptions.text
     };
+    // AGREGADO NUEVO — Plantilla visual "01 · Azul profesional": el
+    // renderer (index.html) ahora arma también un cuerpo HTML
+    // (mailOptions.html) además del texto plano de siempre. Antes este
+    // archivo lo descartaba porque sendOptions solo copiaba "text", así
+    // que el cliente de correo (Gmail, etc.) nunca veía el diseño, solo
+    // el texto plano. Se reenvía tal cual, sin modificar el resto de la
+    // lógica de envío (SMTP, adjuntos, cc/bcc).
+    if (mailOptions.html && String(mailOptions.html).trim()) {
+      sendOptions.html = mailOptions.html;
+    }
     if (mailOptions.cc  && String(mailOptions.cc).trim())  sendOptions.cc  = mailOptions.cc;
     if (mailOptions.bcc && String(mailOptions.bcc).trim()) sendOptions.bcc = mailOptions.bcc;
 

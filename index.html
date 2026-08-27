@@ -1354,13 +1354,13 @@
            línea de "By Roger Mejia" del sidebar, en vez de pegada al
            borde inferior de la pantalla. */
         #toast {
-            position: fixed; bottom: 66px; left: 24px; z-index: 9999;
+            position: fixed; bottom: 24px; right: 24px; left: auto; z-index: 9999;
             background: var(--rp-surface); border: 1px solid var(--rp-border-strong); border-radius: 12px;
             padding: 14px 20px; font-size: 12px; color: var(--rp-text-secondary);
             transform: translateY(80px); opacity: 0;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex; align-items: center; gap-x: 10px; gap: 10px;
-            width: fit-content; right: auto;
+            width: fit-content;
         }
         #toast.show { transform: translateY(0); opacity: 1; }
         #toast.success { border-color: #22c55e44; }
@@ -13676,6 +13676,232 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             .replace(/{{emisor}}/g,    empresaNombre || '');
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // AGREGADO NUEVO — Plantilla visual de correo "01 · Azul profesional"
+    // ══════════════════════════════════════════════════════════════════
+    // Único cambio solicitado: nueva presentación HTML del correo de envío
+    // de DTE (resumen del comprobante + sección visual de documentos
+    // adjuntos). NO reemplaza la plantilla de texto configurable
+    // (asunto/cuerpo por tipo de documento, editable en Gestión → Correos
+    // → Configurar plantillas): ese mensaje personalizado se resuelve
+    // igual que siempre (_correosResolverPlantilla) y se inserta dentro
+    // del encabezado de este diseño, además de seguir enviándose como
+    // "text" (alternativa en texto plano para clientes que no rendericen
+    // HTML). Esta función es puramente de PRESENTACIÓN: no genera datos
+    // ficticios, no toca cálculos ni adjuntos — solo compone el HTML a
+    // partir de los mismos campos de "doc" que ya usa el resto del
+    // módulo de Correos DTE. Al vivir dentro de _correosEnviarDoc (único
+    // punto de envío usado por el botón principal, el reenvío y por
+    // Gestión → Correos DTE) queda garantizado que exista una única
+    // plantilla para todos los flujos (sección 15 del pedido).
+    function _correosEscHtml(str) {
+        return String(str == null ? '' : str)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function _correosFormatearFechaEs(fechaStr) {
+        if (!fechaStr) return '';
+        var meses = ['ene.','feb.','mar.','abr.','may.','jun.','jul.','ago.','sep.','oct.','nov.','dic.'];
+        // Acepta 'YYYY-MM-DD' (formato típico de identificacion.fecEmi en el DTE)
+        var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(fechaStr);
+        if (m) {
+            var y = m[1], mo = parseInt(m[2], 10), d = parseInt(m[3], 10);
+            if (mo >= 1 && mo <= 12) return d + ' ' + meses[mo - 1] + ' ' + y;
+        }
+        return fechaStr; // Si el formato no es reconocido, se muestra tal cual (sin inventar datos)
+    }
+
+    function _correosPlantillaAzulHtml(doc, empresaNombre) {
+        var C = {
+            dark:       '#12305D',
+            accent:     '#55A8FF',
+            accentDark: '#176BB7',
+            soft:       '#EAF4FF',
+            border:     '#CFE3F6',
+            note:       '#F1F7FD',
+            noteText:   '#7B8999',
+            footer:     '#EAF3FC',
+            footerText: '#6E8196',
+            person:     '#FBFCFD',
+            white:      '#FFFFFF'
+        };
+
+        var nombreReceptor = _correosEscHtml(doc.nombreCliente || 'Cliente');
+        var numDoc         = _correosEscHtml(doc.numDoc || '');
+        var tipoDoc        = _correosEscHtml(doc.tipo || 'Documento Tributario Electrónico');
+        var fecha          = _correosEscHtml(_correosFormatearFechaEs(doc.fecha));
+        var nit            = _correosEscHtml(doc.nitCliente || '—');
+        var emisor         = _correosEscHtml(empresaNombre || '');
+        var monto          = parseFloat(doc.monto || 0).toFixed(2);
+        // Saludo fijo del diseño aprobado (no el mensaje configurable
+        // completo): esos mismos datos ya se muestran abajo en la tarjeta
+        // del comprobante y en "Información del comprobante", así que
+        // repetirlos aquí solo generaba un párrafo largo y redundante.
+        var mensaje        = 'Hola <strong>' + nombreReceptor + '</strong>. Te enviamos la documentación de tu comprobante electrónico.';
+
+        var partesAdj = [];
+        if (doc.pdfPath)  partesAdj.push('pdf');
+        if (doc.jsonPath) partesAdj.push('json');
+
+        var docsIncluidosHtml = '';
+        if (partesAdj.indexOf('pdf') !== -1) {
+            docsIncluidosHtml += '' +
+            '<tr><td style="padding-bottom:10px;">' +
+                '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:' + C.person + ';border:1px solid ' + C.border + ';border-radius:9px;">' +
+                    '<tr>' +
+                        '<td style="width:44px;padding:12px;">' +
+                            '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="36" height="36" style="background:' + C.soft + ';border-radius:8px;">' +
+                                '<tr><td align="center" valign="middle" style="color:' + C.accentDark + ';font-size:10px;font-weight:700;font-family:Arial,sans-serif;">PDF</td></tr>' +
+                            '</table>' +
+                        '</td>' +
+                        '<td style="padding:12px 12px 12px 0;font-family:Arial,sans-serif;">' +
+                            '<div style="font-size:13px;font-weight:600;color:' + C.dark + ';">Comprobante electrónico</div>' +
+                            '<div style="font-size:12px;color:#7B8999;margin-top:2px;">Archivo PDF de respaldo</div>' +
+                        '</td>' +
+                    '</tr>' +
+                '</table>' +
+            '</td></tr>';
+        }
+        if (partesAdj.indexOf('json') !== -1) {
+            docsIncluidosHtml += '' +
+            '<tr><td>' +
+                '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:' + C.person + ';border:1px solid ' + C.border + ';border-radius:9px;">' +
+                    '<tr>' +
+                        '<td style="width:44px;padding:12px;">' +
+                            '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="36" height="36" style="background:' + C.soft + ';border-radius:8px;">' +
+                                '<tr><td align="center" valign="middle" style="color:' + C.accentDark + ';font-size:9px;font-weight:700;font-family:Arial,sans-serif;">JSON</td></tr>' +
+                            '</table>' +
+                        '</td>' +
+                        '<td style="padding:12px 12px 12px 0;font-family:Arial,sans-serif;">' +
+                            '<div style="font-size:13px;font-weight:600;color:' + C.dark + ';">Documento electrónico firmado</div>' +
+                            '<div style="font-size:12px;color:#7B8999;margin-top:2px;">Archivo JSON del DTE</div>' +
+                        '</td>' +
+                    '</tr>' +
+                '</table>' +
+            '</td></tr>';
+        }
+        if (!docsIncluidosHtml) {
+            docsIncluidosHtml = '<tr><td style="font-family:Arial,sans-serif;font-size:12px;color:#7B8999;">Sin documentos adjuntos.</td></tr>';
+        }
+
+        function infoCard(label, value) {
+            return '' +
+            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:' + C.person + ';border:1px solid ' + C.border + ';border-radius:9px;margin-bottom:10px;">' +
+                '<tr><td style="padding:12px 14px;font-family:Arial,sans-serif;">' +
+                    '<div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:' + C.accentDark + ';">' + label + '</div>' +
+                    '<div style="font-size:13.5px;font-weight:600;color:' + C.dark + ';margin-top:4px;">' + value + '</div>' +
+                '</td></tr>' +
+            '</table>';
+        }
+
+        var html = '' +
+        '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">' +
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+        '<title>FiscalSync — Comprobante electrónico</title>' +
+        '<meta name="color-scheme" content="light only">' +
+        '<meta name="supported-color-schemes" content="light only">' +
+        '<style>' +
+            'body{margin:0;padding:0;background:#F3F6FA;}' +
+            'img{border:0;}' +
+            '@media only screen and (max-width:600px){' +
+                '.fs-wrap{width:100%!important;}' +
+                '.fs-pad{padding-left:16px!important;padding-right:16px!important;}' +
+                '.fs-stack td{display:block!important;width:100%!important;}' +
+            '}' +
+        '</style>' +
+        '</head>' +
+        '<body bgcolor="#F3F6FA" style="margin:0;padding:0;background:#F3F6FA;">' +
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F3F6FA" style="background:#F3F6FA;">' +
+        '<tr><td align="center" style="padding:24px 12px;">' +
+        '<table role="presentation" class="fs-wrap" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:100%;">' +
+
+            // 1. Encabezado
+            '<tr><td class="fs-pad" style="background:' + C.dark + ';border-radius:14px 14px 0 0;padding:28px 32px;font-family:Arial,sans-serif;">' +
+                '<div style="font-size:18px;font-weight:700;color:' + C.white + ';">Fiscal<span style="color:' + C.accent + ';">Sync</span></div>' +
+                '<div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:' + C.accent + ';margin-top:18px;">Facturación electrónica</div>' +
+                '<div style="font-size:22px;font-weight:700;color:' + C.white + ';margin-top:6px;">Tu comprobante está listo</div>' +
+                '<div style="font-size:13.5px;line-height:1.6;color:#DCE9FB;margin-top:10px;">' + mensaje + '</div>' +
+            '</td></tr>' +
+
+            // 2-5. Contenedor blanco: pega directo con el header azul (sin
+            // franja de color intermedia); el espacio de 24-32px que pide
+            // el diseño se logra con padding-top, no con una fila de otro
+            // color, para que el blanco y el azul queden unidos.
+            '<tr><td class="fs-pad" style="background:' + C.white + ';padding:28px 32px 0;">' +
+
+                // 3. Tarjeta del comprobante
+                '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:' + C.white + ';border:1px solid ' + C.border + ';border-radius:13px;">' +
+                    '<tr><td style="padding:16px 18px;">' +
+                        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>' +
+                            '<td style="font-family:Arial,sans-serif;">' +
+                                '<div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:' + C.accentDark + ';">' + tipoDoc + '</div>' +
+                                '<div style="font-size:16px;font-weight:700;color:' + C.dark + ';margin-top:4px;font-family:monospace;">#' + numDoc + '</div>' +
+                            '</td>' +
+                            '<td align="right" valign="top" style="font-family:Arial,sans-serif;">' +
+                                '<span style="display:inline-block;background:' + C.soft + ';color:' + C.accentDark + ';font-size:10.5px;font-weight:700;letter-spacing:.03em;padding:5px 10px;border-radius:999px;">✓ EMITIDO</span>' +
+                            '</td>' +
+                        '</tr></table>' +
+                    '</td></tr>' +
+                    '<tr><td style="border-top:1px solid ' + C.border + ';"></td></tr>' +
+                    '<tr><td style="padding:14px 18px;">' +
+                        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="fs-stack"><tr>' +
+                            '<td style="font-family:Arial,sans-serif;">' +
+                                '<div style="font-size:10.5px;color:#8A97A8;">Fecha</div>' +
+                                '<div style="font-size:13px;font-weight:700;color:' + C.dark + ';margin-top:2px;">' + (fecha || '—') + '</div>' +
+                            '</td>' +
+                            '<td align="right" style="font-family:Arial,sans-serif;">' +
+                                '<div style="font-size:10.5px;color:#8A97A8;">Estado</div>' +
+                                '<div style="font-size:13px;font-weight:700;color:' + C.dark + ';margin-top:2px;">Documento válido</div>' +
+                            '</td>' +
+                        '</tr></table>' +
+                    '</td></tr>' +
+                '</table>' +
+
+                // 5. Total de la operación
+                '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:' + C.soft + ';border:1px solid ' + C.border + ';border-radius:11px;margin-top:14px;">' +
+                    '<tr><td style="padding:14px 18px;font-family:Arial,sans-serif;">' +
+                        '<div style="font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:' + C.accentDark + ';">Total de la operación</div>' +
+                        '<div style="font-size:22px;font-weight:700;color:' + C.dark + ';margin-top:4px;">$' + monto + ' <span style="color:' + C.accentDark + ';font-size:13px;font-weight:700;">USD</span></div>' +
+                    '</td></tr>' +
+                '</table>' +
+
+                // 6. Información del comprobante
+                '<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:' + C.dark + ';margin:22px 0 10px;font-family:Arial,sans-serif;">Información del comprobante</div>' +
+                infoCard('Emisor', emisor || '—') +
+                infoCard('Receptor', nombreReceptor) +
+                infoCard('NIT / Documento', nit) +
+                infoCard('Tipo', tipoDoc) +
+                infoCard('Estado del documento', '✓ Emitido correctamente') +
+
+                // 7. Documentos incluidos
+                '<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:' + C.dark + ';margin:12px 0 10px;font-family:Arial,sans-serif;">Documentos incluidos</div>' +
+                '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">' + docsIncluidosHtml + '</table>' +
+
+                // 9. Aviso
+                '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:' + C.note + ';border-radius:9px;margin:22px 0 24px;">' +
+                    '<tr><td style="padding:12px 16px;font-family:Arial,sans-serif;font-size:11.5px;line-height:1.6;color:' + C.noteText + ';">' +
+                        'Este correo fue generado automáticamente por FiscalSync.<br>Conserva los archivos adjuntos como respaldo de tu comprobante.' +
+                    '</td></tr>' +
+                '</table>' +
+
+            '</td></tr>' +
+
+            // 10. Footer
+            '<tr><td class="fs-pad" style="background:' + C.footer + ';border-radius:0 0 14px 14px;padding:20px 32px;font-family:Arial,sans-serif;text-align:center;">' +
+                '<div style="font-size:12.5px;font-weight:700;"><span style="color:' + C.dark + ';">FiscalSync</span> <span style="color:' + C.footerText + ';font-weight:400;">— Facturación Electrónica</span></div>' +
+                '<div style="font-size:11px;color:' + C.footerText + ';margin-top:6px;">© ' + (new Date().getFullYear()) + ' FiscalSync. Todos los derechos reservados.</div>' +
+                '<div style="font-size:10.5px;color:' + C.footerText + ';margin-top:4px;">Mensaje automático · No responder directamente a este correo.</div>' +
+            '</td></tr>' +
+
+        '</table>' +
+        '</td></tr>' +
+        '</table>' +
+        '</body></html>';
+
+        return html;
+    }
+
     // ── Config modal ──
     function openCorreosConfigModal() {
         var emp = empresas.find(function(e) { return e.id === activeEmpresaId; });
@@ -13808,6 +14034,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         if (doc.pdfPath)  attachments.push({ path: doc.pdfPath });
         if (doc.jsonPath) attachments.push({ path: doc.jsonPath });
 
+        // AGREGADO NUEVO — Plantilla visual "01 · Azul profesional"
+        // (única plantilla para envío inicial, reenvío y Gestión → Correos
+        // DTE, ya que todos pasan por esta misma función). "text" se
+        // conserva sin cambios como alternativa en texto plano (usa el
+        // mensaje configurable completo); el HTML usa el saludo corto del
+        // diseño aprobado para no repetir los mismos datos dos veces.
+        var cuerpoHtml = _correosPlantillaAzulHtml(doc, emp.razon);
+
         var mailOptions = {
             from:        emailFrom,
             to:          doc.correoCliente,
@@ -13815,6 +14049,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             bcc:         doc.correoBCC || '',
             subject:     asunto,
             text:        cuerpo,
+            html:        cuerpoHtml,
             attachments: attachments
         };
 
@@ -15137,7 +15372,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         document.getElementById('toastIcon').innerHTML = type === 'success'
             ? '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'
             : '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
-        t.className = 'fixed bottom-6 left-6 z-50 bg-[var(--rp-surface)] border border-[var(--rp-border-strong)] rounded-xl px-5 py-3 text-xs text-zinc-400 flex items-center gap-3 show ' + type;
+        t.className = 'fixed bottom-6 right-6 z-50 bg-[var(--rp-surface)] border border-[var(--rp-border-strong)] rounded-xl px-5 py-3 text-xs text-zinc-400 flex items-center gap-3 show ' + type;
         t.style.zIndex = '10000000';
         clearTimeout(t._timer);
         t._timer = setTimeout(function() { t.classList.remove('show'); }, 3500);
@@ -26412,7 +26647,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
      cancelar manualmente la espera sin perder los archivos ya
      descargados. ═══ -->
 <div id="feCorreoProcesandoModal" class="fixed inset-0 modal-overlay z-50 hidden items-center justify-center p-4" style="display:none;">
-    <div class="bg-[var(--rp-surface)] border border-[var(--rp-border)] w-full max-w-[240px] rounded-xl shadow-2xl overflow-hidden flex flex-col relative">
+    <div class="bg-[var(--rp-surface)] border border-[var(--rp-border)] rounded-xl shadow-2xl overflow-hidden flex flex-col relative" style="width:512px;max-width:512px;">
         <button onclick="_feCorreoCancelarProcesando()" title="Cancelar" aria-label="Cancelar"
                 style="position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:var(--rp-text-secondary);cursor:pointer;background:transparent;border:none;transition:background .15s,color .15s;"
                 onmouseover="this.style.background='var(--rp-border)';this.style.color='var(--rp-text-heading)'"
