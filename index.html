@@ -1303,6 +1303,48 @@
         .toggle-switch input:checked + .toggle-slider { background: var(--rp-accent); }
         .toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); }
         .toggle-switch input:focus-visible + .toggle-slider { outline: 2px solid var(--rp-accent); outline-offset: 2px; }
+        /* Implementación 02 — Admin > Sistema > "Consulta DTE": cuando el
+           Slide está en OFF se agrega esta clase a <body>, que oculta SOLO
+           los botones de Consulta DTE de Libros IVA (por id, con
+           !important para tener prioridad sobre el style.display inline
+           que ya usa Modo Revisión — ver btnMap/updateRevStats más abajo en
+           el script — sin modificar esa lógica existente). Al volver a ON
+           se quita la clase y cada botón regresa exactamente al estado que
+           ya le correspondía por Modo Revisión. */
+        body.fs-consulta-dte-oculta #btnConsultaDte_debito,
+        body.fs-consulta-dte-oculta #btnConsultaDte_cf,
+        body.fs-consulta-dte-oculta #btnConsultaDte_compras,
+        body.fs-consulta-dte-oculta #btnConsultaDte_percibido,
+        body.fs-consulta-dte-oculta #btnConsultaDte_retenido,
+        body.fs-consulta-dte-oculta #btnConsultaDte_anticipo,
+        body.fs-consulta-dte-oculta #btnConsultaDte_excluido {
+            display: none !important;
+        }
+        /* Implementación 02 (ampliación) — con el Slide en OFF también se
+           oculta la columna "Estado DGII" de Libros IVA (reutiliza las
+           mismas clases .dgii-col-th/.dgii-col-td que ya usa Modo Revisión
+           — ver regla table.rev-cols-hidden arriba — sin duplicar lógica).
+           No oculta "Acciones" (.col-acciones) — solo se le reacomoda la
+           posición fija en la regla de abajo, para que no quede un hueco
+           donde antes estaba la columna DGII. Con el Slide en ON ambas
+           columnas vuelven a su comportamiento normal (el que les
+           corresponda según Modo Revisión, si está activo en ese libro). */
+        body.fs-consulta-dte-oculta .dgii-col-th,
+        body.fs-consulta-dte-oculta .dgii-col-td {
+            display: none !important;
+        }
+        /* Implementación 02 (corrección) — al ocultar la columna "Estado
+           DGII" con el Slide en OFF, la columna "Acciones" ya NO debe dejar
+           el hueco de 148px que antes reservaba para esa columna (ver
+           right:148px en línea, usado en las mismas filas que .dgii-col-td
+           — ver renderDebitoTable/renderCfTable/etc. más abajo, sin
+           duplicar esa lógica). El !important es necesario porque esas
+           filas traen right:148px como estilo en línea. Con el Slide en ON
+           vuelve a su posición normal (148px) sin ningún cambio adicional,
+           ya que esta regla deja de aplicar. */
+        body.fs-consulta-dte-oculta .col-acciones {
+            right: 0 !important;
+        }
         /* Tarjeta de opción tipo switch (label + descripción + toggle),
            usada por "Venta Exenta" dentro del modal de Documento Escaneado. */
         .option-switch-card {
@@ -1353,18 +1395,69 @@
            "bottom" para que la notificación quede justo arriba de la
            línea de "By Roger Mejia" del sidebar, en vez de pegada al
            borde inferior de la pantalla. */
-        #toast {
-            position: fixed; bottom: 24px; right: 24px; left: auto; z-index: 9999;
-            background: var(--rp-surface); border: 1px solid var(--rp-border-strong); border-radius: 12px;
-            padding: 14px 20px; font-size: 12px; color: var(--rp-text-secondary);
-            transform: translateY(80px); opacity: 0;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex; align-items: center; gap-x: 10px; gap: 10px;
-            width: fit-content;
+        /* ═══════════════════════════════════════════════════════════════
+           CENTRO DE NOTIFICACIONES (rediseño) — reemplaza al antiguo
+           #toast único. Cola FIFO en la esquina superior derecha, tarjetas
+           apiladas, solo la primera cuenta su barra de progreso; el resto
+           espera visible debajo. Ver funciones showToast()/addNotification()
+           más abajo en el <script>. Solo se toca apariencia/gestión: la
+           lógica de negocio que llama a showToast(msg, type) no cambia.
+           ═══════════════════════════════════════════════════════════════ */
+        #notifCenter {
+            position: fixed; top: 20px; right: 16px; z-index: 999999;
+            width: 360px; max-width: calc(100vw - 24px);
+            display: flex; flex-direction: column; gap: 10px;
+            pointer-events: none;
         }
-        #toast.show { transform: translateY(0); opacity: 1; }
-        #toast.success { border-color: #22c55e44; }
-        #toast.error { border-color: #ef444444; }
+        .notif-card {
+            position: relative; pointer-events: auto; box-sizing: border-box;
+            width: 100%;
+            background: var(--rp-surface); border: 1px solid var(--rp-border-strong);
+            border-radius: 12px; box-shadow: 0 12px 28px -10px rgba(0,0,0,0.5);
+            overflow: hidden; opacity: 0; transform: translateX(120%);
+            transition: transform 0.35s cubic-bezier(0.16,1,0.3,1), opacity 0.3s ease;
+            flex-shrink: 0;
+        }
+        .notif-card.notif-in { opacity: 1; transform: translateX(0); }
+        .notif-card.notif-out {
+            transition: transform 0.22s cubic-bezier(0.4,0,1,1), opacity 0.2s ease;
+            opacity: 0; transform: translateX(120%);
+        }
+        .notif-card-inner { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px 11px; }
+        .notif-icon {
+            width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .notif-icon svg { width: 14px; height: 14px; }
+        .notif-body { flex: 1; min-width: 0; }
+        .notif-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+        .notif-title { font-size: 12.5px; font-weight: 700; color: var(--rp-text-heading); line-height: 1.35; }
+        .notif-close {
+            background: transparent; border: none; color: var(--rp-text-secondary);
+            cursor: pointer; font-size: 15px; line-height: 1; padding: 0; flex-shrink: 0;
+            font-family: 'Inter', sans-serif;
+        }
+        .notif-close:hover { color: var(--rp-text-heading); }
+        .notif-msg { font-size: 11.5px; color: var(--rp-text-secondary); margin-top: 3px; line-height: 1.45; word-break: break-word; }
+        .notif-details-btn {
+            background: none; border: none; padding: 0; margin-top: 6px;
+            font-size: 11px; font-weight: 600; color: var(--rp-accent); cursor: pointer;
+            font-family: 'Inter', sans-serif;
+        }
+        .notif-details-btn:hover { text-decoration: underline; }
+        .notif-progress-track { height: 2.5px; background: var(--rp-border); width: 100%; }
+        .notif-progress-fill { height: 100%; width: 100%; transform-origin: left; background: currentColor; transform: scaleX(1); }
+        .notif-card.type-success .notif-icon { background: rgba(34,197,94,0.14); color: var(--rp-success); }
+        .notif-card.type-error   .notif-icon { background: rgba(239,68,68,0.14); color: var(--rp-error); }
+        .notif-card.type-warning .notif-icon { background: rgba(234,179,8,0.16); color: var(--rp-warning); }
+        .notif-card.type-info    .notif-icon { background: rgba(59,130,246,0.14); color: var(--rp-accent); }
+        .notif-card.type-success .notif-progress-fill,
+        .notif-card.type-success .notif-details-btn { color: var(--rp-success); }
+        .notif-card.type-error   .notif-progress-fill,
+        .notif-card.type-error   .notif-details-btn { color: var(--rp-error); }
+        .notif-card.type-warning .notif-progress-fill,
+        .notif-card.type-warning .notif-details-btn { color: var(--rp-warning); }
+        .notif-card.type-info    .notif-progress-fill { color: var(--rp-accent); }
         .export-item {
             display: flex; align-items: center; gap: 12px; padding: 10px 16px;
             border-radius: 10px; cursor: pointer; transition: all 0.2s;
@@ -1659,6 +1752,20 @@
             letter-spacing: 0.02em;
         }
 
+        /* CAMBIO — Ajuste de posición vertical del encabezado del Workspace.
+           El <main> usa la clase Tailwind "p-10" (padding: 2.5rem en los 4
+           lados), lo que dejaba un espacio vacío considerable antes de
+           .workspace-topbar. Se reduce ÚNICAMENTE el padding-top de ese
+           <main> mediante un selector más específico (gana por
+           especificidad sobre .p-10 sin tocar la clase ni el resto de
+           padding), así los lados y el padding inferior quedan intactos
+           y no se afecta la posición horizontal ni el espaciado con el
+           que terminan las tablas. No se usa position/top ni márgenes
+           negativos: es un ajuste real del espaciado del contenedor. */
+        main.flex-1.p-10.overflow-y-auto {
+            padding-top: 14px;
+        }
+
         /* ═══ Topbar del workspace ═══ */
         .workspace-topbar {
             display: flex;
@@ -1885,7 +1992,7 @@
             .sidebar,
             .workspace-topbar,
             .ll-detail-header,
-            #toast,
+            #notifCenter,
             .no-print,
             .month-selector,
             .back-btn,
@@ -3402,6 +3509,28 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 </button>
             </div>
 
+            <!-- ═══ IMPLEMENTACIÓN 02 — Mostrar/Ocultar "Consulta DTE" en
+                 Libros IVA. El Slide SOLO controla la visibilidad de esos
+                 botones y de la columna "Estado DGII" (ver
+                 adminAplicarVisibilidadConsultaDte más abajo, vía una regla
+                 CSS por body class); no toca la lógica interna de Consulta
+                 DTE (handlers IPC, consulta al Ministerio, ni el
+                 comportamiento existente de Modo Revisión que también
+                 oculta/muestra estos mismos elementos). ═══ -->
+            <div style="display:flex;align-items:center;gap:14px;background:var(--rp-surface);border:1px solid var(--rp-border-strong);border-radius:14px;padding:18px 20px;">
+                <div style="width:38px;height:38px;border-radius:10px;background:var(--rp-border);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#60a5fa"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                </div>
+                <div style="flex:1;">
+                    <p style="font-size:13px;font-weight:600;color:var(--rp-text-primary);margin-bottom:3px;">Consulta DTE</p>
+                    <p style="font-size:11.5px;color:var(--rp-text-secondary);line-height:1.4;">Mostrar botones y columna "Estado DGII" de Consulta DTE en Libros IVA.</p>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="adminToggleConsultaDte" onchange="adminSetConsultaDteVisible(this.checked)">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
 
             <!-- ═══ AGREGADO NUEVO (Cambio 03): RUTAS DE EXPORTACIÓN ═══ -->
             <div style="background:var(--rp-surface);border:1px solid var(--rp-border-strong);border-radius:14px;padding:20px;margin-top:4px;">
@@ -3507,7 +3636,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
     </div>
 </div>
-<div id="toast"><span id="toastIcon"></span><span id="toastMsg"></span></div>
+<div id="notifCenter" aria-live="polite" onmouseenter="_notifPauseHover()" onmouseleave="_notifResumeHover()"></div>
+<div id="notifDetailsModal" class="fixed inset-0 modal-overlay z-[999999] hidden items-center justify-center p-4" style="display:none">
+    <div style="background:var(--rp-surface);border:1px solid var(--rp-border-strong);border-radius:14px;max-width:520px;width:100%;max-height:80vh;display:flex;flex-direction:column;">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--rp-border);display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div id="notifDetailsTitle" style="font-size:13px;font-weight:700;color:var(--rp-text-heading);"></div>
+            <button onclick="closeNotifDetails()" style="background:transparent;border:none;color:var(--rp-text-secondary);cursor:pointer;font-size:20px;line-height:1;flex-shrink:0;">×</button>
+        </div>
+        <div id="notifDetailsBody" style="padding:16px 20px;overflow:auto;font-size:12px;color:var(--rp-text-secondary);white-space:pre-wrap;word-break:break-word;font-family:'Inter',monospace;line-height:1.5;"></div>
+    </div>
+</div>
 
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <!-- ETAPA 1: PANTALLA DE SELECCIÓN DE EMPRESAS                        -->
@@ -3639,7 +3777,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 <!-- persista entre reinicios de la app, igual que en un navegador.      -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <div id="facturacionElectronicaScreen" class="fe-live-screen" style="left:-10000px;">
-    <div class="electron-drag" style="flex-shrink:0;display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--rp-border);background:var(--rp-surface);">
+    <div id="feTopbar" class="electron-drag" style="flex-shrink:0;display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--rp-border);background:var(--rp-surface);">
         <button onclick="_volverASeleccionDesdeFacturacion()" class="electron-no-drag" title="Volver" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:var(--rp-inset);border:1px solid var(--rp-border-strong);color:var(--rp-text-secondary);cursor:pointer;flex-shrink:0;">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
         </button>
@@ -8294,9 +8432,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             if (!info) return;
             if (info.ok) {
                 var tipo = info.ext === '.pdf' ? 'PDF' : (info.ext === '.json' ? 'JSON' : 'Archivo');
-                showToast(tipo + ' guardado en la carpeta Facturacion: ' + info.path, 'success');
+                // Notificación individual por archivo (JSON y PDF nunca se
+                // combinan en un solo aviso — ver punto 11 de la especificación).
+                showToast('El documento ' + tipo + ' se descargó correctamente.', 'success', {
+                    title: 'Archivo ' + tipo + ' descargado',
+                    details: 'Guardado en la carpeta Facturación: ' + info.path
+                });
             } else {
-                showToast('No se pudo guardar el archivo de Facturación Electrónica', 'error');
+                showToast('No fue posible descargar el archivo de Facturación Electrónica.', 'error', {
+                    title: 'Error al descargar',
+                    details: 'No se pudo guardar el archivo de Facturación Electrónica.'
+                });
             }
             // Integración 01 — Envío de Correos desde Facturación Electrónica:
             // reutiliza este MISMO evento (ya existente, sin tocarlo) para
@@ -8585,6 +8731,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 var cambio = false;
                 if (!existente.jsonPath && doc.jsonPath) { existente.jsonPath = doc.jsonPath; cambio = true; }
                 if (!existente.pdfPath  && doc.pdfPath)  { existente.pdfPath  = doc.pdfPath;  cambio = true; }
+                if (!existente.codigoGeneracion && doc.codigoGeneracion) { existente.codigoGeneracion = doc.codigoGeneracion; cambio = true; }
                 if (cambio) { _correosSaveDocs(docs); _feCorreoActualizarStats(); _feCorreoRefreshActiveTab(); }
                 return;
             }
@@ -11449,7 +11596,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
         _aplicarCambioDePeriodoGestion();
 
-        showToast('Periodo: ' + MONTH_NAMES[currentMonth] + ' ' + currentYear, 'success');
+        showToast('Periodo: ' + MONTH_NAMES[currentMonth] + ' ' + currentYear, 'success', { category: 'month-change' });
 
         // Agregado 01 — Integración Facturación Electrónica ↔ Gestión:
         // mantener el selector de mes de Facturación Electrónica
@@ -13330,7 +13477,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             numDoc: '', tipo: '', tipoCodigo: '',
             nombreCliente: '', nitCliente: '', correoCliente: '',
             fecha: '', monto: '', estado: 'pendiente',
-            pdfPath: '', jsonPath: '', fechaEnvio: ''
+            pdfPath: '', jsonPath: '', fechaEnvio: '',
+            // Implementación 01 — Código de Generación del DTE, usado como
+            // nombre base para la búsqueda alternativa de PDF/JSON dentro
+            // de la carpeta de Facturación Electrónica cuando doc.pdfPath /
+            // doc.jsonPath ya no apuntan a un archivo existente.
+            codigoGeneracion: ''
         };
 
         // Detectar tipo de documento
@@ -13348,6 +13500,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         var ident = json.identificacion || (json.dteJson && json.dteJson.identificacion) || {};
         doc.numDoc = ident.numeroControl || ident.codigoGeneracion || filename.replace('.json','');
         doc.fecha  = ident.fecEmi || ident.fechaEmision || '';
+
+        // Implementación 01 — se guarda por separado del código de
+        // generación, ya sea que numDoc haya terminado usando el número de
+        // control (caso normal) o el propio código de generación como
+        // respaldo (ver línea de arriba).
+        doc.codigoGeneracion = ident.codigoGeneracion || '';
 
         // Datos del receptor
         var receptor = json.receptor || (json.dteJson && json.dteJson.receptor) || {};
@@ -13450,7 +13608,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 '</td>' +
                 '<td style="padding:12px 16px;text-align:right;white-space:nowrap;">' +
                     '<div style="display:inline-flex;gap:5px;">' +
-                    '<button onclick="openAdjuntosModal(' + realIdx + ')" class="correos-icon-btn" title="Vincular adjuntos" style="font-size:13px;">📎</button>' +
+                    '<button onclick="openAdjuntosModal(' + realIdx + ')" class="correos-icon-btn" title="Vincular adjuntos" style="display:inline-flex;align-items:center;justify-content:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>' +
                     '<button onclick="correosEliminarDoc(' + realIdx + ')" class="correos-icon-btn" title="Eliminar" style="border-color:rgba(248,113,113,0.25);color:var(--rp-error);font-size:13px;">✕</button>' +
                     '<button onclick="correosEnviarIndividual(' + realIdx + ')" class="correos-icon-btn send" title="Enviar este documento" style="width:auto;padding:0 11px;gap:5px;font-size:11px;font-weight:600;"><span>Enviar</span></button>' +
                     '</div>' +
@@ -14012,12 +14170,74 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         return empresas.find(function(e) { return e.id === empresaId; });
     }
 
+    // Implementación 01 — Antes de armar los adjuntos, intenta localizar el
+    // PDF/JSON real del documento: primero en doc.pdfPath/doc.jsonPath (como
+    // siempre), y si esas rutas ya no existen, en la carpeta de Facturación
+    // Electrónica de la empresa/mes de este documento (misma estructura de
+    // carpetas existente — ver _feGetFacturacionDir en main.js). No crea,
+    // copia ni mueve archivos: solo localiza rutas y, si encuentra algo en
+    // la segunda ubicación, actualiza doc.pdfPath/doc.jsonPath para no tener
+    // que volver a buscarlo en el futuro. Si no hay canal IPC disponible
+    // (electronAPI.resolverAdjuntosCorreo), continúa sin cambios — igual que
+    // el comportamiento anterior.
+    function _correosResolverAdjuntos(doc, idx, callback) {
+        if (!window.electronAPI || !window.electronAPI.resolverAdjuntosCorreo) { callback(); return; }
+
+        var c            = _correosContextoActivo();
+        var mesLabel      = MONTH_NAMES[c.mes] + ' ' + c.anio;
+        var emp           = empresas.find(function(e) { return e.id === c.empresaId; });
+        var empresaNombre = emp ? emp.razon : 'Empresa';
+
+        window.electronAPI.resolverAdjuntosCorreo({
+            pdfPath:       doc.pdfPath  || '',
+            jsonPath:      doc.jsonPath || '',
+            mesLabel:      mesLabel,
+            empresaNombre: empresaNombre,
+            codigoBase:    doc.codigoGeneracion || ''
+        }).then(function(res) {
+            if (!res || res.error) { callback(); return; }
+
+            var cambio = false;
+            if (res.pdfOrigen === 'facturacion' && res.pdfPath) { doc.pdfPath = res.pdfPath; cambio = true; }
+            if (res.jsonOrigen === 'facturacion' && res.jsonPath) { doc.jsonPath = res.jsonPath; cambio = true; }
+
+            // Persistir las rutas encontradas para no repetir la búsqueda
+            // en próximos envíos de este mismo documento (Sección 6).
+            if (cambio && typeof idx === 'number') {
+                var docs = _correosLoadDocs();
+                if (docs[idx]) {
+                    docs[idx].pdfPath  = doc.pdfPath;
+                    docs[idx].jsonPath = doc.jsonPath;
+                    _correosSaveDocs(docs);
+                }
+            }
+
+            // Aviso no bloqueante si, después de ambas búsquedas, algún
+            // archivo sigue sin encontrarse (Sección 9) — el envío continúa
+            // igual (main.js filtra adjuntos inexistentes, comportamiento
+            // sin cambios).
+            if (!res.pdfPath)  showToast('No se encontró el PDF del DTE: ' + (doc.numDoc || ''), 'error');
+            if (!res.jsonPath) showToast('No se encontró el JSON del DTE: ' + (doc.numDoc || ''), 'error');
+
+            callback();
+        }).catch(function() { callback(); });
+    }
+
     function _correosEnviarDoc(doc, idx, onDone) {
         var emp = _correosGetEmpresaActiva();
         if (!emp || !emp.correosEmail) { onDone(false, 'Sin correo configurado. Ve a Configuración.'); return; }
         if (!emp.correosPass)          { onDone(false, 'Sin contraseña de aplicación. Ve a Configuración.'); return; }
         if (!doc.correoCliente)        { onDone(false, 'Sin correo de destinatario en: ' + doc.numDoc); return; }
 
+        // Implementación 01 — localizar PDF/JSON (ruta actual o, en su
+        // defecto, carpeta de Facturación Electrónica) antes de construir
+        // los adjuntos del correo.
+        _correosResolverAdjuntos(doc, idx, function() {
+            _correosEnviarDocConAdjuntosListos(doc, emp, onDone);
+        });
+    }
+
+    function _correosEnviarDocConAdjuntosListos(doc, emp, onDone) {
         var emailFrom = emp.correosEmail;
         var passRaw   = _correosDecipher(emp.correosPass);
         var tipo      = doc.tipoCodigo;
@@ -15074,36 +15294,40 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         abrirModalConfigLibro(tipo, 'pdf');
     }
 
-    function generarPDFLibro(tipo, nombreFirmante, cargoFirmante) {
+    function construirSnapshotLibroLegal(tipo, nombreFirmante, cargoFirmante) {
+        // ================================================================
+        // Implementación 03 — SNAPSHOT ÚNICO COMPARTIDO
+        //
+        // Esta función es la única fuente del HTML/datos/estilos/configuración
+        // de un Libro Legal. Tanto "Imprimir Libro" como "Descargar PDF" la
+        // invocan igual y reciben exactamente el mismo resultado; la única
+        // diferencia entre ambas acciones es su destino final (impresión vs.
+        // archivo .pdf), nunca el contenido ni el proceso de construcción.
+        // ================================================================
         var emp = empresas.find(function(e) { return e.id === activeEmpresaId; });
         var titulos = {
             'compras': 'LIBRO DE COMPRAS',
             'cf':      'LIBRO DE VENTAS A CONSUMIDOR FINAL',
             'ccf':     'LIBRO DE VENTAS A CONTRIBUYENTES (CRÉDITO FISCAL)'
         };
+        var titulo = titulos[tipo] || '';
 
-        // ── Preparar encabezado de página (div original — usado solo para snapshot HTML) ──
-        document.getElementById('llPrintTitle').innerText = titulos[tipo] || '';
-        document.getElementById('llPrintEmpresa').innerText = emp ? emp.razon : '';
-        document.getElementById('llPrintNit').innerText = emp ? 'NRC: ' + (emp.nrc || '—') : '';
-        document.getElementById('llPrintNrc').innerText = emp ? 'NIT: ' + (emp.nit || '—') : '';
-        document.getElementById('llPrintPeriodo').innerText = 'Período: ' + MONTH_NAMES[currentMonth] + ' ' + currentYear;
-        document.getElementById('llPrintHeader').style.display = 'block';
-
-        // ── Poblar encabezado repetido en cada página (dentro del <thead> de la tabla) ──
-        var _hdrTitulo  = titulos[tipo] || '';
-        var _hdrEmpresa = emp ? emp.razon : '';
-        var _hdrDatos   = (emp ? 'NRC: ' + (emp.nrc || '—') + '   NIT: ' + (emp.nit || '—') : '') +
-                          '   Período: ' + MONTH_NAMES[currentMonth] + ' ' + currentYear;
-        var _hdrMap = { compras: 'llCompras', cf: 'llCf', ccf: 'llCcf' };
-        var _hdrPfx = _hdrMap[tipo] || '';
-        if (_hdrPfx) {
-            var _elT = document.getElementById(_hdrPfx + 'HeaderTitle');
-            var _elE = document.getElementById(_hdrPfx + 'HeaderEmpresa');
-            var _elD = document.getElementById(_hdrPfx + 'HeaderDatos');
-            if (_elT) _elT.innerText = _hdrTitulo;
-            if (_elE) _elE.innerText = _hdrEmpresa;
-            if (_elD) _elD.innerText = _hdrDatos;
+        // El encabezado que ya existe dentro de la tabla es el que se
+        // imprimirá/exportará. No se depende del DOM principal ni de
+        // @media print globales para la salida final.
+        var hdrMap = { compras: 'llCompras', cf: 'llCf', ccf: 'llCcf' };
+        var hdrPfx = hdrMap[tipo] || '';
+        if (hdrPfx) {
+            var hdrTitulo  = document.getElementById(hdrPfx + 'HeaderTitle');
+            var hdrEmpresa = document.getElementById(hdrPfx + 'HeaderEmpresa');
+            var hdrDatos   = document.getElementById(hdrPfx + 'HeaderDatos');
+            if (hdrTitulo)  hdrTitulo.innerText  = titulo;
+            if (hdrEmpresa) hdrEmpresa.innerText = emp ? emp.razon : '';
+            if (hdrDatos) {
+                hdrDatos.innerText =
+                    (emp ? 'NRC: ' + (emp.nrc || '—') + '   NIT: ' + (emp.nit || '—') : '') +
+                    '   Período: ' + MONTH_NAMES[currentMonth] + ' ' + currentYear;
+            }
         }
 
         // ── Bloque de firma ──
@@ -15111,32 +15335,74 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         // appendFirmaRow) en lugar de un <div> suelto después de la tabla, para
         // que herede la paginación nativa: si cabe en el espacio restante de la
         // página actual, no duplica el encabezado; si no cabe, salta de página
-        // completa junto con el encabezado del libro.
+        // completa junto con el encabezado del libro. Esta es la misma tabla
+        // que usan tanto "Imprimir Libro" como "Descargar PDF".
         ['llComprasFirma','llCfFirma','llCcfFirma'].forEach(function(id) {
-            document.getElementById(id).style.display = 'none';
-            document.getElementById(id).innerHTML = '';
+            var el = document.getElementById(id);
+            if (el) {
+                el.style.display = 'none';
+                el.innerHTML = '';
+            }
         });
         clearFirmaRows();
-        var resumenHtml = buildResumenHtml(tipo);
-        var firmaHtml = buildFirmaContentHtml(nombreFirmante, cargoFirmante, resumenHtml, '#000', '#333', '#555');
+
+        var incluirResumen = shouldIncludeResumen(tipo);
+        var resumenHtml = incluirResumen ? buildResumenHtml(tipo) : '';
+        var firmaHtml = buildFirmaContentHtml(
+            nombreFirmante,
+            cargoFirmante,
+            resumenHtml,
+            '#000',
+            '#333',
+            '#555'
+        );
         appendFirmaRow(tipo, firmaHtml);
         setPrintOrientation(tipo);
 
-        // ── Expandir main para capturar todo el contenido ──
-        var mainEl = document.querySelector('main');
-        var origMainStyle = mainEl.getAttribute('style') || '';
-        mainEl.style.overflow = 'visible';
-        mainEl.style.height = 'auto';
-        mainEl.style.maxHeight = 'none';
+        var tableEl = document.getElementById(LL_TABLE_IDS[tipo]);
+        if (!tableEl) {
+            clearFirmaRows();
+            showToast('No se encontró la tabla del Libro Legal seleccionado.', 'error');
+            return null;
+        }
+
+        var pcfg = getPrintConfigFor(tipo);
+        var colWidths = pceColWidthsCss(tipo);
+        var orientacion = getLlOrientacion(tipo);
+
+        // MISMO CSS base para "Imprimir Libro" y "Descargar PDF".
+        // Esto evita depender de las reglas @media print de la aplicación
+        // principal, incluyendo .modal-overlay, #workspaceContainer, etc.
+        var htmlSnapshot =
+            '<!DOCTYPE html>' +
+            '<html lang="es">' +
+            '<head>' +
+            '<meta charset="UTF-8">' +
+            '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+            '<style>' +
+            pceLibroPrintCss(pcfg, orientacion, colWidths) +
+            '</style>' +
+            '</head>' +
+            '<body>' +
+            tableEl.outerHTML +
+            '</body>' +
+            '</html>';
+
+        return { htmlSnapshot: htmlSnapshot, tableEl: tableEl, emp: emp, titulo: titulo };
+    }
+
+    function generarPDFLibro(tipo, nombreFirmante, cargoFirmante) {
+        // "Descargar PDF" reutiliza el mismo snapshot (HTML + datos + estilos +
+        // configuración) que "Imprimir Libro". La única diferencia entre ambas
+        // rutas es el destino final: aquí se guarda un archivo .pdf en vez de
+        // enviarse a impresión.
+        var snapshot = construirSnapshotLibroLegal(tipo, nombreFirmante, cargoFirmante);
+        if (!snapshot) return;
+
+        var emp = snapshot.emp;
 
         function _cleanup() {
-            document.getElementById('llPrintHeader').style.display = 'none';
             clearFirmaRows();
-            if (origMainStyle) {
-                mainEl.setAttribute('style', origMainStyle);
-            } else {
-                mainEl.removeAttribute('style');
-            }
         }
 
         // ── Si estamos en Electron: PDF silencioso vía printToPDF ──
@@ -15147,26 +15413,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 var _empNombre   = emp ? emp.razon.replace(/[^a-zA-Z0-9À-ÿ\s]/g, '').trim().replace(/\s+/g, '_') : 'Empresa';
                 var _mesAnio     = MONTH_NAMES[currentMonth].replace(/\s+/g, '') + '_' + currentYear;
                 var _fileName    = _tituloCorto + '_' + _empNombre + '_' + _mesAnio + '.pdf';
-
-                // Capturar snapshot del HTML actual — estilos idénticos al @media print del documento
-                // (Corrección 03: ahora se generan con las funciones compartidas pceColWidthsCss /
-                // pceLibroPrintCss, las mismas que usa la Vista Previa del editor de Admin)
-                var _colWidths = pceColWidthsCss(tipo);
-                var _orientacionPdf = getLlOrientacion(tipo);
-                // AGREGADO NUEVO (Cambio 04): usar la configuración de impresión guardada para este libro
-                var _pcfg = getPrintConfigFor(tipo);
-                var _htmlSnapshot = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">' +
-                    '<style>' + pceLibroPrintCss(_pcfg, _orientacionPdf, _colWidths) + '</style></head><body>';
-
-                // Tabla del libro activo (incluye, dentro de su <tfoot>, la fila de
-                // totales y — si corresponde — la fila de firma + cuadro resumen)
-                var _tableEl = document.getElementById(LL_TABLE_IDS[tipo]);
-                if (_tableEl) _htmlSnapshot += _tableEl.outerHTML;
-                _htmlSnapshot += '</body></html>';
-
                 var _mesLabelPdf = MONTH_NAMES[currentMonth] + ' ' + currentYear;
                 var _empRazonPdf = emp ? emp.razon : 'Sin_Empresa';
-                window.fiscalAPI.saveLibroPdf(_htmlSnapshot, _fileName, _mesLabelPdf, _empRazonPdf).then(function(res) {
+
+                window.fiscalAPI.saveLibroPdf(snapshot.htmlSnapshot, _fileName, _mesLabelPdf, _empRazonPdf).then(function(res) {
                     _cleanup();
                     if (res && res.ok) {
                         showToast('PDF guardado en: ' + res.path, 'success');
@@ -15182,10 +15432,31 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             }, 200);
 
         } else {
-            // ── Navegador: mantener window.print() como fallback ──
+            // ── Navegador: mantener window.print() sobre el DOM visible como fallback ──
+            document.getElementById('llPrintTitle').innerText = snapshot.titulo;
+            document.getElementById('llPrintEmpresa').innerText = emp ? emp.razon : '';
+            document.getElementById('llPrintNit').innerText = emp ? 'NRC: ' + (emp.nrc || '—') : '';
+            document.getElementById('llPrintNrc').innerText = emp ? 'NIT: ' + (emp.nit || '—') : '';
+            document.getElementById('llPrintPeriodo').innerText = 'Período: ' + MONTH_NAMES[currentMonth] + ' ' + currentYear;
+            document.getElementById('llPrintHeader').style.display = 'block';
+
+            var mainEl = document.querySelector('main');
+            var origMainStyle = mainEl.getAttribute('style') || '';
+            mainEl.style.overflow = 'visible';
+            mainEl.style.height = 'auto';
+            mainEl.style.maxHeight = 'none';
+
             setTimeout(function() {
                 window.print();
-                setTimeout(_cleanup, 500);
+                setTimeout(function() {
+                    document.getElementById('llPrintHeader').style.display = 'none';
+                    _cleanup();
+                    if (origMainStyle) {
+                        mainEl.setAttribute('style', origMainStyle);
+                    } else {
+                        mainEl.removeAttribute('style');
+                    }
+                }, 500);
             }, 200);
         }
     }
@@ -15210,102 +15481,27 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         saveFirmaConfig(nombreFirmante, cargoFirmante);
         closeFirmaModal();
 
-        // "Descargar PDF" conserva su flujo actual sin cambios.
+        // "Descargar PDF" usa el mismo snapshot que "Imprimir Libro"
+        // (ver construirSnapshotLibroLegal); solo cambia el destino final.
         if (_firmaModalMode === 'pdf') {
             generarPDFLibro(currentPrintType, nombreFirmante, cargoFirmante);
             _firmaModalMode = 'print';
             return;
         }
 
-        var emp = empresas.find(function(e) { return e.id === activeEmpresaId; });
-        var titulos = {
-            'compras': 'LIBRO DE COMPRAS',
-            'cf':      'LIBRO DE VENTAS A CONSUMIDOR FINAL',
-            'ccf':     'LIBRO DE VENTAS A CONTRIBUYENTES (CRÉDITO FISCAL)'
-        };
-
         var tipo = currentPrintType;
-        var titulo = titulos[tipo] || '';
-
-        // El encabezado que ya existe dentro de la tabla es el que se
-        // imprimirá. No se depende del DOM principal ni de @media print
-        // globales para la salida final.
-        var hdrMap = { compras: 'llCompras', cf: 'llCf', ccf: 'llCcf' };
-        var hdrPfx = hdrMap[tipo] || '';
-        if (hdrPfx) {
-            var hdrTitulo  = document.getElementById(hdrPfx + 'HeaderTitle');
-            var hdrEmpresa = document.getElementById(hdrPfx + 'HeaderEmpresa');
-            var hdrDatos   = document.getElementById(hdrPfx + 'HeaderDatos');
-            if (hdrTitulo)  hdrTitulo.innerText  = titulo;
-            if (hdrEmpresa) hdrEmpresa.innerText = emp ? emp.razon : '';
-            if (hdrDatos) {
-                hdrDatos.innerText =
-                    (emp ? 'NRC: ' + (emp.nrc || '—') + '   NIT: ' + (emp.nit || '—') : '') +
-                    '   Período: ' + MONTH_NAMES[currentMonth] + ' ' + currentYear;
-            }
-        }
-
-        // La firma y el cuadro resumen se agregan a la misma tabla que usa
-        // "Descargar PDF", por lo que ambos caminos parten del mismo HTML real.
-        ['llComprasFirma','llCfFirma','llCcfFirma'].forEach(function(id) {
-            var el = document.getElementById(id);
-            if (el) {
-                el.style.display = 'none';
-                el.innerHTML = '';
-            }
-        });
-        clearFirmaRows();
-
-        var incluirResumen = shouldIncludeResumen(tipo);
-        var resumenHtml = incluirResumen ? buildResumenHtml(tipo) : '';
-        var firmaHtml = buildFirmaContentHtml(
-            nombreFirmante,
-            cargoFirmante,
-            resumenHtml,
-            '#000',
-            '#333',
-            '#555'
-        );
-        appendFirmaRow(tipo, firmaHtml);
-        setPrintOrientation(tipo);
 
         // ================================================================
-        // CORRECCIÓN 02 — IMPRESIÓN REAL DEL LIBRO LEGAL
+        // CORRECCIÓN 02 / Implementación 03 — IMPRESIÓN REAL DEL LIBRO LEGAL
         //
         // Ya NO se utiliza window.print() sobre la ventana principal.
-        // Se construye exactamente el mismo snapshot HTML que funciona
-        // correctamente en "Descargar PDF" y se envía al proceso principal.
-        // main.js crea una BrowserWindow de impresión independiente y
-        // ejecuta webContents.print() sobre ese documento aislado.
+        // Se construye el snapshot HTML mediante construirSnapshotLibroLegal()
+        // — la misma función que usa "Descargar PDF" — y se envía al proceso
+        // principal. main.js crea una BrowserWindow de impresión independiente
+        // y ejecuta webContents.print() sobre ese documento aislado.
         // ================================================================
-        var tableEl = document.getElementById(LL_TABLE_IDS[tipo]);
-        if (!tableEl) {
-            clearFirmaRows();
-            showToast('No se encontró la tabla del Libro Legal seleccionado.', 'error');
-            return;
-        }
-
-        var pcfg = getPrintConfigFor(tipo);
-        var colWidths = pceColWidthsCss(tipo);
-        var orientacion = getLlOrientacion(tipo);
-
-        // MISMO CSS base que usa generarPDFLibro().
-        // Esto evita depender de las reglas @media print de la aplicación
-        // principal, incluyendo .modal-overlay, #workspaceContainer, etc.
-        var htmlSnapshot =
-            '<!DOCTYPE html>' +
-            '<html lang="es">' +
-            '<head>' +
-            '<meta charset="UTF-8">' +
-            '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
-            '<style>' +
-            pceLibroPrintCss(pcfg, orientacion, colWidths) +
-            '</style>' +
-            '</head>' +
-            '<body>' +
-            tableEl.outerHTML +
-            '</body>' +
-            '</html>';
+        var snapshot = construirSnapshotLibroLegal(tipo, nombreFirmante, cargoFirmante);
+        if (!snapshot) return;
 
         // La limpieza ocurre únicamente cuando el proceso de impresión
         // independiente termina (imprimió o canceló). No se usa ningún
@@ -15315,7 +15511,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         };
 
         if (window.fiscalAPI && window.fiscalAPI.printLibroHtml) {
-            window.fiscalAPI.printLibroHtml(htmlSnapshot, tipo).then(function(res) {
+            window.fiscalAPI.printLibroHtml(snapshot.htmlSnapshot, tipo).then(function(res) {
                 limpiar();
 
                 if (res && res.ok) {
@@ -15358,24 +15554,423 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     function swRET(p,b){['ret-tab-agente','ret-tab-doc','ret-tab-montos'].forEach(function(i){document.getElementById(i).classList.remove('active');});['ret-btn-agente','ret-btn-doc','ret-btn-montos'].forEach(function(i){document.getElementById(i).classList.remove('active');});document.getElementById(p).classList.add('active');document.getElementById(b).classList.add('active');}
     function swANT(p,b){['ant-tab-agente','ant-tab-doc','ant-tab-montos'].forEach(function(i){document.getElementById(i).classList.remove('active');});['ant-btn-agente','ant-btn-doc','ant-btn-montos'].forEach(function(i){document.getElementById(i).classList.remove('active');});document.getElementById(p).classList.add('active');document.getElementById(b).classList.add('active');}
 
-    // ══════════════════════════════════════════════
-    // TOAST
-    // ══════════════════════════════════════════════
-    function showToast(msg, type) {
+    // ══════════════════════════════════════════════════════════════════
+    // CENTRO DE NOTIFICACIONES (rediseño)
+    // ══════════════════════════════════════════════════════════════════
+    // showToast(msg, type) conserva exactamente su firma e interfaz
+    // original — todas las llamadas existentes en el proyecto siguen
+    // funcionando sin modificarse. Internamente ahora delega en una cola
+    // FIFO con tarjetas apiladas, SVG reutilizados del propio proyecto,
+    // barra de progreso de 3s, pausa al pasar el mouse y resumen
+    // automático de mensajes largos con panel "Ver detalles". Un tercer
+    // argumento opcional (opts: {title, details}) permite, de forma
+    // localizada, enriquecer notificaciones puntuales (p. ej. CSV por
+    // tipo, o descargas JSON/PDF de Facturación Electrónica) sin tocar
+    // ninguna llamada existente ni la lógica que las genera.
+    var NOTIF_ICONS = {
+        success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>',
+        error:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>',
+        warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>',
+        info:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'
+    };
+    var NOTIF_DEFAULT_TITLES = {
+        success: 'Operación exitosa',
+        error:   'Ocurrió un error',
+        warning: 'Advertencia',
+        info:    'Información'
+    };
+    var NOTIF_DURATION = 3000; // 3 segundos, según especificación
+
+    // ── Notificaciones de CAMBIO DE MES (reemplazo, no acumulación) ──
+    // Categoría interna explícita: la pasa únicamente changeMonth() vía
+    // opts.category. Se usa una etiqueta interna en vez de comparar el
+    // texto visible de la notificación, para identificar el evento de
+    // forma robusta aunque el texto del período cambie en cada llamada.
+    var NOTIF_CATEGORY_MONTH_CHANGE = 'month-change';
+    var NOTIF_MONTH_CHANGE_DURATION = 1500; // 1.5s exactos, según especificación
+
+    // Textualización por defecto para tarjetas agrupadas (misma acción
+    // repetida consecutivamente) cuando la llamada a showToast() no
+    // especifica un opts.groupNoun propio. No se usa para cambio de mes.
+    var NOTIF_DEFAULT_GROUP_NOUN = { singular: 'operación realizada', plural: 'operaciones realizadas' };
+
+    var _notifQueue = [];
+    var _notifIdSeq = 0;
+    var _notifRaf = null;
+    var _notifPauseStart = null;
+    var _notifDetailsStore = {};
+
+    function _notifEscapeHtml(str) {
+        var d = document.createElement('div');
+        d.textContent = str == null ? '' : String(str);
+        return d.innerHTML;
+    }
+
+    // Resume automáticamente mensajes demasiado largos (rutas completas,
+    // listados extensos, errores técnicos) en un resumen corto + detalles
+    // completos accesibles vía "Ver detalles". No se pierde información,
+    // solo se reubica dónde se muestra (ver punto 9 de la especificación).
+    function _notifSplitMessage(rawMsg) {
+        var msg = rawMsg == null ? '' : String(rawMsg);
+        var LIMIT = 88;
+        var looksLikePath = /[A-Za-z]:\\\\|[A-Za-z]:\\|\/[^\s]+\/[^\s]+/.test(msg);
+        if (msg.length <= LIMIT && !looksLikePath) {
+            return { message: msg, details: null };
+        }
+        var cut = msg.slice(0, LIMIT).replace(/\s+\S*$/, '');
+        if (!cut) cut = msg.slice(0, LIMIT);
+        return { message: cut + '…', details: msg };
+    }
+
+    function showToast(msg, type, opts) {
         // Mientras "Recorrer y Actualizar Documentos" corre en segundo plano, se
         // suprimen los toasts de guardado individuales (uno por documento) para no
         // saturar al usuario; el comportamiento normal de showToast no cambia.
         if (_recorridoSilencioso) return;
-        if (!type) type = 'success';
-        var t = document.getElementById('toast');
-        document.getElementById('toastMsg').innerText = msg;
-        document.getElementById('toastIcon').innerHTML = type === 'success'
-            ? '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'
-            : '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
-        t.className = 'fixed bottom-6 right-6 z-50 bg-[var(--rp-surface)] border border-[var(--rp-border-strong)] rounded-xl px-5 py-3 text-xs text-zinc-400 flex items-center gap-3 show ' + type;
-        t.style.zIndex = '10000000';
-        clearTimeout(t._timer);
-        t._timer = setTimeout(function() { t.classList.remove('show'); }, 3500);
+        if (!type || !NOTIF_ICONS[type]) type = 'success';
+        opts = opts || {};
+
+        var title, message, details;
+        if (opts.title || opts.details) {
+            title = opts.title || NOTIF_DEFAULT_TITLES[type];
+            message = opts.message != null ? opts.message : msg;
+            details = opts.details || null;
+        } else {
+            var split = _notifSplitMessage(msg);
+            title = NOTIF_DEFAULT_TITLES[type];
+            message = split.message;
+            details = split.details;
+        }
+        // opts.category y opts.groupNoun son NUEVOS y 100% opcionales: las
+        // llamadas existentes a showToast() (que no los envían) no cambian
+        // en nada su comportamiento actual. Solo se usan para:
+        //  - 'month-change': reemplazar la notificación anterior en vez de
+        //    encolar una nueva (ver _notifAdd).
+        //  - cualquier otra categoría: agrupar repeticiones consecutivas de
+        //    la misma acción bajo una sola tarjeta con contador ×N.
+        _notifAdd(type, title, message, details, opts.category || null, opts.groupNoun || null);
+    }
+
+    // Posiciona el Centro de Notificaciones justo debajo del encabezado
+    // que esté visible en ese momento (el del Workspace normal —empresa,
+    // DUI/NIT, selector de mes— o el de Facturación Electrónica —Volver,
+    // Correo, Clientes, selector de mes—, que es una pantalla superpuesta
+    // de pantalla completa con su propio encabezado). Si ninguno está
+    // visible (p. ej. la selección de empresas) usa la posición por
+    // defecto, cerca del borde superior. Se recalcula en cada notificación
+    // nueva y al redimensionar la ventana, así se adapta solo sin valores
+    // fijos ni depender de una sola pantalla.
+    function _notifUpdatePosition() {
+        var container = document.getElementById('notifCenter');
+        if (!container) return;
+        var DEFAULT_TOP = 20;
+        var top = DEFAULT_TOP;
+
+        // Facturación Electrónica es un overlay de pantalla completa
+        // independiente del Workspace normal (mismo patrón que usa el
+        // resto del código para detectarla: classList.contains('active'),
+        // ver _feBusquedaRapidaAbrir()); si está activa, su encabezado manda.
+        var feScreen = document.getElementById('facturacionElectronicaScreen');
+        var feTopbar = document.getElementById('feTopbar');
+        if (feScreen && feScreen.classList.contains('active') && feTopbar) {
+            var feRect = feTopbar.getBoundingClientRect();
+            if (feRect.height > 0) top = Math.round(feRect.bottom + 14);
+            container.style.top = top + 'px';
+            return;
+        }
+
+        var topbar = document.querySelector('.workspace-topbar');
+        if (topbar) {
+            var rect = topbar.getBoundingClientRect();
+            if (rect.height > 0 && topbar.offsetParent !== null) {
+                top = Math.round(rect.bottom + 14);
+            }
+        }
+        container.style.top = top + 'px';
+    }
+    window.addEventListener('resize', _notifUpdatePosition);
+
+    function _notifAdd(type, title, message, details, category, groupNoun) {
+        var container = document.getElementById('notifCenter');
+        if (!container) return;
+        _notifUpdatePosition();
+
+        // ── 1) CAMBIO DE MES: reemplazar en vez de encolar ──
+        // Se identifica por la categoría interna explícita (nunca por el
+        // texto "Periodo: ..."), así que sigue funcionando aunque cambie
+        // el idioma/formato del período. Si ya existe una notificación de
+        // cambio de mes viva (en cualquier posición de la cola), se
+        // actualiza su contenido y se reinicia su temporizador a 1.5s sin
+        // crear una tarjeta nueva ni esperar a que termine la anterior.
+        if (category === NOTIF_CATEGORY_MONTH_CHANGE) {
+            var existingMonthItem = null;
+            for (var mi = 0; mi < _notifQueue.length; mi++) {
+                if (_notifQueue[mi].category === NOTIF_CATEGORY_MONTH_CHANGE) { existingMonthItem = _notifQueue[mi]; break; }
+            }
+            if (existingMonthItem) {
+                _notifUpdateContent(existingMonthItem, title, message);
+                existingMonthItem.baseTitle = title;
+                existingMonthItem.baseMessage = message;
+                existingMonthItem.duration = NOTIF_MONTH_CHANGE_DURATION;
+                if (existingMonthItem.active) {
+                    existingMonthItem._activeStart = Date.now();
+                    existingMonthItem._pausedTotal = 0;
+                    if (existingMonthItem.fillEl) existingMonthItem.fillEl.style.transform = 'scaleX(1)';
+                }
+                return;
+            }
+            // No existía todavía: continúa el flujo normal de creación de
+            // tarjeta más abajo, ya con la categoría y duración especiales.
+        } else if (category) {
+            // ── 2) MISMA CATEGORÍA repetida consecutivamente: agrupar ──
+            // Solo se agrupa contra la ÚLTIMA notificación añadida (la más
+            // reciente), para no fusionar notificaciones separadas por
+            // otras acciones intermedias.
+            var lastItem = _notifQueue.length ? _notifQueue[_notifQueue.length - 1] : null;
+            if (lastItem && lastItem.category === category) {
+                _notifGroupIncrement(lastItem, message, details, groupNoun);
+                return;
+            }
+        } else {
+            // ── 3) Sin categoría explícita: respaldo conservador ──
+            // Solo agrupa si la notificación es EXACTAMENTE igual (mismo
+            // tipo + mismo título + mismo mensaje) a la última añadida de
+            // forma consecutiva. Cualquier otra combinación conserva el
+            // comportamiento actual sin cambios (no rompe nada existente).
+            var lastPlain = _notifQueue.length ? _notifQueue[_notifQueue.length - 1] : null;
+            if (lastPlain && !lastPlain.category && lastPlain.type === type &&
+                lastPlain.baseTitle === title && lastPlain.baseMessage === message) {
+                _notifGroupIncrement(lastPlain, message, details, groupNoun);
+                return;
+            }
+        }
+
+        var id = 'notif_' + (++_notifIdSeq);
+
+        var el = document.createElement('div');
+        el.className = 'notif-card type-' + type;
+        el.dataset.notifId = id;
+
+        var detailsHtml = '';
+        if (details) {
+            _notifDetailsStore[id] = { title: title, details: details };
+            detailsHtml = '<button type="button" class="notif-details-btn" onclick="showNotifDetails(\'' + id + '\')">• Ver detalles</button>';
+        }
+
+        el.innerHTML =
+            '<div class="notif-card-inner">' +
+                '<div class="notif-icon">' + NOTIF_ICONS[type] + '</div>' +
+                '<div class="notif-body">' +
+                    '<div class="notif-title-row">' +
+                        '<div class="notif-title">' + _notifEscapeHtml(title) + '</div>' +
+                        '<button type="button" class="notif-close" onclick="closeNotification(\'' + id + '\')" aria-label="Cerrar">×</button>' +
+                    '</div>' +
+                    '<div class="notif-msg">' + _notifEscapeHtml(message) + '</div>' +
+                    detailsHtml +
+                '</div>' +
+            '</div>' +
+            '<div class="notif-progress-track"><div class="notif-progress-fill"></div></div>';
+
+        container.appendChild(el);
+
+        var item = {
+            id: id, type: type, el: el,
+            fillEl: el.querySelector('.notif-progress-fill'),
+            duration: (category === NOTIF_CATEGORY_MONTH_CHANGE) ? NOTIF_MONTH_CHANGE_DURATION : NOTIF_DURATION,
+            _activeStart: 0, _pausedTotal: 0, active: false,
+            // Metadatos para reemplazo (cambio de mes) y agrupación
+            // (misma acción repetida). No afectan a notificaciones que no
+            // usan categoría: category queda null y count en 1, igual que
+            // el comportamiento previo a este cambio.
+            category: category || null,
+            baseTitle: title,
+            baseMessage: message,
+            baseDetails: details || null,
+            count: 1,
+            groupNoun: groupNoun || null
+        };
+        _notifQueue.push(item);
+
+        // Forzar reflow antes de agregar la clase de entrada para que la
+        // transición (opacity + transform) se dispare correctamente.
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() { el.classList.add('notif-in'); });
+        });
+
+        if (_notifQueue.length === 1) {
+            _notifActivate(item);
+        }
+    }
+
+    // Actualiza el título y mensaje de una tarjeta EXISTENTE sin recrearla
+    // (usado tanto por el reemplazo de cambio de mes como por la
+    // agrupación). No toca íconos, colores, layout ni animaciones.
+    function _notifUpdateContent(item, title, message) {
+        var titleEl = item.el.querySelector('.notif-title');
+        var msgEl = item.el.querySelector('.notif-msg');
+        if (titleEl) titleEl.textContent = title;
+        if (msgEl) msgEl.textContent = message;
+    }
+
+    // Agrega el botón "Ver detalles" a una tarjeta que no lo tenía todavía
+    // (p. ej. una notificación simple que empieza a agruparse). Reutiliza
+    // exactamente la misma clase/estilo que ya existía para ese botón.
+    function _notifEnsureDetailsButton(item) {
+        if (item.el.querySelector('.notif-details-btn')) return;
+        var body = item.el.querySelector('.notif-body');
+        if (!body) return;
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'notif-details-btn';
+        btn.textContent = '• Ver detalles';
+        btn.addEventListener('click', function() { showNotifDetails(item.id); });
+        body.appendChild(btn);
+    }
+
+    // Incrementa el contador de una tarjeta agrupada (misma acción
+    // repetida consecutivamente): actualiza el título con "· ×N", genera
+    // un mensaje resumen y conserva CADA mensaje/detalle individual en
+    // "Ver detalles" (punto 6 de la especificación: no se pierde
+    // información al agrupar). También reinicia el temporizador de la
+    // tarjeta si está activa, para que siga visible mientras la acción se
+    // repite.
+    function _notifGroupIncrement(item, newMessage, newDetails, groupNoun) {
+        item.count++;
+        if (groupNoun && !item.groupNoun) item.groupNoun = groupNoun;
+        if (!item.groupMessages) item.groupMessages = [item.baseDetails || item.baseMessage];
+        item.groupMessages.push(newDetails || newMessage);
+
+        var noun = item.groupNoun || NOTIF_DEFAULT_GROUP_NOUN;
+        var displayTitle = item.baseTitle + ' · ×' + item.count;
+        var displayMessage = item.count + ' ' + noun.plural + ' correctamente.';
+
+        _notifUpdateContent(item, displayTitle, displayMessage);
+        _notifEnsureDetailsButton(item);
+        _notifDetailsStore[item.id] = {
+            title: displayTitle,
+            details: item.groupMessages.map(function(m, i) { return (i + 1) + '. ' + m; }).join('\n')
+        };
+
+        if (item.active) {
+            item._activeStart = Date.now();
+            item._pausedTotal = 0;
+            if (item.fillEl) item.fillEl.style.transform = 'scaleX(1)';
+        }
+    }
+
+    function _notifActivate(item) {
+        item.active = true;
+        item._activeStart = Date.now();
+        item._pausedTotal = 0;
+        if (item.fillEl) item.fillEl.style.transform = 'scaleX(1)';
+        if (!_notifRaf) _notifRaf = requestAnimationFrame(_notifTick);
+    }
+
+    function _notifTick() {
+        _notifRaf = null;
+        if (!_notifQueue.length) return;
+        var active = _notifQueue[0];
+        if (!active.active) { _notifActivate(active); }
+
+        if (_notifPauseStart === null) {
+            var elapsed = Date.now() - active._activeStart - active._pausedTotal;
+            var pct = 1 - (elapsed / active.duration);
+            if (pct < 0) pct = 0;
+            if (active.fillEl) active.fillEl.style.transform = 'scaleX(' + pct + ')';
+            if (elapsed >= active.duration) {
+                closeNotification(active.id);
+                return; // closeNotification reprograma el siguiente tick si hace falta
+            }
+        }
+        _notifRaf = requestAnimationFrame(_notifTick);
+    }
+
+    function _notifPauseHover() {
+        if (!_notifQueue.length) return;
+        if (_notifPauseStart === null) _notifPauseStart = Date.now();
+    }
+
+    function _notifResumeHover() {
+        if (_notifPauseStart === null) return;
+        var elapsedPaused = Date.now() - _notifPauseStart;
+        _notifPauseStart = null;
+        if (_notifQueue.length) {
+            _notifQueue[0]._pausedTotal += elapsedPaused;
+        }
+        if (_notifQueue.length && !_notifRaf) _notifRaf = requestAnimationFrame(_notifTick);
+    }
+
+    // Elimina una notificación (manual con "×" o automática al agotar su
+    // tiempo). Usa únicamente opacity/transform para la salida (sin animar
+    // height/padding/margin, ver punto 6) y aplica la técnica FLIP para que
+    // el resto de tarjetas suban suavemente con transform, no con animación
+    // de layout.
+    function closeNotification(id) {
+        var idx = -1;
+        for (var i = 0; i < _notifQueue.length; i++) { if (_notifQueue[i].id === id) { idx = i; break; } }
+        if (idx === -1) return;
+        var item = _notifQueue[idx];
+        var wasActive = (idx === 0);
+        _notifQueue.splice(idx, 1);
+        delete _notifDetailsStore[id];
+
+        var container = item.el.parentElement;
+        var remainingEls = _notifQueue.map(function(n) { return n.el; });
+        var firstRects = remainingEls.map(function(el) { return el.getBoundingClientRect(); });
+
+        if (container) {
+            var rect = item.el.getBoundingClientRect();
+            var parentRect = container.getBoundingClientRect();
+            item.el.style.position = 'absolute';
+            item.el.style.left = (rect.left - parentRect.left) + 'px';
+            item.el.style.top = (rect.top - parentRect.top) + 'px';
+            item.el.style.width = rect.width + 'px';
+            item.el.style.margin = '0';
+        }
+        item.el.classList.remove('notif-in');
+        item.el.classList.add('notif-out');
+
+        var lastRects = remainingEls.map(function(el) { return el.getBoundingClientRect(); });
+        remainingEls.forEach(function(el, i) {
+            var dy = firstRects[i].top - lastRects[i].top;
+            if (dy) {
+                el.style.transition = 'none';
+                el.style.transform = 'translateY(' + dy + 'px)';
+                // Forzar reflow para que el navegador registre el estado inicial
+                // antes de animar hacia la posición final.
+                void el.offsetHeight;
+                el.style.transition = 'transform 0.28s cubic-bezier(0.4,0,0.2,1)';
+                el.style.transform = '';
+            }
+        });
+
+        setTimeout(function() {
+            if (item.el && item.el.parentElement) item.el.parentElement.removeChild(item.el);
+        }, 240);
+
+        if (wasActive) {
+            _notifPauseStart = null;
+            if (_notifQueue.length) {
+                _notifActivate(_notifQueue[0]);
+            }
+        }
+    }
+
+    function showNotifDetails(id) {
+        var data = _notifDetailsStore[id];
+        if (!data) return;
+        var modal = document.getElementById('notifDetailsModal');
+        document.getElementById('notifDetailsTitle').textContent = data.title || 'Detalles';
+        document.getElementById('notifDetailsBody').textContent = data.details || '';
+        if (modal) { modal.style.display = 'flex'; modal.classList.remove('hidden'); modal.classList.add('modal-open'); }
+    }
+
+    function closeNotifDetails() {
+        var modal = document.getElementById('notifDetailsModal');
+        if (!modal) return;
+        modal.classList.remove('modal-open');
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
     }
 
     // ══════════════════════════════════════════════
@@ -16575,12 +17170,21 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 encoding: 'utf8'
             }).then(function(res) {
                 if (res && res.ok) {
-                    showToast('Exportado en: FiscalSync - ' + mesLabel + ' / ' + (empRazonCompleta || 'Sin_Empresa') + ' — ' + finalFilename, 'success');
+                    showToast(finalFilename + ' se guardó correctamente.', 'success', {
+                        title: 'Archivo exportado',
+                        details: 'FiscalSync - ' + mesLabel + ' / ' + (empRazonCompleta || 'Sin_Empresa') + ' — ' + finalFilename
+                    });
                 } else {
-                    showToast('Error al exportar: ' + (res && res.error ? res.error : 'desconocido'), 'error');
+                    showToast('No fue posible completar la exportación del archivo.', 'error', {
+                        title: 'Error al exportar',
+                        details: (res && res.error) ? res.error : 'Error desconocido.'
+                    });
                 }
             }).catch(function() {
-                showToast('Error al exportar el archivo', 'error');
+                showToast('No fue posible completar la exportación del archivo.', 'error', {
+                    title: 'Error al exportar',
+                    details: 'Ocurrió un error inesperado al exportar el archivo.'
+                });
             });
             return;
         }
@@ -16851,7 +17455,25 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         }
 
         downloadCSV(filename, buildCSV(rows));
-        showToast('CSV exportado: ' + filename, 'success');
+        // Título diferenciado por tipo de CSV (punto 10 de la especificación).
+        // La cantidad de documentos proviene siempre de "rows" (los mismos
+        // registros ya filtrados/ordenados arriba) — nunca se inventa.
+        var _csvTitles = {
+            consumidor: 'CSV de Consumidor Final generado',
+            debito: 'CSV de Crédito Fiscal generado',
+            compras: 'CSV de Compras generado',
+            percibido: 'CSV de IVA Percibido generado',
+            retenido: 'CSV de IVA Retenido generado',
+            anticipo: 'CSV de Anticipo a Cuenta generado',
+            excluido: 'CSV de Sujeto Excluido generado',
+            f14: 'CSV de Retenciones F14 generado',
+            quincena25: 'CSV de Quincena 25 generado',
+            anulados: 'CSV de Documentos Anulados generado'
+        };
+        showToast(rows.length + ' documento(s) fueron exportados correctamente.', 'success', {
+            title: _csvTitles[type] || 'CSV exportado',
+            details: 'Archivo: ' + filename
+        });
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -18979,6 +19601,50 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         }
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // IMPLEMENTACIÓN 02 — Admin > Sistema > "Consulta DTE" (Slide)
+    // Controla ÚNICAMENTE la visibilidad de los botones "Consulta DTE" y
+    // de la columna "Estado DGII" de Libros IVA (vía la clase
+    // body.fs-consulta-dte-oculta + reglas CSS definidas arriba). No toca
+    // handlers IPC, la consulta al Ministerio, ni la lógica de Modo
+    // Revisión que también muestra/oculta estos mismos elementos — ambas
+    // conviven porque Modo Revisión usa style.display/clases en la propia
+    // tabla y esta clase usa !important por CSS a nivel de body.
+    // Persistencia: reutiliza fsStore (mismo sistema de almacenamiento que
+    // ya usa el resto de FiscalSync) — sobrevive a cerrar y reabrir la app.
+    // Compatibilidad: si la clave todavía no existe (instalaciones ya
+    // instaladas antes de este cambio), el valor por defecto es ON.
+    // ══════════════════════════════════════════════════════════════════
+    var FS_CONSULTA_DTE_KEY = 'fs_consulta_dte_visible';
+
+    function adminConsultaDteVisibleActual() {
+        var raw = fsStore.getItem(FS_CONSULTA_DTE_KEY);
+        if (raw === null || raw === undefined || raw === '') return true; // DEFAULT = ON
+        return raw === true || raw === 'true';
+    }
+
+    // Aplica inmediatamente el estado actual a la interfaz (clase en <body>).
+    // Se llama al iniciar la app y cada vez que el admin cambia el Slide —
+    // no requiere reiniciar FiscalSync.
+    function adminAplicarVisibilidadConsultaDte() {
+        var visible = adminConsultaDteVisibleActual();
+        document.body.classList.toggle('fs-consulta-dte-oculta', !visible);
+    }
+
+    // Sincroniza el checkbox del Slide con el valor guardado — se llama
+    // cada vez que se abre la pestaña Sistema del panel Admin.
+    function adminSyncConsultaDteToggleUI() {
+        var chk = document.getElementById('adminToggleConsultaDte');
+        if (chk) chk.checked = adminConsultaDteVisibleActual();
+    }
+
+    // Handler del onchange del Slide.
+    function adminSetConsultaDteVisible(visible) {
+        fsStore.setItem(FS_CONSULTA_DTE_KEY, !!visible);
+        adminAplicarVisibilidadConsultaDte();
+        showToast(visible ? 'Consulta DTE (botones y columna Estado DGII) visible en Libros IVA' : 'Consulta DTE (botones y columna Estado DGII) oculta en Libros IVA', 'success');
+    }
+
     // ── Cambio 6: switch entre tabs del panel admin ──
     // MODIFICADO (Cambio 02): ahora soporta 3 pestañas — usuarios, parametros, sistema
     function switchAdminTab(tab) {
@@ -19009,6 +19675,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             if (title) title.innerText = 'Sistema';
             if (box) { box.style.maxWidth = '500px'; box.style.height = ''; box.style.maxHeight = '90vh'; }
             loadExportConfigUI(); // AGREGADO NUEVO (Cambio 03)
+            adminSyncConsultaDteToggleUI(); // Implementación 02
         } else if (tab === 'escaneoqr') {
             escaneoStep.style.display = 'flex';
             btnQ.style.background = 'var(--rp-border)'; btnQ.style.color = 'var(--rp-text-primary)';
@@ -25337,11 +26004,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
                 paramApplyAll();
                 loadEmpresas();
                 renderEmpresaList();
+                adminAplicarVisibilidadConsultaDte(); // Implementación 02
                 lucide.createIcons();
             }).catch(function() {
                 paramApplyAll();
                 loadEmpresas();
                 renderEmpresaList();
+                adminAplicarVisibilidadConsultaDte(); // Implementación 02
                 lucide.createIcons();
             });
         } else {
@@ -25349,6 +26018,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
             paramApplyAll();
             loadEmpresas();
             renderEmpresaList();
+            adminAplicarVisibilidadConsultaDte(); // Implementación 02
             lucide.createIcons();
         }
     })();

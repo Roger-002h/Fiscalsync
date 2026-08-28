@@ -332,5 +332,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Seleccionar carpeta y devolver todas las rutas absolutas de JSONs (recursivo)
     selectFolderJsons: () => ipcRenderer.invoke('select-folder-jsons'),
 
+    // ── Implementación 01 — Correos DTE: búsqueda alternativa de PDF/JSON ──
+    // Antes de adjuntar, resuelve la ruta real de cada archivo: usa
+    // doc.pdfPath/doc.jsonPath si existen; si no, busca en la carpeta de
+    // Facturación Electrónica de la empresa/mes usando el Código de
+    // Generación (misma estructura de carpetas ya existente, ver
+    // _feGetFacturacionDir en main.js). No copia ni mueve archivos.
+    // params: { pdfPath, jsonPath, mesLabel, empresaNombre, codigoBase }
+    // Devuelve { ok, pdfPath, pdfOrigen, jsonPath, jsonOrigen } | { error }
+    resolverAdjuntosCorreo: (params) => ipcRenderer.invoke('fe-resolver-adjuntos-correo', params),
+
     isElectron: true
 });

@@ -654,6 +654,47 @@ function _feGetFacturacionDir(mesLabel, empresaNombre) {
   return facturacionDir;
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// IMPLEMENTACIÓN 01 — Gestión → Correos DTE: búsqueda alternativa de PDF/JSON
+// Antes de armar los adjuntos de un correo, el renderer llama a este handler
+// para resolver la ruta real de cada archivo:
+//   1) Si la ruta actual del documento (doc.pdfPath / doc.jsonPath) existe
+//      físicamente, se usa tal cual (sin tocarla).
+//   2) Si no existe, se busca en la MISMA carpeta que ya usa Facturación
+//      Electrónica para esa empresa/mes (_feGetFacturacionDir de arriba —
+//      no se crea una estructura de carpetas nueva), usando el Código de
+//      Generación como nombre base (codigoBase + '.pdf' / '.json').
+// No copia, mueve ni modifica ningún archivo — solo localiza rutas.
+// Cada archivo (pdf/json) se resuelve de forma independiente.
+// ══════════════════════════════════════════════════════════════════════
+function _feResolverUnAdjunto(currentPath, dir, codigoBase, ext) {
+  if (currentPath) {
+    try { if (fs.existsSync(currentPath)) return { path: currentPath, origen: 'actual' }; } catch (e) { /* ignorar y continuar buscando */ }
+  }
+  if (codigoBase) {
+    const candidato = path.join(dir, codigoBase + ext);
+    try { if (fs.existsSync(candidato)) return { path: candidato, origen: 'facturacion' }; } catch (e) { /* no encontrado */ }
+  }
+  return { path: null, origen: 'ninguno' };
+}
+
+ipcMain.handle('fe-resolver-adjuntos-correo', async (event, { pdfPath, jsonPath, mesLabel, empresaNombre, codigoBase } = {}) => {
+  try {
+    const dir  = _feGetFacturacionDir(mesLabel, empresaNombre);
+    const pdf  = _feResolverUnAdjunto(pdfPath  || '', dir, codigoBase, '.pdf');
+    const json = _feResolverUnAdjunto(jsonPath || '', dir, codigoBase, '.json');
+    return {
+      ok: true,
+      pdfPath:   pdf.path,
+      pdfOrigen: pdf.origen,
+      jsonPath:  json.path,
+      jsonOrigen: json.origen
+    };
+  } catch (e) {
+    return { error: e.message };
+  }
+});
+
 // fe-set-context — el renderer llama esto cada vez que el usuario entra a
 // Facturación Electrónica o cambia el selector de "Mes de trabajo" (ver
 // _feEnviarContexto en index.html), para que las descargas de esa empresa
