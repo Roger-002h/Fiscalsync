@@ -76,13 +76,28 @@ contextBridge.exposeInMainWorld('fiscalAPI', {
     // la próxima vez que se inicie una verificación.
     cerrarVentanasDTE: () => ipcRenderer.invoke('cerrar-ventanas-dte'),
 
-    // AGREGADO — Indicador visual de reintento (Cambio 01): cb({slot}) se
-    // dispara cada vez que main.js reintenta automáticamente la consulta de
-    // UN documento (misma lógica de reintentos ya existente, sin cambios;
-    // esto solo la hace visible en la interfaz). No requiere confirmación
-    // de "reintento terminado" — el modal simplemente oculta el aviso en
-    // cuanto avanza el progreso del siguiente documento completado.
+    // AGREGADO — Indicador visual de reintento (Cambio 01). ARREGLO 02: desde
+    // esta corrección, main.js YA NO reintenta ningún documento de forma
+    // inmediata dentro de 'verificar-dte-mh' (ver comentario en main.js), así
+    // que ya no emite 'dgii-reintento' en el flujo normal — el reintento
+    // ahora es un turno más de la cola real, y es el propio renderer
+    // (index.html/correrColaSecuencial) quien sabe, sin necesidad de ningún
+    // aviso IPC adicional, cuándo un documento que está procesando es en
+    // realidad su reintento. Se deja este canal expuesto tal cual, sin
+    // eliminarlo, únicamente por compatibilidad — no se crea ningún evento
+    // nuevo (ver ARREGLO 02, punto 18: "no crear eventos innecesarios si
+    // puede reutilizarse la infraestructura existente").
     onReintentoDTE: (callback) => ipcRenderer.on('dgii-reintento', (event, data) => callback(data)),
+
+    // AGREGADO — Detección de "Hacienda no disponible" (punto 24 de la
+    // notificación persistente): main.js dispara 'dgii-hacienda-no-disponible'
+    // cuando varios documentos SEGUIDOS fallan incluso después de su propio
+    // reintento automático (ver 'verificar-dte-mh' en main.js), y
+    // 'dgii-hacienda-disponible' cuando la pausa respetuosa termina y el
+    // proceso continúa solo. No participan en ninguna decisión de negocio:
+    // son puramente informativos para que la interfaz refleje el estado real.
+    onHaciendaNoDisponible: (callback) => ipcRenderer.on('dgii-hacienda-no-disponible', (event, data) => callback(data)),
+    onHaciendaDisponible: (callback) => ipcRenderer.on('dgii-hacienda-disponible', (event, data) => callback(data)),
 
     // Reinicia el flag de cancelación antes de iniciar un nuevo lote
     resetCancelacionDTE: () => ipcRenderer.invoke('reset-cancelacion-dte'),

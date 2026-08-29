@@ -1670,6 +1670,45 @@ const DGII_ESTADOS = [
 let _dgiiWins = {};       // pool de ventanas ocultas, una por "carril" (slot) cuando se corre en paralelo
 let _dgiiCancelado = false;
 
+// AGREGADO — Detección de "Hacienda no disponible" (punto 24 de la
+// especificación de la notificación persistente). No es un estado nuevo
+// inventado del lado del front: se apoya en la misma señal que ya existía
+// (un documento termina en ERROR incluso después de su único reintento
+// automático), pero mirada a nivel de LOTE — si varios documentos SEGUIDOS
+// (entre todos los carriles activos) terminan así, es más probable que el
+// Ministerio esté caído/lento que un problema puntual de un solo documento.
+// _dgiiErroresConsecutivos se reinicia a 0 en cualquier resultado que NO sea
+// ERROR (cualquier carril) y también al iniciar un lote nuevo (ver
+// 'reset-cancelacion-dte' más abajo). _dgiiPausaHaciendaPromise evita que,
+// si varios carriles llegan al umbral casi al mismo tiempo, se disparen
+// varias pausas/avisos superpuestos: el primero en llegar crea la pausa
+// compartida y los demás simplemente la esperan.
+let _dgiiErroresConsecutivos = 0;
+let _dgiiPausaHaciendaPromise = null;
+const DGII_UMBRAL_HACIENDA_NO_DISPONIBLE = 3;        // documentos seguidos fallando tras su reintento
+const DGII_ESPERA_HACIENDA_NO_DISPONIBLE_MS = 20000; // pausa respetuosa antes de reintentar (20s)
+
+// Ejecuta (o espera, si ya está en curso) la pausa por "Hacienda no
+// disponible": avisa al renderer, espera, avisa que se reanuda, y reinicia
+// el contador de errores consecutivos. No cancela el lote ni descarta
+// ningún documento — el llamador decide qué hacer con el resultado después.
+function _dgiiEsperarSiHaciendaCaida(event) {
+  if (_dgiiPausaHaciendaPromise) return _dgiiPausaHaciendaPromise;
+  _dgiiPausaHaciendaPromise = (async () => {
+    try {
+      event.sender.send('dgii-hacienda-no-disponible', { segundos: Math.round(DGII_ESPERA_HACIENDA_NO_DISPONIBLE_MS / 1000) });
+    } catch (e) {}
+    console.warn('[DGII] Varios documentos seguidos fallaron tras su reintento — posible caída del Ministerio de Hacienda. Pausando ' + (DGII_ESPERA_HACIENDA_NO_DISPONIBLE_MS / 1000) + 's...');
+    await _dgiiSleep(DGII_ESPERA_HACIENDA_NO_DISPONIBLE_MS);
+    if (!_dgiiCancelado) {
+      try { event.sender.send('dgii-hacienda-disponible'); } catch (e) {}
+    }
+    _dgiiErroresConsecutivos = 0;
+    _dgiiPausaHaciendaPromise = null;
+  })();
+  return _dgiiPausaHaciendaPromise;
+}
+
 // Devuelve (o crea) la ventana oculta correspondiente a un carril (slot).
 // Cada carril tiene su propia partición de sesión para poder correr varias
 // consultas en paralelo sin que se pisen entre sí (cada uno con su propio
@@ -1899,27 +1938,51 @@ async function _dgiiConsultarConTimeout(fechaGeneracion, codigoGeneracion, slot)
   return resultado;
 }
 
+// ARREGLO 02 — REGLA CRÍTICA DEL REINTENTO (punto 2 y 17 de la especificación):
+// este handler YA NO reintenta el documento de forma inmediata dentro de la
+// misma llamada IPC. Antes, si el primer intento daba ERROR, aquí mismo se
+// disparaba un segundo `_dgiiConsultarConTimeout(...)` pegado al primero, sin
+// respetar el intervalo obligatorio de 15 segundos. Eso quedó eliminado por
+// completo: ahora, si la consulta falla, el resultado ERROR se devuelve tal
+// cual al renderer en su primer y único intento por llamada. Es el renderer
+// (ver correrColaSecuencial()/procesarDocumento() en index.html) quien decide
+// marcar el documento como "Pendiente de reintento" y reincorporarlo al FINAL
+// de la cola real, para que su reintento se procese más adelante como un
+// turno normal más — pasando otra vez por correrColaSecuencial() y, por lo
+// tanto, respetando también los 15 segundos obligatorios en el reintento.
+// No se elimina la capacidad de reintentar: solo cambia DÓNDE y CUÁNDO
+// ocurre (ver ARREGLO 02, punto 31 — regla final).
 ipcMain.handle('verificar-dte-mh', async (event, fechaGeneracion, codigoGeneracion, slot) => {
   try {
     if (!fechaGeneracion || !codigoGeneracion) {
       return { estado: 'ERROR', error: 'Documento sin fecha o código de generación' };
     }
     let resultado = await _dgiiConsultarConTimeout(fechaGeneracion, codigoGeneracion, slot);
-    // Red de seguridad: si dio ERROR (timeout, respuesta no reconocida, fallo
-    // de carga, etc.) se reintenta una sola vez automáticamente antes de darlo
-    // por fallido — sin necesidad de que el usuario note el error y vuelva a
-    // correr el lote a mano. No se reintenta si el lote fue cancelado.
+
+    // AGREGADO — "Hacienda no disponible" (se conserva igual que en ARREGLO
+    // 01, punto 24): sigue siendo una señal de LOTE, no del documento
+    // individual — varios documentos SEGUIDOS terminando en ERROR (ahora en
+    // su único intento por llamada, ya que el reintento inmediato dejó de
+    // existir arriba) sugieren que el Ministerio está caído/lento, no un
+    // problema puntual de un solo documento. Al llegar al umbral, se pausa
+    // de forma respetuosa, se avisa al renderer, y se le da a ESTE documento
+    // una oportunidad más una vez pasada la pausa. Esto NO es el "reintento
+    // inmediato" que ARREGLO 02 prohíbe: es una espera real de ~20s por
+    // posible caída del servicio (afecta a todo el lote, no solo a este
+    // documento) y no un segundo intento pegado al primero para este mismo
+    // documento en condiciones normales.
     if (resultado.estado === 'ERROR' && !_dgiiCancelado) {
-      console.warn('[DGII][slot ' + (slot || 0) + '] Primer intento falló (' + resultado.error + '), reintentando una vez...');
-      // AGREGADO — Indicador visual de reintento (Cambio 01): solo notifica al
-      // renderer que se está reintentando ESTE documento, para que muestre
-      // "Reintentando documento..." en el modal de progreso. No cambia en
-      // absoluto la lógica de reintentos de arriba (sigue siendo un único
-      // reintento automático, misma condición, mismo flujo) — es únicamente
-      // un aviso informativo adicional.
-      try { event.sender.send('dgii-reintento', { slot: slot || 0 }); } catch (e) {}
-      resultado = await _dgiiConsultarConTimeout(fechaGeneracion, codigoGeneracion, slot);
+      _dgiiErroresConsecutivos++;
+      if (_dgiiErroresConsecutivos >= DGII_UMBRAL_HACIENDA_NO_DISPONIBLE) {
+        await _dgiiEsperarSiHaciendaCaida(event);
+        if (!_dgiiCancelado) {
+          resultado = await _dgiiConsultarConTimeout(fechaGeneracion, codigoGeneracion, slot);
+        }
+      }
+    } else if (resultado.estado !== 'ERROR') {
+      _dgiiErroresConsecutivos = 0; // cualquier éxito corta la racha de errores
     }
+
     return resultado;
   } catch (e) {
     return { estado: 'ERROR', error: e.message || 'Error desconocido al consultar el Ministerio de Hacienda' };
@@ -3088,6 +3151,10 @@ ipcMain.handle('cerrar-ventanas-dte', async () => {
 
 ipcMain.handle('reset-cancelacion-dte', async () => {
   _dgiiCancelado = false;
+  // AGREGADO — arranca cada lote nuevo con la racha de errores en cero, para
+  // que fallos de un lote anterior no disparen "Hacienda no disponible" de
+  // entrada en un lote distinto.
+  _dgiiErroresConsecutivos = 0;
   return { ok: true };
 });
 
