@@ -396,6 +396,20 @@
   function _validoNitONrc(v) { return /^\d{4}-\d{6}-\d{3}-\d$/.test(String(v || '').trim()); }
   function _validoDui(v) { return /^\d{8}-\d$/.test(String(v || '').trim()); }
 
+  // Corrección: el campo de NIT del formulario "Agregar nuevo" exigía el
+  // formato con guiones (0000-000000-000-0) y rechazaba el mismo NIT
+  // escrito solo con dígitos (0000000000000). Si el usuario escribió los
+  // 14 dígitos sin guiones, se le da el formato automáticamente antes de
+  // validar/guardar — no se toca _validoNitONrc, que sigue siendo la
+  // única barrera de formato.
+  function _normalizarNitONrc(v) {
+    var soloDigitos = String(v || '').trim();
+    if (/^\d{14}$/.test(soloDigitos)) {
+      return soloDigitos.slice(0, 4) + '-' + soloDigitos.slice(4, 10) + '-' + soloDigitos.slice(10, 13) + '-' + soloDigitos.slice(13);
+    }
+    return v;
+  }
+
   function _provTieneUso(p, uso) {
     if (!uso) return true;
     var usos = (Array.isArray(p.usos) && p.usos.length) ? p.usos : ['compras'];
@@ -600,6 +614,13 @@
     var html = '<div class="rs-new-grid">';
     html += '<div class="rs-field"><label>Nombre / Razón Social</label><input type="text" id="rsNuevo_nombre"></div>';
     html += '<div class="rs-field"><label>NIT o NRC</label><input type="text" id="rsNuevo_nit" placeholder="0000-000000-000-0"></div>';
+    // El libro/tipo de documento activo (elegido en "Escaneo de
+    // Documentos") es lo que determina si corresponde el campo NRC —
+    // por eso se revisa resumenState.libro === 'ccf' (Anexo 1, Venta
+    // Crédito Fiscal) y no info.esCliente.
+    if (resumenState.libro === 'ccf') {
+      html += '<div class="rs-field"><label>NRC</label><input type="text" id="rsNuevo_nrc"></div>';
+    }
     if (!info.esCliente) {
       html += '<div class="rs-field"><label>DUI (opcional)</label><input type="text" id="rsNuevo_dui" placeholder="00000000-0"></div>';
       html += '<div class="rs-field"><label>Clasificación</label><select id="rsNuevo_clasif">' + CLASIF_OPCIONES.map(function (o) { return '<option value="' + o[0] + '">' + _esc(o[1]) + '</option>'; }).join('') + '</select></div>';
@@ -629,12 +650,18 @@
   window._rsUsarNuevo = function () {
     var info = _rsInfo();
     var nombre = (document.getElementById('rsNuevo_nombre').value || '').trim();
-    var nitRaw = (document.getElementById('rsNuevo_nit').value || '').trim();
+    var nitRaw = _normalizarNitONrc((document.getElementById('rsNuevo_nit').value || '').trim());
     if (!nombre) { showToast('Escribe el nombre.', 'err'); return; }
     if (!nitRaw) { showToast('Escribe el NIT o NRC.', 'err'); return; }
     if (!_validoNitONrc(nitRaw)) { showToast('El NIT/NRC debe tener el formato 0000-000000-000-0.', 'err'); return; }
 
     var sel = { nombre: nombre, nit: nitRaw, nrc: nitRaw, dui: '', clasif: '1', sector: '1', tipoCosto: '1', tipoOp: '1', tipoIng: '1' };
+
+    if (resumenState.libro === 'ccf') {
+      var nrcRaw = (document.getElementById('rsNuevo_nrc').value || '').trim();
+      if (!nrcRaw) { showToast('Escribe el NRC.', 'err'); return; }
+      sel.nrc = nrcRaw;
+    }
 
     if (!info.esCliente) {
       var duiRaw = (document.getElementById('rsNuevo_dui').value || '').trim();

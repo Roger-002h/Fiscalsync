@@ -5,7 +5,7 @@ const { autoUpdater } = require('electron-updater'); // 👈 NUEVO
 // Cambio 04 — Catálogo CAT-002 centralizado (fuente única, compartida con
 // index.html). Ver cat002.js para el catálogo completo y la equivalencia
 // texto de Hacienda -> código CAT-002.
-const { cat002CodigoDesdeTexto, nombrePorCodigo } = require('./cat002.js');
+const { cat002CodigoDesdeTexto, nombrePorCodigo } = require('./data/cat002.js');
 
 let mainWindowRef = null; // 👈 NUEVO: referencia para enviar el estado del updater al renderer
 
