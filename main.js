@@ -199,6 +199,15 @@ function createWindow() {
       // candado real está en 'will-attach-webview' más abajo, que valida
       // cada <webview> antes de crearse.
       webviewTag: true,
+      // Corrección — sin esto, Chromium le baja la prioridad a los
+      // temporizadores del renderer cuando la ventana está minimizada o
+      // sin foco (p. ej. el intervalo obligatorio de 15s entre consultas
+      // de Consulta DTE, ver ConsultaDTE.js), haciendo que procesos con
+      // setTimeout/setInterval avancen más lento sin ningún error. Mismo
+      // ajuste que ya se usa en la ventana oculta del visor de PDF de
+      // Facturación Electrónica (ver contents.setWindowOpenHandler más
+      // abajo).
+      backgroundThrottling: false,
     }
   });
 
