@@ -986,6 +986,15 @@
                     if (completados % 5 === 0 || completados === total) saveCurrentMonthData();
                 } catch (errInterno) {
                     console.error('[DGII] Error procesando documento', idx, errInterno);
+                    // CORRECCIÓN: antes, un error interno (excepción de JS, distinto
+                    // de un error de consulta contra Hacienda) dejaba la columna
+                    // "Estado DGII" sin ningún cambio y sin aviso visible para el
+                    // usuario — solo quedaba registrado en consola y en un campo de
+                    // texto oculto del modal. Ahora se refleja igual que cualquier
+                    // otro resultado definitivo de error, para que la columna nunca
+                    // se quede "congelada" en silencio.
+                    r.estadoDGII = { code: 'ERROR', ts: Date.now() };
+                    dgiiActualizarCeldaEnVivo(libro, idx, r.estadoDGII);
                     resumen.errores++;
                     completados++;
                     dgiiActualizarProgreso(completados, total);
@@ -997,6 +1006,11 @@
                 console.error('[DGII] Error fatal en la cadena de verificación:', errFatal);
                 var errEl3 = document.getElementById('dgiiUltimoError');
                 if (errEl3) errEl3.innerText = 'Error inesperado: ' + (errFatal && errFatal.message ? errFatal.message : errFatal);
+                // CORRECCIÓN: mismo caso que el catch (errInterno) de arriba —
+                // sin esto, un fallo inesperado en la cadena de promesas dejaba
+                // la columna "Estado DGII" sin cambios y sin aviso visible.
+                r.estadoDGII = { code: 'ERROR', ts: Date.now() };
+                dgiiActualizarCeldaEnVivo(libro, idx, r.estadoDGII);
                 resumen.errores++;
                 completados++;
                 dgiiActualizarProgreso(completados, total);

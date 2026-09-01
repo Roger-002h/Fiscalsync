@@ -73,6 +73,16 @@
                 //    documentos.
                 var modalEl = document.getElementById(cfg.modalId);
                 if (modalEl) { modalEl.style.display = 'none'; modalEl.classList.remove('modal-open'); }
+                // CORRECCIÓN: cfg.save() puede rechazar el guardado en silencio
+                // (NIT/DUI con formato inválido, o documento detectado como
+                // duplicado) y en esos casos no llega a reconstruir el registro,
+                // por lo que el Estado DGII de ese documento quedaba intacto en
+                // vez de perderse como el resto. Se borra acá, directo sobre el
+                // registro real, para que el recorrido pierda el Estado DGII de
+                // TODOS los documentos que toca, sin depender del resultado de
+                // la validación de guardado.
+                var recActual = cfg.getRecords()[idx];
+                if (recActual) delete recActual.estadoDGII;
                 // 3) Guardar — misma lógica que usa el botón "Siguiente" para
                 //    actualizar el registro antes de pasar al próximo.
                 cfg.save();
@@ -81,7 +91,19 @@
                 console.error('[Recorrer y Actualizar] Error en documento ' + (idx + 1) + ' de ' + cfg.nombre + ':', e);
             }
             idx++;
-            recorridoActualizarProgreso(Math.min(idx, totalActual), totalActual);
+            // CORRECCIÓN: esto quedaba FUERA del try/catch de arriba. Si algo
+            // fallaba acá (por ejemplo, actualizando la barra de progreso), el
+            // recorrido se cortaba de golpe sin llegar nunca a terminar() —
+            // dejando _recorridoSilencioso trabado en true para siempre, y con
+            // eso, TODOS los avisos de la aplicación (no solo los de Recorrido)
+            // apagados hasta reiniciar FiscalSync. Se protege también este
+            // tramo para garantizar que el recorrido SIEMPRE llegue a
+            // terminar(), pase lo que pase con un documento puntual.
+            try {
+                recorridoActualizarProgreso(Math.min(idx, totalActual), totalActual);
+            } catch (e2) {
+                console.error('[Recorrer y Actualizar] Error actualizando el progreso:', e2);
+            }
             setTimeout(procesarSiguiente, 0);
         }
 
