@@ -37,7 +37,8 @@ function _feContextoDe(partition) {
   return _feContextos[partition] || {
     mesLabel: _feMesLabelPorDefecto(),
     empresaNombre: 'Empresa',
-    ultimoJsonBase: null
+    ultimoJsonBase: null,
+    ultimaCarpetaFecha: null // AGREGADO — subcarpeta de fecha del último .json descargado
   };
 }
 
@@ -268,33 +269,71 @@ function createWindow() {
           const originalName = item.getFilename();
           const ext = path.extname(originalName).toLowerCase();
           let destName;
+          // AGREGADO — carpeta por fecha: mientras se descarga el .json no
+          // se sabe todavía su fecha (está dentro del archivo), así que
+          // sigue guardándose primero en la raíz de "Facturacion" como
+          // hasta ahora; recién en el 'done' de más abajo se mueve a su
+          // subcarpeta de fecha. El .pdf, en cambio, se descarga DESPUÉS
+          // del .json correspondiente, así que para cuando llega ya
+          // conocemos esa carpeta (ctx.ultimaCarpetaFecha) y puede ir
+          // directo ahí, quedando junto a su .json.
+          let dirDestino = dir;
 
           if (ext === '.json') {
             // Punto 1/2 — el .json se guarda con su nombre tal cual, y se
             // recuerda su nombre base para que el PDF (punto 6) lo use.
             destName = sanitizeFolderName(originalName);
             _feContextos[partition] = Object.assign({}, ctx, {
-              ultimoJsonBase: path.basename(originalName, ext)
+              ultimoJsonBase: path.basename(originalName, ext),
+              ultimaCarpetaFecha: null // se resuelve recién al terminar la descarga (ver 'done')
             });
           } else if (ext === '.pdf') {
             // Punto 6 — el PDF usa como base el nombre del último .json
             // descargado, cambiando únicamente la extensión.
             const base = ctx.ultimoJsonBase || path.basename(originalName, ext);
             destName = sanitizeFolderName(base) + '.pdf';
+            if (ctx.ultimaCarpetaFecha) {
+              dirDestino = path.join(dir, ctx.ultimaCarpetaFecha);
+              if (!fs.existsSync(dirDestino)) fs.mkdirSync(dirDestino, { recursive: true });
+            }
           } else {
             destName = sanitizeFolderName(originalName);
           }
 
-          const destPath = path.join(dir, destName);
+          const destPath = path.join(dirDestino, destName);
           item.setSavePath(destPath);
 
           item.once('done', (doneEvent, state) => {
+            // AGREGADO — una vez que el .json terminó de descargarse, ya
+            // se puede leer su contenido: se calcula/crea su carpeta de
+            // fecha (identificacion.fecEmi) y se mueve el archivo ahí
+            // desde la raíz de "Facturacion". Se recuerda esa carpeta en
+            // el contexto para que el .pdf de este mismo documento (que
+            // llega después) se guarde directo junto a él.
+            let rutaFinal = destPath;
+            if (state === 'completed' && ext === '.json') {
+              const carpetaFecha = _feCarpetaFechaDesdeJson(destPath, dir);
+              if (carpetaFecha) {
+                try {
+                  const nuevoPath = path.join(carpetaFecha, path.basename(destPath));
+                  if (!fs.existsSync(nuevoPath)) fs.renameSync(destPath, nuevoPath);
+                  rutaFinal = nuevoPath;
+                } catch (e) {
+                  console.warn('[Facturación Electrónica] No se pudo mover el .json a su carpeta de fecha:', e.message);
+                }
+              }
+              const ctxActual = _feContextoDe(partition);
+              _feContextos[partition] = Object.assign({}, ctxActual, {
+                ultimaCarpetaFecha: carpetaFecha ? path.basename(carpetaFecha) : null
+              });
+            }
+
             if (mainWindowRef && !mainWindowRef.isDestroyed()) {
               mainWindowRef.webContents.send('fe-descarga-completada', {
                 ok: state === 'completed',
                 state: state,
                 ext: ext,
-                path: destPath
+                path: rutaFinal
               });
             }
             // Corrección 07, punto 2 — apenas el PDF termina de guardarse
@@ -304,7 +343,7 @@ function createWindow() {
             // que ir a buscarlo a mano en la carpeta Facturacion. Misma
             // mecánica que ya usa el handler 'print-pdf' (shell.openPath).
             if (state === 'completed' && ext === '.pdf') {
-              shell.openPath(destPath).then((err) => {
+              shell.openPath(rutaFinal).then((err) => {
                 if (err) console.warn('[Facturación Electrónica] No se pudo abrir automáticamente el PDF:', err);
               });
             }
@@ -664,6 +703,125 @@ function _feGetFacturacionDir(mesLabel, empresaNombre) {
 }
 
 // ══════════════════════════════════════════════════════════════════════
+// AGREGADO — Subcarpeta por fecha dentro de "Facturacion": cada documento
+// (.json + .pdf) se guarda junto, dentro de una subcarpeta con su fecha de
+// emisión (identificacion.fecEmi del propio .json, "AAAA-MM-DD" ->
+// "DD-MM-AAAA"), en vez de sueltos en la raíz. Reutiliza _feGetFacturacionDir
+// y sanitizeFolderName de arriba — no crea una segunda lógica de carpetas.
+// ══════════════════════════════════════════════════════════════════════
+
+// Convierte "AAAA-MM-DD" (fecEmi) a "DD-MM-AAAA" para usarlo como nombre de
+// subcarpeta. Devuelve null si el formato no es el esperado.
+function _feFechaEmiACarpeta(fecEmi) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(fecEmi || '').trim());
+  if (!m) return null;
+  return sanitizeFolderName(m[3] + '-' + m[2] + '-' + m[1]);
+}
+
+// Lee un .json ya guardado en disco y devuelve (creándola si hace falta)
+// su carpeta de fecha dentro de facturacionDir, o null si no se pudo
+// leer/parsear el archivo o no trae identificacion.fecEmi (en ese caso el
+// archivo se deja donde está, sin mover nada).
+function _feCarpetaFechaDesdeJson(jsonPath, facturacionDir) {
+  try {
+    const raw = fs.readFileSync(jsonPath, 'utf8');
+    const data = JSON.parse(raw);
+    const fecEmi = data && data.identificacion && data.identificacion.fecEmi;
+    const nombreCarpeta = _feFechaEmiACarpeta(fecEmi);
+    if (!nombreCarpeta) return null;
+    const destDir = path.join(facturacionDir, nombreCarpeta);
+    if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+    return destDir;
+  } catch (e) {
+    console.warn('[Facturación Electrónica] No se pudo leer la fecha del .json para organizarlo por carpeta:', e.message);
+    return null;
+  }
+}
+
+// Migra a su subcarpeta de fecha los .json/.pdf que hayan quedado sueltos
+// en la raíz de "Facturacion" (descargados antes de este cambio). Se llama
+// sola, sin pedir nada al usuario, desde ipcMain.handle('fe-set-context')
+// —que ya se dispara cada vez que el renderer entra a Facturación
+// Electrónica o cambia el mes de trabajo— así que no hace falta ningún
+// canal IPC ni pantalla nueva. No toca nada que ya esté en una subcarpeta.
+function _feMigrarSueltos(facturacionDir) {
+  let entradas;
+  try {
+    entradas = fs.readdirSync(facturacionDir, { withFileTypes: true });
+  } catch (e) {
+    return;
+  }
+  const jsonsSueltos = entradas
+    .filter((entrada) => entrada.isFile() && entrada.name.toLowerCase().endsWith('.json'))
+    .map((entrada) => entrada.name);
+
+  for (const jsonName of jsonsSueltos) {
+    try {
+      const jsonPath = path.join(facturacionDir, jsonName);
+      const destDir = _feCarpetaFechaDesdeJson(jsonPath, facturacionDir);
+      if (!destDir) continue; // no se pudo leer la fecha; se deja donde está
+
+      const base = path.basename(jsonName, '.json');
+      const pdfName = base + '.pdf';
+      const pdfPath = path.join(facturacionDir, pdfName);
+
+      const destJsonPath = path.join(destDir, jsonName);
+      if (!fs.existsSync(destJsonPath)) fs.renameSync(jsonPath, destJsonPath);
+
+      if (fs.existsSync(pdfPath)) {
+        const destPdfPath = path.join(destDir, pdfName);
+        if (!fs.existsSync(destPdfPath)) fs.renameSync(pdfPath, destPdfPath);
+      }
+    } catch (e) {
+      console.warn('[Facturación Electrónica] Error migrando archivo suelto a su carpeta de fecha:', jsonName, e.message);
+    }
+  }
+}
+
+// AGREGADO — recorre TODA la estructura ya existente de exportación
+// ([Raíz]/FiscalSync/FiscalSync [Año]/FiscalSync - [Mes] [Año]/[Empresa]/
+// Facturacion/) y le corre _feMigrarSueltos a cada carpeta "Facturacion"
+// que encuentre, sin importar año, mes o empresa. Pensada para llamarse
+// una sola vez al abrir la app (ver app.whenReady más abajo), así el
+// usuario no tiene que entrar al módulo de Facturación Electrónica ni
+// cambiar de mes para que se organicen las carpetas viejas. Reutiliza
+// readExportConfig (ya existente) para saber la misma raíz configurada
+// que usa getExportDir/_feGetFacturacionDir — no inventa una ruta nueva.
+function _feMigrarSueltosTodasLasCarpetas() {
+  try {
+    const cfg = readExportConfig();
+    const rootBase = (cfg.pdfPath && fs.existsSync(cfg.pdfPath)) ? cfg.pdfPath : app.getPath('desktop');
+    const rootDir = path.join(rootBase, 'FiscalSync');
+    if (!fs.existsSync(rootDir)) return;
+
+    const listarDirs = (dir) => {
+      try {
+        return fs.readdirSync(dir, { withFileTypes: true })
+          .filter((e) => e.isDirectory())
+          .map((e) => e.name);
+      } catch (e) {
+        return [];
+      }
+    };
+
+    for (const yearName of listarDirs(rootDir)) {
+      const yearDir = path.join(rootDir, yearName);
+      for (const mesName of listarDirs(yearDir)) {
+        const mesDir = path.join(yearDir, mesName);
+        for (const empresaName of listarDirs(mesDir)) {
+          const facturacionDir = path.join(mesDir, empresaName, 'Facturacion');
+          if (fs.existsSync(facturacionDir)) {
+            _feMigrarSueltos(facturacionDir);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[Facturación Electrónica] Error recorriendo carpetas para migrar archivos sueltos:', e.message);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
 // IMPLEMENTACIÓN 01 — Gestión → Correos DTE: búsqueda alternativa de PDF/JSON
 // Antes de armar los adjuntos de un correo, el renderer llama a este handler
 // para resolver la ruta real de cada archivo:
@@ -683,6 +841,18 @@ function _feResolverUnAdjunto(currentPath, dir, codigoBase, ext) {
   if (codigoBase) {
     const candidato = path.join(dir, codigoBase + ext);
     try { if (fs.existsSync(candidato)) return { path: candidato, origen: 'facturacion' }; } catch (e) { /* no encontrado */ }
+
+    // AGREGADO — con la organización por subcarpeta de fecha, el archivo ya
+    // no queda suelto en la raíz de "Facturacion"; se busca dentro de cada
+    // subcarpeta de fecha existente (mismo nombre codigoBase + ext).
+    try {
+      const entradas = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entrada of entradas) {
+        if (!entrada.isDirectory()) continue;
+        const candidatoEnFecha = path.join(dir, entrada.name, codigoBase + ext);
+        try { if (fs.existsSync(candidatoEnFecha)) return { path: candidatoEnFecha, origen: 'facturacion' }; } catch (e) { /* seguir buscando */ }
+      }
+    } catch (e) { /* no se pudo listar subcarpetas; no encontrado */ }
   }
   return { path: null, origen: 'ninguno' };
 }
@@ -716,11 +886,19 @@ ipcMain.handle('fe-set-context', async (event, { empresaId, mesLabel, empresaNom
     if (!empresaId) return { error: 'empresaId es requerido' };
     const partition = 'persist:facturacion-electronica-' + empresaId;
     const anterior = _feContextos[partition] || {};
+    const mesLabelFinal = mesLabel || _feMesLabelPorDefecto();
+    const empresaNombreFinal = empresaNombre || anterior.empresaNombre || 'Empresa';
     _feContextos[partition] = {
-      mesLabel: mesLabel || _feMesLabelPorDefecto(),
-      empresaNombre: empresaNombre || anterior.empresaNombre || 'Empresa',
-      ultimoJsonBase: anterior.ultimoJsonBase || null
+      mesLabel: mesLabelFinal,
+      empresaNombre: empresaNombreFinal,
+      ultimoJsonBase: anterior.ultimoJsonBase || null,
+      ultimaCarpetaFecha: anterior.ultimaCarpetaFecha || null
     };
+    // AGREGADO — primera vez que se detectan archivos sueltos (de antes de
+    // este cambio) en la carpeta de Facturacion de esta empresa/mes, se
+    // migran solos a su carpeta de fecha. No bloquea la respuesta al
+    // renderer si algo falla (ver try/catch dentro de _feMigrarSueltos).
+    _feMigrarSueltos(_feGetFacturacionDir(mesLabelFinal, empresaNombreFinal));
     return { ok: true };
   } catch (e) {
     return { error: e.message };
@@ -3194,6 +3372,12 @@ app.whenReady().then(() => {
   });
   // Ya NO se revisa automáticamente al iniciar — el usuario la busca manualmente
   // desde el botón "Actualizaciones" en la interfaz.
+
+  // AGREGADO — al abrir la app, organiza solas (una sola vez) las carpetas
+  // de Facturación Electrónica de TODAS las empresas/meses que ya existan
+  // en disco, sin que el usuario tenga que entrar al módulo. No bloquea la
+  // apertura de la ventana: se dispara después de createWindow().
+  _feMigrarSueltosTodasLasCarpetas();
 });
 
 app.on('window-all-closed', () => {
