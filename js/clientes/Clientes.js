@@ -236,6 +236,12 @@
         saveClientes(list);
         renderClientesTable();
         closeClienteModal();
+        // Mismo patrón que ya usa _aplicarEdicionClienteDesdeQR: si hay una
+        // sesión de escaneo QR activa, el teléfono debe quedar con el
+        // catálogo al día tras un alta/edición hecha desde la PC (antes
+        // solo se re-sincronizaba cuando el cambio se originaba en el
+        // teléfono).
+        if (window.qrScan && window.qrScan.actualizarClientes) window.qrScan.actualizarClientes(loadClientes());
     }
 
     function deleteClienteRecord(index) {
@@ -245,5 +251,8 @@
             saveClientes(list);
             renderClientesTable();
             showToast('Cliente eliminado', 'success');
+            // Ver nota en saveClienteRecord(): mantiene al teléfono al día
+            // también cuando el cliente se elimina desde la PC.
+            if (window.qrScan && window.qrScan.actualizarClientes) window.qrScan.actualizarClientes(loadClientes());
         });
     }

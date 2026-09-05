@@ -305,6 +305,27 @@
     function proveedorTieneUso(p, uso) {
         return proveedorUsosEfectivos(p).indexOf(uso) !== -1;
     }
+    // AGREGADO NUEVO: proveedores existentes creados antes de que existiera el
+    // campo Sector (o registrados por escaneo/importación sin ese dato) se
+    // quedaban con sector vacío para siempre, ya que nada lo completaba después.
+    // Esta función rellena automáticamente el Sector de esos proveedores con el
+    // configurado en la empresa activa — solo cuando el proveedor NO tiene
+    // sector guardado (nunca pisa uno que el usuario ya haya definido distinto),
+    // y no aplica a proveedores exclusivos de IVA Retenido (ese anexo no usa
+    // Sector, igual que ya ocurre con Clasificación/Tipo Costo).
+    function _autocompletarSectorFaltanteProveedores(list) {
+        if (!activeEmpresaId) return list;
+        var empActiva = empresas.find(function(e) { return e.id === activeEmpresaId; });
+        var empSector = (empActiva && empActiva.sector) ? empActiva.sector : '';
+        if (!empSector) return list;
+        var cambiado = false;
+        list.forEach(function(p) {
+            var esSoloRetenido = (p.usos && p.usos.length === 1 && p.usos[0] === 'retenido');
+            if (!esSoloRetenido && !p.sector) { p.sector = empSector; cambiado = true; }
+        });
+        if (cambiado) saveProveedores(list);
+        return list;
+    }
     function _renderUsoBadges(p) {
         return proveedorUsosEfectivos(p).map(function(u) {
             return '<span style="display:inline-block;font-size:9px;font-weight:600;padding:2px 7px;border-radius:5px;margin:1px 3px 1px 0;' + (USO_ANEXO_BADGE_CLASS[u] || '') + '">' + (USO_ANEXO_LABELS[u] || u) + '</span>';
@@ -318,6 +339,7 @@
         var countEl = document.getElementById('proveedorCount');
         var searchVal = (document.getElementById('proveedorSearch') ? document.getElementById('proveedorSearch').value.toLowerCase() : '');
         var list = loadProveedores();
+        list = _autocompletarSectorFaltanteProveedores(list);
         var filtered = list.filter(function(p) {
             if (!searchVal) return true;
             return (p.nit||'').toLowerCase().indexOf(searchVal) !== -1 ||
@@ -375,6 +397,7 @@
         document.getElementById('prov_dui').value = '';
         document.getElementById('prov_nombre').value = '';
         document.getElementById('prov_clasif').value = '';
+        document.getElementById('prov_sector').value = '';
         document.getElementById('prov_tipo_costo').value = '';
         // AGREGADO — CAMBIO 02: reset de clasificación por anexo de uso
         document.getElementById('prov_uso_compras').checked = false;
@@ -394,6 +417,7 @@
             document.getElementById('prov_dui').value = p.dui || '';
             document.getElementById('prov_nombre').value = p.nombre || '';
             document.getElementById('prov_clasif').value = p.clasif || '';
+            document.getElementById('prov_sector').value = p.sector || '';
             document.getElementById('prov_tipo_costo').value = p.tipoCosto || '';
             // AGREGADO — CAMBIO 02/05: cargar el anexo de uso del proveedor.
             // Un proveedor solo pertenece a un único anexo; si un registro
@@ -412,6 +436,9 @@
             document.getElementById('proveedorModalTitle').innerText = 'Nuevo Proveedor';
             // Por defecto, un proveedor nuevo se marca para Compras (comportamiento histórico)
             document.getElementById('prov_uso_compras').checked = true;
+            // AGREGADO NUEVO: precargar Sector con el configurado en la empresa activa
+            var empActivaNueva = activeEmpresaId ? empresas.find(function(e) { return e.id === activeEmpresaId; }) : null;
+            document.getElementById('prov_sector').value = (empActivaNueva && empActivaNueva.sector) ? empActivaNueva.sector : '';
             if (navEl) navEl.style.display = 'none';
             if (posEl) posEl.innerText = '';
         }
@@ -510,7 +537,7 @@
         var dui    = document.getElementById('prov_dui').value.trim();
         var nombre = document.getElementById('prov_nombre').value.trim();
         var clasif    = document.getElementById('prov_clasif').value;
-        var sector    = (function(){ var list = loadProveedores(); if(!isNaN(parseInt(document.getElementById("prov_editIndex").value)) && parseInt(document.getElementById("prov_editIndex").value) !== -1) { var p = list[parseInt(document.getElementById("prov_editIndex").value)]; return p ? (p.sector||"") : ""; } var emp = empresas.find(function(e){ return e.id === activeEmpresaId; }); return emp ? (emp.sector||"") : ""; })();
+        var sector    = document.getElementById('prov_sector').value;
         var tipoCosto = document.getElementById('prov_tipo_costo').value;
         // AGREGADO — CAMBIO 02: clasificación de proveedores por anexo de uso
         var usos = [];
@@ -528,6 +555,7 @@
         var esSoloRetenido = (usos.length === 1 && usos[0] === 'retenido');
         if (esSoloRetenido) {
             clasif = '';
+            sector = '';
             tipoCosto = '';
         }
 
