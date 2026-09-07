@@ -331,6 +331,7 @@
             if (box) { box.style.maxWidth = '500px'; box.style.height = ''; box.style.maxHeight = '90vh'; }
             loadExportConfigUI(); // AGREGADO NUEVO (Cambio 03)
             adminSyncConsultaDteToggleUI(); // Implementación 02
+            adminSyncConsultaDteIntervaloUI(); // Intervalo configurable de Consulta DTE
         } else if (tab === 'escaneoqr') {
             escaneoStep.style.display = 'flex';
             btnQ.style.background = 'var(--rp-border)'; btnQ.style.color = 'var(--rp-text-primary)';

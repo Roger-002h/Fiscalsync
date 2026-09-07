@@ -3518,6 +3518,25 @@
                 </label>
             </div>
 
+            <!-- ═══ Intervalo de Consulta DTE (segundos entre cada consulta al
+                 Ministerio de Hacienda). Antes era un valor fijo de 15s en el
+                 código; ahora es configurable acá para poder ajustarlo sin
+                 tocar código si Hacienda cambia el límite permitido (ver
+                 adminConsultaDteIntervaloActual/adminSetConsultaDteIntervalo
+                 en ConsultaDTE.js). Por defecto: 5 segundos. ═══ -->
+            <div style="display:flex;align-items:center;gap:14px;background:var(--rp-surface);border:1px solid var(--rp-border-strong);border-radius:14px;padding:18px 20px;">
+                <div style="width:38px;height:38px;border-radius:10px;background:var(--rp-border);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#60a5fa"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <div style="flex:1;">
+                    <p style="font-size:13px;font-weight:600;color:var(--rp-text-primary);margin-bottom:3px;">Intervalo entre Consultas DTE</p>
+                    <p style="font-size:11.5px;color:var(--rp-text-secondary);line-height:1.4;">Segundos de espera obligatoria entre cada consulta a Hacienda. Por defecto: 5.</p>
+                </div>
+                <input type="number" id="adminConsultaDteIntervalo" min="1" step="1"
+                       onchange="adminSetConsultaDteIntervalo(this.value)"
+                       style="width:64px;text-align:center;background:var(--rp-inset);border:1px solid var(--rp-border-strong);border-radius:8px;padding:9px 6px;font-size:12.5px;color:var(--rp-text-primary);font-family:'Inter',sans-serif;">
+            </div>
+
 
             <!-- ═══ AGREGADO NUEVO (Cambio 03): RUTAS DE EXPORTACIÓN ═══ -->
             <div style="background:var(--rp-surface);border:1px solid var(--rp-border-strong);border-radius:14px;padding:20px;margin-top:4px;">

@@ -50,6 +50,46 @@
     }
 
     // ══════════════════════════════════════════════════════════════════
+    // Admin > Sistema > Intervalo de Consulta DTE
+    // Hacienda flexibilizó el límite: antes eran 15s fijos entre cada
+    // consulta, ahora acepta un mínimo de 5s. En vez de dejarlo fijo en el
+    // código, se guarda como configuración editable desde el panel Admin
+    // (misma persistencia fsStore que el resto de ajustes de Sistema), para
+    // poder ajustarlo sin tocar código si Hacienda vuelve a cambiar el
+    // límite en el futuro.
+    // Compatibilidad: si la clave todavía no existe (instalaciones ya
+    // instaladas antes de este cambio), el valor por defecto es 5.
+    // ══════════════════════════════════════════════════════════════════
+    var FS_CONSULTA_DTE_INTERVALO_KEY = 'fs_consulta_dte_intervalo_segundos';
+    var DGII_SEGUNDOS_ENTRE_CONSULTAS_DEFAULT = 5;
+
+    function adminConsultaDteIntervaloActual() {
+        var raw = fsStore.getItem(FS_CONSULTA_DTE_INTERVALO_KEY);
+        var n = parseInt(raw, 10);
+        if (isNaN(n) || n < 1) return DGII_SEGUNDOS_ENTRE_CONSULTAS_DEFAULT; // DEFAULT = 5
+        return n;
+    }
+
+    // Sincroniza el input numérico del panel Sistema con el valor guardado
+    // — se llama cada vez que se abre la pestaña Sistema del panel Admin.
+    function adminSyncConsultaDteIntervaloUI() {
+        var input = document.getElementById('adminConsultaDteIntervalo');
+        if (input) input.value = adminConsultaDteIntervaloActual();
+    }
+
+    // Handler del onchange/blur del input numérico.
+    function adminSetConsultaDteIntervalo(segundos) {
+        var n = parseInt(segundos, 10);
+        if (isNaN(n) || n < 1) {
+            showToast('El intervalo debe ser un número entero de al menos 1 segundo', 'error');
+            adminSyncConsultaDteIntervaloUI();
+            return;
+        }
+        fsStore.setItem(FS_CONSULTA_DTE_INTERVALO_KEY, n);
+        showToast('Intervalo de Consulta DTE actualizado a ' + n + (n === 1 ? ' segundo' : ' segundos'), 'success');
+    }
+
+    // ══════════════════════════════════════════════════════════════════
     // CAMBIO 9 — Verificación de Estado DGII
     // Consulta el estado oficial de cada DTE en el Ministerio de Hacienda
     // (admin.factura.gob.sv/consultaPublica), documento por documento,
@@ -440,7 +480,7 @@
             case 'RESUELTO_FISICO':      return { icon: DGII_COLA_ICONS.check, clase: 'dgii-cola-resuelto',   texto: 'Documento Físico' };
             case 'RESUELTO_OTRO':        return { icon: DGII_COLA_ICONS.check, clase: 'dgii-cola-resuelto',   texto: 'Resuelto' };
             case 'EN_PROCESO':           return { icon: DGII_COLA_ICONS.dot,   clase: 'dgii-cola-proceso',    texto: 'Verificando...' };
-            case 'ESPERANDO':            return { icon: DGII_COLA_ICONS.clock, clase: 'dgii-cola-pendiente', texto: 'Esperando 15 segundos...' };
+            case 'ESPERANDO':            return { icon: DGII_COLA_ICONS.clock, clase: 'dgii-cola-pendiente', texto: 'Esperando ' + adminConsultaDteIntervaloActual() + ' segundos...' };
             // ARREGLO 02 (puntos 3, 5, 11) — un documento que falló su
             // PRIMER intento y todavía tiene derecho a un reintento ya NO se
             // muestra como "Error": se muestra como "Pendiente de reintento"
@@ -521,9 +561,10 @@
     // ARREGLO 02 (puntos 8-14, 19-21) — TIEMPO ESTIMADO RESTANTE.
     //
     // Se calcula de forma dinámica, nunca con un valor fijo inventado:
-    // turnosRestantes × (tiempo promedio real de consulta + 15s
-    // obligatorios), más lo que quede del intervalo de 15s en curso si el
-    // proceso está esperando ahora mismo. `turnosRestantes` es simplemente
+    // turnosRestantes × (tiempo promedio real de consulta + intervalo
+    // obligatorio configurado en Admin > Sistema — ver
+    // adminConsultaDteIntervaloActual()), más lo que quede del intervalo
+    // en curso si el proceso está esperando ahora mismo. `turnosRestantes` es simplemente
     // `colaTurnos.length` — la MISMA cola real que usa correrColaSecuencial,
     // así que cualquier reintento pendiente ya está contado automáticamente
     // (un reintento es un turno más en esa cola, ver ARREGLO 02 punto 4) sin
@@ -540,7 +581,7 @@
         return min + ' min ' + (seg < 10 ? '0' : '') + seg + ' s';
     }
 
-    // esperaActualMs: milisegundos que quedan del intervalo de 15s EN CURSO
+    // esperaActualMs: milisegundos que quedan del intervalo EN CURSO
     // (0 si no se está esperando en este instante — ver dgiiEsperarIntervaloObligatorio).
     // total/completados: para poder mostrar "Finalizando…" cuando ya no hay nada pendiente.
     // colaReal: la cola real de turnos pendientes (colaTurnos) del lote actual.
@@ -548,14 +589,9 @@
     function dgiiCalcularTiempoRestanteMs(esperaActualMs, colaReal, promedioMs) {
         var turnosRestantes = (colaReal && colaReal.length) || 0;
         if (turnosRestantes === 0) return Math.max(esperaActualMs || 0, 0);
-        var porTurno = (promedioMs || 4000) + (DGII_SEGUNDOS_ENTRE_CONSULTAS_TIEMPO_ESTIMADO * 1000);
+        var porTurno = (promedioMs || 4000) + (adminConsultaDteIntervaloActual() * 1000);
         return (turnosRestantes * porTurno) + Math.max(esperaActualMs || 0, 0);
     }
-    // Mismo valor (15s) que DGII_SEGUNDOS_ENTRE_CONSULTAS dentro de
-    // dgiiIniciarVerificacion — se repite aquí, a nivel de módulo, porque
-    // esta función de cálculo también la necesita dgiiVerProcesoAbrir() /
-    // el estado minimizado, fuera del alcance de esa variable local.
-    var DGII_SEGUNDOS_ENTRE_CONSULTAS_TIEMPO_ESTIMADO = 15;
 
     var _dgiiUltimoTiempoRestanteMs = 0;
 
@@ -1020,7 +1056,9 @@
 
         // ARREGLO 01 (puntos 4-6, 29-30) — REGLA CRÍTICA: un único documento a
         // la vez (nunca en paralelo — reemplaza el antiguo sistema de
-        // "carriles" en paralelo) y SIEMPRE 15 segundos completos de espera
+        // "carriles" en paralelo) y SIEMPRE los segundos completos de espera
+        // que indique adminConsultaDteIntervaloActual() (por defecto 5,
+        // configurable desde Admin > Sistema — ver bloque más arriba)
         // DESPUÉS de que termina cada consulta (nunca antes, y nunca como
         // parte del tiempo que tarda Hacienda en responder) antes de iniciar
         // la siguiente. Sustituye por completo a la antigua pausa fija de
@@ -1030,9 +1068,9 @@
         // ARREGLO 02 (punto 1, 16) — este mismo intervalo aplica IGUAL para
         // los reintentos: al ser un turno más de `colaTurnos`, un reintento
         // pasa exactamente por esta misma espera, nunca por un atajo.
-        var DGII_SEGUNDOS_ENTRE_CONSULTAS = 15;
+        var DGII_SEGUNDOS_ENTRE_CONSULTAS = adminConsultaDteIntervaloActual();
 
-        // Cuenta regresiva real (no solo animación) de los 15 segundos
+        // Cuenta regresiva real (no solo animación) de los segundos
         // obligatorios entre una consulta y la siguiente (punto 6). Se
         // refleja tanto en la notificación persistente como en el modal
         // "Ver proceso", y se corta de inmediato si el usuario cancela.
