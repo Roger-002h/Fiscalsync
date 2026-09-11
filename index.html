@@ -3919,6 +3919,33 @@
                     </div>
                     <textarea id="feCfgValor_producto" rows="2" placeholder="Ej. Servicio de asesoría contable" onchange="_feConfigGuardar()"></textarea>
                 </div>
+
+                <!-- AGREGADO NUEVO — Tipo de Venta y Precio, mismo patrón de
+                     los 4 campos de arriba (item + toggle + control). -->
+                <div class="fe-cfg-item" id="feCfgItem_tipoVenta">
+                    <div class="fe-cfg-item-top">
+                        <p>Tipo de Venta</p>
+                        <div class="fe-cfg-toggle" id="feCfgToggle_tipoVenta" onclick="_feConfigToggleCampo('tipoVenta')"><div class="fe-cfg-thumb"></div></div>
+                    </div>
+                    <select id="feCfgValor_tipoVenta" onchange="_feConfigGuardar()">
+                        <option value="G">Gravado</option>
+                        <option value="E">Exento</option>
+                        <option value="N">No sujeto</option>
+                    </select>
+                </div>
+
+                <div class="fe-cfg-item" id="feCfgItem_precio">
+                    <div class="fe-cfg-item-top">
+                        <p>Precio</p>
+                        <div class="fe-cfg-toggle" id="feCfgToggle_precio" onclick="_feConfigToggleCampo('precio')"><div class="fe-cfg-thumb"></div></div>
+                    </div>
+                    <input type="text" id="feCfgValor_precio" placeholder="Ej. 1,250.00"
+                        oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');"
+                        onkeydown="return event.keyCode !== 69"
+                        onfocus="_feConfigPrecioOnFocus(this)"
+                        onblur="_feConfigPrecioOnBlur(this)"
+                        onchange="_feConfigGuardar()">
+                </div>
             </div>
         </div>
 

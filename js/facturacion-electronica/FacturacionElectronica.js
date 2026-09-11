@@ -714,7 +714,7 @@
     // ════════════════════════════════════════════════════════════════════
     // AGREGADO NUEVO — Configuración de Facturación Electrónica
     // ────────────────────────────────────────────────────────────────────
-    // Guarda fecha/tipo/cantidad/producto predeterminados, por empresa,
+    // Guarda fecha/tipo/cantidad/producto/tipoVenta/precio predeterminados, por empresa,
     // usando fsStore (el MISMO mecanismo de almacenamiento que ya usa
     // FiscalSync para el resto de la app — ver "CAMBIO 7 — fsStore" más
     // arriba). No crea un sistema de almacenamiento nuevo ni toca
@@ -726,7 +726,7 @@
     // borra su valor — solo dejar de aplicarlo (ver _instalarAutoConfigFE).
     // ════════════════════════════════════════════════════════════════════
 
-    var FE_CONFIG_CAMPOS = ['fecha', 'tipo', 'cantidad', 'producto'];
+    var FE_CONFIG_CAMPOS = ['fecha', 'tipo', 'cantidad', 'producto', 'tipoVenta', 'precio'];
 
     // ── Aplicación en el portal de Hacienda (webview.executeJavaScript) ──
     // Mismo mecanismo que _instalarAutoLoginFacturacion/_instalarAutoClavePrivada
@@ -785,6 +785,14 @@
             '  if (CFG.producto && CFG.producto.activo && CFG.producto.valor) {\n' +
             '    var p = document.querySelector(\'input[formcontrolname="producto"], textarea[formcontrolname="producto"]\');\n' +
             '    if (p) { if (p.tagName === "TEXTAREA") setTextarea(p, CFG.producto.valor); else setValor(p, CFG.producto.valor); }\n' +
+            '  }\n' +
+            '  if (CFG.tipoVenta && CFG.tipoVenta.activo && CFG.tipoVenta.valor) {\n' +
+            '    var tv = document.querySelector(\'select[formcontrolname="tipoVenta"]\');\n' +
+            '    if (tv) setSelect(tv, CFG.tipoVenta.valor);\n' +
+            '  }\n' +
+            '  if (CFG.precio && CFG.precio.activo && CFG.precio.valor) {\n' +
+            '    var pr = document.getElementById("inputPrecio");\n' +
+            '    if (pr) setValor(pr, CFG.precio.valor);\n' +
             '  }\n' +
             '}\n' +
             'if (window.__fsConfigFEObserver) { window.__fsConfigFEObserver.disconnect(); }\n' +

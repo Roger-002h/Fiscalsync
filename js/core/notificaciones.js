@@ -99,7 +99,7 @@
         //    encolar una nueva (ver _notifAdd).
         //  - cualquier otra categoría: agrupar repeticiones consecutivas de
         //    la misma acción bajo una sola tarjeta con contador ×N.
-        _notifAdd(type, title, message, details, opts.category || null, opts.groupNoun || null);
+        _notifAdd(type, title, message, details, opts.category || null, opts.groupNoun || null, opts.duration || null, !!opts.replace);
     }
 
     // Posiciona el Centro de Notificaciones justo debajo del encabezado
@@ -141,28 +141,26 @@
     }
     window.addEventListener('resize', _notifUpdatePosition);
 
-    function _notifAdd(type, title, message, details, category, groupNoun) {
+    function _notifAdd(type, title, message, details, category, groupNoun, customDuration, replace) {
         var container = document.getElementById('notifCenter');
         if (!container) return;
         _notifUpdatePosition();
 
-        // ── 1) CAMBIO DE MES: reemplazar en vez de encolar ──
-        // Se identifica por la categoría interna explícita (nunca por el
-        // texto "Periodo: ..."), así que sigue funcionando aunque cambie
-        // el idioma/formato del período. Si ya existe una notificación de
-        // cambio de mes viva (en cualquier posición de la cola), se
-        // actualiza su contenido y se reinicia su temporizador a 1.5s sin
-        // crear una tarjeta nueva ni esperar a que termine la anterior.
-        if (category === NOTIF_CATEGORY_MONTH_CHANGE) {
+        // ── 1) REEMPLAZO EN VIVO: cambio de mes, o cualquier categoría que
+        // pida opts.replace (ej. guardados consecutivos). Si ya existe una
+        // notificación viva de esa misma categoría (en cualquier posición
+        // de la cola), se actualiza su contenido y se reinicia su
+        // temporizador en vez de crear/acumular una tarjeta nueva.
+        if (category === NOTIF_CATEGORY_MONTH_CHANGE || (replace && category)) {
             var existingMonthItem = null;
             for (var mi = 0; mi < _notifQueue.length; mi++) {
-                if (_notifQueue[mi].category === NOTIF_CATEGORY_MONTH_CHANGE) { existingMonthItem = _notifQueue[mi]; break; }
+                if (_notifQueue[mi].category === category) { existingMonthItem = _notifQueue[mi]; break; }
             }
             if (existingMonthItem) {
                 _notifUpdateContent(existingMonthItem, title, message);
                 existingMonthItem.baseTitle = title;
                 existingMonthItem.baseMessage = message;
-                existingMonthItem.duration = NOTIF_MONTH_CHANGE_DURATION;
+                existingMonthItem.duration = customDuration || ((category === NOTIF_CATEGORY_MONTH_CHANGE) ? NOTIF_MONTH_CHANGE_DURATION : NOTIF_DURATION);
                 if (existingMonthItem.active) {
                     existingMonthItem._activeStart = Date.now();
                     existingMonthItem._pausedTotal = 0;
@@ -227,7 +225,7 @@
         var item = {
             id: id, type: type, el: el,
             fillEl: el.querySelector('.notif-progress-fill'),
-            duration: (category === NOTIF_CATEGORY_MONTH_CHANGE) ? NOTIF_MONTH_CHANGE_DURATION : NOTIF_DURATION,
+            duration: customDuration || ((category === NOTIF_CATEGORY_MONTH_CHANGE) ? NOTIF_MONTH_CHANGE_DURATION : NOTIF_DURATION),
             _activeStart: 0, _pausedTotal: 0, active: false,
             // Metadatos para reemplazo (cambio de mes) y agrupación
             // (misma acción repetida). No afectan a notificaciones que no

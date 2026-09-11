@@ -103,14 +103,15 @@
     }
     function closeDebitoModal() {
         _cerrarModalAnimado('debitoModalForm');
+        setTimeout(renderDebitoTable, 0);
     }
     function navDebitoRecord(delta) {
         var cur = parseInt(document.getElementById('d_editIndex').value);
         var next = cur + delta;
-        if (next < 0 || next >= debitoRecords.length) return;
+        if (next < 0 || next >= debitoRecords.length) { saveDebitoRecord(true); return; }
         var activeBtn = ['d-btn-doc','d-btn-montos','d-btn-clasif'].find(function(id){ var el=document.getElementById(id); return el && el.classList.contains('active'); });
         var tabMap = {'d-btn-doc':'d-tab-doc','d-btn-montos':'d-tab-montos','d-btn-clasif':'d-tab-clasif'};
-        saveDebitoRecord();
+        saveDebitoRecord(true);
         openDebitoModal(next);
         if (activeBtn && tabMap[activeBtn]) swD(tabMap[activeBtn], activeBtn);
     }
@@ -125,7 +126,7 @@
         document.getElementById('d_total').value = total.toFixed(2);
     }
 
-    function saveDebitoRecord() {
+    function saveDebitoRecord(skipRender) {
         var index = document.getElementById('d_editIndex').value;
         var s = function(id) { return document.getElementById(id).value; };
         var n = function(id) { return parseFloat(document.getElementById(id).value) || 0; };
@@ -167,7 +168,7 @@
                 var clienteAgregado = autoRegistrarCliente(nitDebito, r.nombre || '', r.nrc || '');
                 if (clienteAgregado) renderClientesTable();
             }
-            showToast('Registro guardado — listo para el siguiente', 'success');
+            showToast('Registro guardado — listo para el siguiente', 'success', { category: 'save-debito', duration: 1000, replace: true });
             // Reset para nuevo registro
             openDebitoModal(-1);
         } else {
@@ -178,8 +179,8 @@
             }
             debitoRecords[index] = r;
             saveCurrentMonthData();
-            renderDebitoTable();
-            showToast('Cambios guardados', 'success');
+            if (!skipRender) renderDebitoTable();
+            showToast('Cambios guardados', 'success', { category: 'save-debito', duration: 1000, replace: true });
             var pos = document.getElementById('debito-nav-pos');
             if (pos) pos.innerText = (parseInt(index) + 1) + ' / ' + debitoRecords.length;
         }

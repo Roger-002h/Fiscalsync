@@ -69,14 +69,14 @@
         _setModalMode('cp', index !== -1, comprasRecords, index);
         document.getElementById('comprasModalForm').style.display='flex'; document.getElementById('comprasModalForm').classList.add('modal-open');
     }
-    function closeComprasModal() { _cerrarModalAnimado('comprasModalForm'); }
+    function closeComprasModal() { _cerrarModalAnimado('comprasModalForm'); setTimeout(function() { renderComprasTable(); renderProveedoresTable(); }, 0); }
     function navComprasRecord(delta) {
         var cur = parseInt(document.getElementById('cp_editIndex').value);
         var next = cur + delta;
-        if (next < 0 || next >= comprasRecords.length) return;
+        if (next < 0 || next >= comprasRecords.length) { saveComprasRecord(true); return; }
         var activeBtn = ['cp-btn-doc','cp-btn-montos','cp-btn-clasif'].find(function(id){ var el=document.getElementById(id); return el && el.classList.contains('active'); });
         var tabMap = {'cp-btn-doc':'cp-tab-doc','cp-btn-montos':'cp-tab-montos','cp-btn-clasif':'cp-tab-clasif'};
-        saveComprasRecord();
+        saveComprasRecord(true);
         openComprasModal(next);
         if (activeBtn && tabMap[activeBtn]) swCP(tabMap[activeBtn], activeBtn);
     }
@@ -104,7 +104,7 @@
         document.getElementById('cp_total').value = total.toFixed(2);
         calcTotalVisual();
     }
-    function saveComprasRecord() {
+    function saveComprasRecord(skipRender) {
         var index = document.getElementById('cp_editIndex').value;
         var s = function(id) { return document.getElementById(id).value; };
         var n = function(id) { return parseFloat(document.getElementById(id).value) || 0; };
@@ -144,23 +144,23 @@
             var nitProv = (r.nit || r.nrc || '').trim();
             if (nitProv) {
                 var added = autoRegistrarProveedor(r.nit || '', r.nombre || '', r.dui || '', r.nrc || '', r.clasif || '', r.sector || '', r.tipoCosto || '');
-                if (added) { renderProveedoresTable(); showToast('Registro guardado · Proveedor agregado al catálogo', 'success'); }
-                else { renderProveedoresTable(); showToast('Registro guardado — listo para el siguiente', 'success'); }
+                if (added) { renderProveedoresTable(); showToast('Registro guardado · Proveedor agregado al catálogo', 'success', { category: 'save-compra', duration: 1000, replace: true }); }
+                else { renderProveedoresTable(); showToast('Registro guardado — listo para el siguiente', 'success', { category: 'save-compra', duration: 1000, replace: true }); }
             } else {
-                showToast('Registro guardado — listo para el siguiente', 'success');
+                showToast('Registro guardado — listo para el siguiente', 'success', { category: 'save-compra', duration: 1000, replace: true });
             }
             openComprasModal(-1);
         } else {
             comprasRecords[index] = r;
             syncPercibidoFromCompra(r);
             saveCurrentMonthData();
-            renderComprasTable();
+            if (!skipRender) renderComprasTable();
             var nitProv = (r.nit || r.nrc || '').trim();
             if (nitProv) {
                 var added = autoRegistrarProveedor(r.nit || '', r.nombre || '', r.dui || '', r.nrc || '', r.clasif || '', r.sector || '', r.tipoCosto || '');
-                renderProveedoresTable();
+                if (!skipRender) renderProveedoresTable();
             }
-            showToast('Cambios guardados', 'success');
+            showToast('Cambios guardados', 'success', { category: 'save-compra', duration: 1000, replace: true });
             var pos = document.getElementById('cp-nav-pos');
             if (pos) pos.innerText = (parseInt(index) + 1) + ' / ' + comprasRecords.length;
         }

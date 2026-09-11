@@ -11,11 +11,31 @@
 
     function _feConfigDefaults() {
         return {
-            fecha:    { activo: false, valor: '' },
-            tipo:     { activo: false, valor: '1' },
-            cantidad: { activo: false, valor: '' },
-            producto: { activo: false, valor: '' }
+            fecha:     { activo: false, valor: '' },
+            tipo:      { activo: false, valor: '1' },
+            cantidad:  { activo: false, valor: '' },
+            producto:  { activo: false, valor: '' },
+            tipoVenta: { activo: false, valor: 'G' },
+            precio:    { activo: false, valor: '' }
         };
+    }
+
+    // AGREGADO NUEVO — "Precio" se guarda internamente como número plano,
+    // sin separador de miles (ej. "1234.5"), porque ese es el valor que
+    // se inyecta tal cual en el <input> del portal de Hacienda (ver
+    // _instalarAutoConfigFE en FacturacionElectronica.js). El separador de
+    // miles es solo una capa de presentación dentro de ESTE panel de
+    // Configuración: se aplica al mostrar el campo y se retira antes de
+    // guardar o de mientras el usuario está escribiendo.
+    function _feConfigFormatearPrecio(valorPlano) {
+        if (!valorPlano) return '';
+        var partes = String(valorPlano).split('.');
+        var entero = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return partes.length > 1 ? (entero + '.' + partes[1]) : entero;
+    }
+
+    function _feConfigLimpiarPrecio(valorFormateado) {
+        return String(valorFormateado || '').replace(/,/g, '');
     }
 
     function _feConfigLeer(empresaId) {
@@ -58,9 +78,13 @@
     function _feConfigCargarUI() {
         var ctx = _feClientesEmpresaActual();
         var cfg = _feConfigLeer(ctx && ctx.id);
+        var defaults = _feConfigDefaults();
         FE_CONFIG_CAMPOS.forEach(function(campo) {
             var el = document.getElementById('feCfgValor_' + campo);
-            if (el) el.value = cfg[campo].valor || (campo === 'tipo' ? '1' : '');
+            if (el) {
+                var valor = cfg[campo].valor || defaults[campo].valor || '';
+                el.value = (campo === 'precio') ? _feConfigFormatearPrecio(valor) : valor;
+            }
             _feConfigSetToggleUI(campo, !!cfg[campo].activo);
         });
     }
@@ -81,10 +105,24 @@
         var cfg = _feConfigLeer(ctx.id);
         FE_CONFIG_CAMPOS.forEach(function(campo) {
             var el = document.getElementById('feCfgValor_' + campo);
-            if (el) cfg[campo].valor = el.value || '';
+            if (!el) return;
+            cfg[campo].valor = (campo === 'precio') ? _feConfigLimpiarPrecio(el.value) : (el.value || '');
         });
         _feConfigGuardarObjeto(ctx.id, cfg);
         _feConfigReinstalar();
+    }
+
+    // AGREGADO NUEVO — helpers de foco/blur del campo "Precio" (ver el
+    // <input id="feCfgValor_precio"> en index.html): al enfocarlo se quita
+    // el separador de miles para no interferir con la edición del cursor;
+    // al perder el foco se vuelve a formatear con separador de miles y se
+    // dispara el guardado (onchange ya está en el propio input).
+    function _feConfigPrecioOnFocus(el) {
+        el.value = _feConfigLimpiarPrecio(el.value);
+    }
+
+    function _feConfigPrecioOnBlur(el) {
+        el.value = _feConfigFormatearPrecio(_feConfigLimpiarPrecio(el.value));
     }
 
     // Vuelve a inyectar la configuración vigente en el <webview> activo
