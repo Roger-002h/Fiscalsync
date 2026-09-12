@@ -676,6 +676,32 @@
             opacity: .5;
             pointer-events: none;
         }
+        /* AGREGADO NUEVO — Detalle automático de factura por cliente: mismo
+           estilo visual de slide-toggle que #feConfigDropdown .fe-cfg-toggle
+           (arriba), replicado con su propio scope (#feClientesDropdown
+           .fe-detalle-toggle) para no modificar ni depender del panel de
+           Configuración. Ver _feDetalleToggleActivo / _feDetalleSetToggleUI
+           en FEClientes.js. */
+        #feClientesDropdown .fe-detalle-toggle {
+            width: 36px;
+            height: 20px;
+            border-radius: 999px;
+            background: var(--rp-border-strong);
+            position: relative;
+            cursor: pointer;
+            transition: background .2s;
+            flex-shrink: 0;
+        }
+        #feClientesDropdown .fe-detalle-toggle .fe-detalle-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--rp-text-secondary);
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: all .2s;
+        }
         #feClientesDropdown {
             position: absolute;
             top: 10px;
@@ -4135,6 +4161,61 @@
                             <div style="display:flex;gap:8px;">
                                 <div style="flex:1;"><label>Teléfono</label><input type="text" id="fecli_tel"></div>
                                 <div style="flex:1;"><label>Correo</label><input type="text" id="fecli_correo"></div>
+                            </div>
+                        </div>
+
+                        <!-- AGREGADO NUEVO — Detalle automático de factura por cliente.
+                             Capa INDEPENDIENTE de "Facturación Electrónica → Configuración"
+                             (#feConfigDropdown / FEConfig.js): esa configuración general no
+                             se toca. Cuando este bloque está activo Y los 5 campos están
+                             completos, al presionar "Llenar" sobre este cliente (ver
+                             _feClientesLlenar en FEClientes.js) además de rellenar los datos
+                             del cliente se abre automáticamente "Agregar Detalle", se
+                             completan estos valores, y se presiona "Agregar ítem" y luego
+                             "Regresar al documento" (ver _feDetalleAutoAgregar). Si el
+                             cliente NO tiene este bloque activo o le falta algún dato, no se
+                             ejecuta nada de esto y el comportamiento sigue siendo el actual
+                             (llenado manual del detalle). -->
+                        <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--rp-border-strong);">
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                                <label style="margin:0;">Detalle automático de factura</label>
+                                <div class="fe-detalle-toggle" id="fecli_detalle_toggle" onclick="_feDetalleToggleActivo()" title="Activar/desactivar"><div class="fe-detalle-thumb"></div></div>
+                                <input type="hidden" id="fecli_detalle_activo" value="0">
+                            </div>
+                            <p style="font-size:10.5px;color:var(--rp-text-secondary);margin:0 0 8px 0;">Si se activa y se completan estos 5 datos, al presionar "Llenar" sobre este cliente se agrega el detalle automáticamente (Agregar Detalle → completar → Agregar ítem → Regresar al documento). Tiene prioridad sobre la Configuración general de Facturación Electrónica.</p>
+                            <div id="fecli_detalle_campos" class="hidden">
+                                <label>Tipo de Producto/Servicio</label>
+                                <select id="fecli_detalle_tipo">
+                                    <option value="1">1 - Bien</option>
+                                    <option value="2" selected>2 - Servicio</option>
+                                    <option value="3">3 - Bien y servicio</option>
+                                </select>
+
+                                <div style="display:flex;gap:8px;">
+                                    <div style="flex:1;">
+                                        <label>Cantidad</label>
+                                        <input type="text" id="fecli_detalle_cantidad" placeholder="Ej. 1">
+                                    </div>
+                                    <div style="flex:1;">
+                                        <label>Tipo de Venta</label>
+                                        <select id="fecli_detalle_tipoVenta">
+                                            <option value="G">Gravado</option>
+                                            <option value="E">Exento</option>
+                                            <option value="N">No sujeto</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <label>Producto/Descripción</label>
+                                <textarea id="fecli_detalle_producto" rows="2" placeholder="Ej. Honorarios Profesionales del mes de {MES}"></textarea>
+                                <p style="font-size:10px;color:var(--rp-text-secondary);margin:2px 0 8px 0;">Escribí <code>{MES}</code> donde deba ir el nombre del mes activo (se reemplaza solo, ej. "Agosto", "Septiembre"). Si no incluís <code>{MES}</code>, el texto se usa siempre tal cual.</p>
+
+                                <label>Precio</label>
+                                <input type="text" id="fecli_detalle_precio" placeholder="Ej. 1,250.00"
+                                    oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');"
+                                    onkeydown="return event.keyCode !== 69"
+                                    onfocus="_feConfigPrecioOnFocus(this)"
+                                    onblur="_feConfigPrecioOnBlur(this)">
                             </div>
                         </div>
 

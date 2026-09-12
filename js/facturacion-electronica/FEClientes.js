@@ -245,6 +245,9 @@
         document.getElementById('fecli_complemento').value = "";
         document.getElementById('fecli_tel').value = "";
         document.getElementById('fecli_correo').value = "";
+        // AGREGADO NUEVO — Detalle automático de factura: cliente nuevo
+        // arranca siempre desactivado y con los valores por defecto.
+        _feDetalleCargarEnFormulario(null);
         _feClientesMostrarVista('form');
     }
 
@@ -310,6 +313,10 @@
         document.getElementById('fecli_complemento').value = c.com || "";
         document.getElementById('fecli_tel').value = c.tel || "";
         document.getElementById('fecli_correo').value = c.cor || "";
+        // AGREGADO NUEVO — Detalle automático de factura: repuebla el
+        // bloque con lo que este cliente ya tenga guardado (o los valores
+        // por defecto, desactivado, si todavía no lo tiene).
+        _feDetalleCargarEnFormulario(c.detalle);
         _feClientesMostrarVista('form');
     }
 
@@ -419,8 +426,94 @@
             dis: document.getElementById('fecli_distrito').value,
             com: document.getElementById('fecli_complemento').value.trim(),
             tel: document.getElementById('fecli_tel').value.trim(),
-            cor: document.getElementById('fecli_correo').value.trim()
+            cor: document.getElementById('fecli_correo').value.trim(),
+            // AGREGADO NUEVO — Detalle automático de factura, INDEPENDIENTE
+            // por cliente y de la Configuración general de Facturación
+            // Electrónica (FEConfig.js — no se toca). No depende del tipo de
+            // documento (modo): a diferencia de "porModo", este detalle es
+            // el mismo sin importar si se factura como CF, CCF, FSE o NC
+            // (ver _feDetalleAutoAgregar / _feClientesLlenar).
+            detalle: _feDetalleLeerDesdeFormulario()
         };
+    }
+
+    // AGREGADO NUEVO — Lee del formulario los 5 datos del detalle automático
+    // de factura de este cliente, más el estado del toggle de activación
+    // (#fecli_detalle_toggle, ver _feDetalleSetToggleUI). El precio se
+    // guarda como número plano (sin separador de miles), mismo criterio que
+    // usa _feConfigLimpiarPrecio/_feConfigFormatearPrecio en FEConfig.js
+    // para el campo "Precio" de la Configuración general — se reutilizan
+    // esas mismas funciones en vez de duplicar el formateo.
+    function _feDetalleLeerDesdeFormulario() {
+        var elActivo = document.getElementById('fecli_detalle_activo');
+        var elPrecio = document.getElementById('fecli_detalle_precio');
+        return {
+            activo: !!(elActivo && elActivo.value === '1'),
+            tipo: (document.getElementById('fecli_detalle_tipo') || {}).value || '',
+            cantidad: (document.getElementById('fecli_detalle_cantidad') || {}).value.trim() || '',
+            producto: (document.getElementById('fecli_detalle_producto') || {}).value.trim() || '',
+            tipoVenta: (document.getElementById('fecli_detalle_tipoVenta') || {}).value || '',
+            precio: elPrecio ? _feConfigLimpiarPrecio(elPrecio.value) : ''
+        };
+    }
+
+    // Valores por defecto del bloque "detalle" — mismo patrón que
+    // _feConfigDefaults() en FEConfig.js, pero este bloque vive DENTRO de
+    // cada cliente (no en fsStore aparte), porque es exclusivo de ese
+    // cliente y debe viajar con él en Backup/Restore, Importar/Exportar,
+    // etc. igual que el resto de sus datos.
+    function _feDetalleDefaults() {
+        return { activo: false, tipo: '2', cantidad: '', producto: '', tipoVenta: 'G', precio: '' };
+    }
+
+    // AGREGADO NUEVO — Pinta el slide-toggle (#fecli_detalle_toggle) según
+    // esté activo o no, y muestra/oculta los 5 campos del detalle
+    // (#fecli_detalle_campos). Mismo criterio visual que ya usa
+    // _feConfigSetToggleUI en FEConfig.js para el panel de Configuración
+    // (fondo + posición del "thumb" via estilo inline), aplicado aquí a su
+    // propio toggle (#fecli_detalle_toggle / .fe-detalle-thumb) para no
+    // tocar ni depender de ese otro panel.
+    function _feDetalleSetToggleUI(on) {
+        var tog = document.getElementById('fecli_detalle_toggle');
+        var cont = document.getElementById('fecli_detalle_campos');
+        if (tog) {
+            var thumb = tog.querySelector('.fe-detalle-thumb');
+            if (on) {
+                tog.style.background = '#4f46e5';
+                if (thumb) { thumb.style.left = '18px'; thumb.style.background = '#fff'; }
+            } else {
+                tog.style.background = 'var(--rp-border-strong)';
+                if (thumb) { thumb.style.left = '2px'; thumb.style.background = 'var(--rp-text-secondary)'; }
+            }
+        }
+        if (cont) cont.classList.toggle('hidden', !on);
+    }
+
+    // Alterna el estado del toggle (guardado en el input oculto
+    // #fecli_detalle_activo, valor "0"/"1") y repinta su UI. Se llama al
+    // hacer clic sobre el slide (ver onclick en index.html).
+    function _feDetalleToggleActivo() {
+        var hidden = document.getElementById('fecli_detalle_activo');
+        if (!hidden) return;
+        var nuevoActivo = hidden.value !== '1';
+        hidden.value = nuevoActivo ? '1' : '0';
+        _feDetalleSetToggleUI(nuevoActivo);
+    }
+
+    // Carga en el formulario los datos guardados de "detalle" de un
+    // cliente (o los valores por defecto si el cliente todavía no tiene
+    // este bloque, p. ej. clientes guardados antes de este agregado).
+    function _feDetalleCargarEnFormulario(detalle) {
+        var d = detalle || _feDetalleDefaults();
+        var defaults = _feDetalleDefaults();
+        var hidden = document.getElementById('fecli_detalle_activo');
+        if (hidden) hidden.value = d.activo ? '1' : '0';
+        document.getElementById('fecli_detalle_tipo').value = d.tipo || defaults.tipo;
+        document.getElementById('fecli_detalle_cantidad').value = d.cantidad || '';
+        document.getElementById('fecli_detalle_producto').value = d.producto || '';
+        document.getElementById('fecli_detalle_tipoVenta').value = d.tipoVenta || defaults.tipoVenta;
+        document.getElementById('fecli_detalle_precio').value = _feConfigFormatearPrecio(d.precio || '');
+        _feDetalleSetToggleUI(!!d.activo);
     }
 
     function _feClientesGuardarFormFinal(modosValidos) {
@@ -658,7 +751,18 @@
                     '}, 150);' +
                 '});' +
             '}' +
-            '(async function flow(){' +
+            // AGREGADO NUEVO — se captura la promesa de flow() (antes se
+            // invocaba sin guardarla y la función exterior devolvía "true"
+            // de inmediato, sin esperar a que terminara). Ahora la función
+            // exterior devuelve esa misma promesa, así
+            // wv.executeJavaScript(fillScript, true) — más abajo, en
+            // _feClientesLlenar — recién se resuelve cuando el llenado del
+            // cliente TERMINÓ de verdad. Esto es lo que permite encadenar
+            // con precisión el detalle automático (_feDetalleAutoAgregar)
+            // en vez de adivinar con un tiempo de espera fijo. No cambia
+            // ningún dato que se llena ni el orden en que se llena — solo
+            // cuándo se avisa que ya terminó.
+            'var __flowPromise = (async function flow(){' +
                 'if (modo === "CCF") {' +
                     'var nitParaCcf = c.nitCcf || (c.tDoc === "36" ? c.num : "");' +
                     'var tDoc = await wait("tipoDocumento"); if (tDoc) set(tDoc, "36");' +
@@ -703,8 +807,30 @@
                         '}' +
                         'if (elDescAct) set(elDescAct, actividadParaLlenar);' +
                     '} else {' +
-                        'var combo = document.querySelector(\'input[role="combobox"]\');' +
-                        'if (combo) {' +
+                        // CORRECCIÓN NUEVA — CAUSA RAÍZ de que "Agregar
+                        // Detalle" no reaccionara al primer clic: esta
+                        // simulación de tipeo (necesaria para que el
+                        // autocompletado de Actividad Económica despliegue
+                        // sus opciones) se disparaba con una cadena de
+                        // setTimeout SUELTA, sin ningún await ni Promise
+                        // que la conectara con __flowPromise. Por eso
+                        // __flowPromise (y con él _fillPromise, en
+                        // _feClientesLlenar) se resolvía de inmediato,
+                        // ANTES de que el combobox terminara de escribir y
+                        // de cerrar su lista desplegable (.ng-option /
+                        // [role="option"]). Cuando el detalle automático
+                        // arrancaba 300ms después, ese overlay de Angular
+                        // todavía podía estar abierto — y el primer clic
+                        // sintético (el de "Agregar Detalle") lo absorbía
+                        // el propio listener de "clic afuera" que usa el
+                        // overlay para cerrarse, en vez de llegar al botón.
+                        // Ahora todo el proceso se envuelve en una Promise
+                        // real y se espera con "await", así __flowPromise
+                        // no se resuelve hasta que el overlay esté
+                        // genuinamente cerrado.
+                        'await new Promise(function(resolverActividad) {' +
+                            'var combo = document.querySelector(\'input[role="combobox"]\');' +
+                            'if (!combo) return resolverActividad();' +
                             'combo.focus();' +
                             'var proto = Object.getPrototypeOf(combo);' +
                             'var d = Object.getOwnPropertyDescriptor(proto, "value");' +
@@ -717,12 +843,22 @@
                                     'combo.dispatchEvent(new Event("input", { bubbles: true }));' +
                                     'combo.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));' +
                                     'i++;' +
-                                    'if (i <= texto.length) setTimeout(typeChar, 30);' +
-                                    'else { setTimeout(function() { var opt = document.querySelector(".ng-option, mat-option, [role=\\"option\\"]"); if (opt) opt.click(); }, 700); }' +
+                                    'if (i <= texto.length) { setTimeout(typeChar, 30); }' +
+                                    'else {' +
+                                        'setTimeout(function() {' +
+                                            'var opt = document.querySelector(".ng-option, mat-option, [role=\\"option\\"]");' +
+                                            'if (opt) opt.click();' +
+                                            // Margen extra tras el clic en la
+                                            // opción para dejar que el overlay
+                                            // efectivamente se cierre antes de
+                                            // avisar que ya terminó.
+                                            'setTimeout(resolverActividad, 250);' +
+                                        '}, 700);' +
+                                    '}' +
                                 '}' +
                             '};' +
                             'setTimeout(typeChar, 200);' +
-                        '}' +
+                        '});' +
                     '}' +
                 '}' +
                 'var dep = await wait("departamento");' +
@@ -741,13 +877,368 @@
                     'var com = await wait("complemento") || await wait("direccion"); if (com) set(com, c.com);' +
                 '}' +
             '})();' +
-            'return true;' +
+            'return __flowPromise;' +
         '})();';
 
-        wv.executeJavaScript(fillScript, true).catch(function(e) {
+        // AGREGADO NUEVO — antes este resultado no se guardaba en ninguna
+        // variable (solo se le encadenaba un .catch para loguear errores),
+        // así que no había forma de saber, desde afuera, cuándo el llenado
+        // del cliente había terminado de verdad. Ahora sí: gracias a que
+        // fillScript devuelve __flowPromise (ver arriba), esta promesa se
+        // resuelve recién cuando el llenado terminó, y es lo que se usa
+        // abajo para encadenar con precisión el detalle automático — en
+        // vez de adivinar con un setTimeout fijo.
+        var _fillPromise = wv.executeJavaScript(fillScript, true).catch(function(e) {
             console.warn('[Facturación Electrónica][Clientes] Error al llenar el formulario:', e);
+            return null;
         });
         _feClientesCerrarDropdown();
+
+        // ════════════════════════════════════════════════════════════════
+        // AGREGADO NUEVO — Detalle automático de factura por cliente.
+        // Regla principal de activación: SOLO se dispara si el cliente
+        // tiene detalle.activo=true Y los 5 datos completos; si falta
+        // cualquiera de los dos, no se hace nada más y el comportamiento
+        // sigue siendo exactamente el actual (detalle manual). NO consulta
+        // ni depende de "Facturación Electrónica → Configuración"
+        // (FEConfig.js / _feConfigLeer) — esa configuración general sigue
+        // funcionando igual para los clientes que no tengan esta capa.
+        //
+        // Se dispara DESPUÉS de que _fillPromise se resuelva (llenado del
+        // cliente terminado de verdad), no con una espera fija a ciegas.
+        // ════════════════════════════════════════════════════════════════
+        if (_feDetalleEstaCompleto(c.detalle)) {
+            console.log('[FiscalSync][Detalle automático] Cliente con configuración propia detectada — se ejecutará al terminar el llenado del receptor.');
+            _fillPromise.then(function() {
+                _feDetalleAutoAgregar(wv, c.detalle, modo);
+            });
+        } else if (c.detalle && c.detalle.activo) {
+            // AGREGADO NUEVO — aviso solo por consola (no interrumpe al
+            // usuario) para poder diagnosticar por qué no se disparó: el
+            // cliente tiene el detalle ACTIVADO pero le falta algún dato.
+            console.log('[FiscalSync][Detalle automático] El cliente tiene el detalle activado pero le falta completar algún campo — no se ejecuta la automatización.', c.detalle);
+        }
+    }
+
+    // Un cliente "tiene configuración propia" para esta automatización
+    // solo cuando está activada Y los 5 datos están presentes. Cantidad y
+    // precio se validan como no-vacíos (no como > 0) a propósito: la
+    // decisión de qué es un valor válido para Hacienda ya la resuelve el
+    // propio formulario de Hacienda, igual que con la Configuración
+    // general (_instalarAutoConfigFE no valida rangos tampoco).
+    function _feDetalleEstaCompleto(detalle) {
+        if (!detalle || !detalle.activo) return false;
+        return !!(detalle.tipo && detalle.cantidad && detalle.producto && detalle.tipoVenta && detalle.precio);
+    }
+
+    // Sustituye el marcador {MES} (si está presente) por el nombre del mes
+    // actualmente activo en Facturación Electrónica — reutiliza el mismo
+    // mes que ya maneja este módulo (_feMesIndex, sincronizado con
+    // Gestión vía _sincronizarMesFEconGestion) y el mismo arreglo
+    // MONTH_NAMES de core/estado.js, sin crear una lista de meses nueva.
+    // Si la plantilla no incluye {MES}, se devuelve tal cual (no fuerza
+    // el cambio mensual en descripciones que no lo necesitan).
+    function _feDetalleResolverProducto(plantilla) {
+        if (!plantilla) return '';
+        if (plantilla.indexOf('{MES}') === -1) return plantilla;
+        var mes = MONTH_NAMES[_feMesIndex] || MONTH_NAMES[new Date().getMonth()];
+        return plantilla.split('{MES}').join(mes);
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // AGREGADO NUEVO — Automatización de "Agregar Detalle" por cliente.
+    // ────────────────────────────────────────────────────────────────────
+    // Mismo mecanismo que el resto del módulo (webview.executeJavaScript
+    // desde afuera, sin preload dentro del <webview> — ver el comentario
+    // grande al inicio de _feClientesLlenar): NO se agrega ninguna función
+    // nueva en preload.js/main.js.
+    //
+    // Se invoca DESPUÉS de que el llenado del cliente ya terminó de verdad
+    // (ver _fillPromise en _feClientesLlenar) — ya no depende de un
+    // setTimeout fijo adivinado.
+    //
+    // Secuencia real confirmada con el HTML de Hacienda:
+    //   1. "Agregar Detalle" es un botón-dropdown (Bootstrap) —
+    //      <button id="btnGroupDrop2" class="btn btn-primary
+    //      dropdown-toggle">Agregar Detalle</button>. Al hacer clic,
+    //      despliega un menú.
+    //   2. Del menú desplegado hay que elegir
+    //      <a class="dropdown-item">Producto o Servicio</a>, que es la
+    //      que efectivamente abre el formulario del ítem (tipo, cantidad,
+    //      producto, tipoVenta, precio).
+    //   3. Recién ahí aplican los mismos selectores que ya usa
+    //      _instalarAutoConfigFE (FacturacionElectronica.js) para esos 5
+    //      campos — se reutilizan tal cual.
+    //   4. "Agregar ítem" y "Regresar al documento" quedan igual que antes.
+    //
+    // El id "btnGroupDrop2" podría no ser estable entre distintos tipos de
+    // documento; se intenta primero por ese id exacto, y si no aparece (o
+    // está deshabilitado) se cae a buscarlo por texto entre los
+    // .dropdown-toggle, igual que "Agregar ítem"/"Regresar al documento".
+    //
+    // Cada paso descarta elementos deshabilitados (disabled / aria-disabled
+    // / clase "disabled") además de invisibles — un botón presente en el
+    // DOM pero deshabilitado (p. ej. mientras el formulario del receptor
+    // todavía no termina de validarse) no dispara clic real.
+    // ════════════════════════════════════════════════════════════════════
+    function _feDetalleAutoAgregar(wv, detalle, modo) {
+        if (!wv || !wv.executeJavaScript) return;
+
+        var producto = _feDetalleResolverProducto(detalle.producto);
+        var datos = {
+            tipo: detalle.tipo,
+            cantidad: detalle.cantidad,
+            producto: producto,
+            tipoVenta: detalle.tipoVenta,
+            precio: detalle.precio
+        };
+
+        var script = '(function(){\n' +
+            'var D = ' + JSON.stringify(datos) + ';\n' +
+            'var MODO = ' + JSON.stringify(modo || '') + ';\n' +
+            'var LOG = "[FiscalSync][Detalle automático] ";\n' +
+            // AGREGADO NUEVO — Configuración especial por cada tipo de
+            // documento electrónico. Cada uno abre el formulario del ítem
+            // de forma distinta en el portal de Hacienda:
+            //   - FCF (Factura): botón-dropdown <button id="btnGroupDrop2"
+            //     class="dropdown-toggle">Agregar Detalle</button>; hay
+            //     que elegir "Producto o Servicio" del menú para que abra
+            //     el formulario del ítem.
+            //   - CCF (Crédito Fiscal) / NC (Nota de Crédito): mismo
+            //     mecanismo de dropdown, pero el botón que lo abre dice
+            //     "Agregar Ítem" en vez de "Agregar Detalle".
+            //   - FSE (Sujetos Excluidos): NO es un dropdown, es un
+            //     <input type="button" value="Agregar ítem">; al hacer
+            //     clic abre el formulario del ítem directo, sin pasar por
+            //     "Producto o Servicio".
+            // "Agregar ítem" (guardar) y "Regresar al documento" son
+            // iguales para los 4 tipos de documento.
+            'var CONFIG_POR_MODO = {\n' +
+            '  FCF: { textoAbrir: "Agregar Detalle", requiereProductoServicio: true },\n' +
+            '  CCF: { textoAbrir: "Agregar Ítem", requiereProductoServicio: true },\n' +
+            '  NC:  { textoAbrir: "Agregar Ítem", requiereProductoServicio: true },\n' +
+            '  FSE: { textoAbrir: "Agregar ítem", requiereProductoServicio: false }\n' +
+            '};\n' +
+            'var CFG = CONFIG_POR_MODO[MODO] || CONFIG_POR_MODO.CCF;\n' +
+            'var TEXTOS = { detalle: CFG.textoAbrir, productoServicio: "Producto o Servicio", item: "Agregar ítem", regresar: "Regresar al documento" };\n' +
+            'function normalizar(t) {\n' +
+            '  return (t || "").replace(/\\s+/g, " ").trim().toLowerCase()' +
+            '    .normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");\n' +
+            '}\n' +
+            'function estaDeshabilitado(el) {\n' +
+            '  return !!(el.disabled || el.getAttribute("aria-disabled") === "true" || el.classList.contains("disabled"));\n' +
+            '}\n' +
+            // AGREGADO NUEVO — el botón de "Agregar ítem" de Sujetos
+            // Excluidos es un <input type="button" value="..."> en vez de
+            // un <button>: su texto visible vive en la propiedad "value",
+            // no en "textContent".
+            'function textoVisible(el) {\n' +
+            '  return (el.tagName === "INPUT") ? el.value : el.textContent;\n' +
+            '}\n' +
+            // Busca cualquier botón/enlace/elemento clickeable, VISIBLE y
+            // HABILITADO, cuyo texto coincida EXACTO (normalizado, sin
+            // acentos) con el texto pedido. Cubre <button>
+            // ("Agregar Detalle"/"Agregar Ítem", "Agregar ítem",
+            // "Regresar al documento"), <a class="dropdown-item">
+            // ("Producto o Servicio") e <input type="button"> (Sujetos
+            // Excluidos).
+            'function buscarElementoPorTexto(texto) {\n' +
+            '  var objetivo = normalizar(texto);\n' +
+            '  var candidatos = document.querySelectorAll("button, a, input[type=\\"button\\"], [role=\\"button\\"], .dropdown-item, .dropdown-toggle");\n' +
+            '  for (var i = 0; i < candidatos.length; i++) {\n' +
+            '    var el = candidatos[i];\n' +
+            '    if (el.offsetParent === null) continue;\n' + // invisible/oculto
+            '    if (estaDeshabilitado(el)) continue;\n' +
+            '    if (normalizar(textoVisible(el)) === objetivo) return el;\n' +
+            '  }\n' +
+            '  return null;\n' +
+            '}\n' +
+            // AGREGADO NUEVO — El botón que GUARDA el ítem puede tener el
+            // MISMO texto que el botón que ABRE el formulario: en Factura
+            // /CCF/NC porque ambos dicen "Agregar Ítem"/"Agregar Detalle"
+            // (se distinguen por btnGroupDrop2/dropdown-toggle), y en
+            // Sujetos Excluidos porque literalmente los DOS dicen
+            // "Agregar ítem" (uno es el <input> que abre, el otro el
+            // <button ngbpopover> que guarda). Si se confunden, el clic
+            // "de guardar" en realidad reabre el formulario de captura en
+            // blanco encima del ya lleno, y este último nunca se guarda —
+            // por eso se identifica el botón de guardar de dos formas,
+            // ambas más confiables que solo el texto:
+            //   1. Por el atributo "ngbpopover", que en el portal real
+            //      SOLO tiene el botón de guardar (nunca el de abrir).
+            //   2. Si no aparece por atributo, por texto — pero
+            //      excluyendo por REFERENCIA el elemento que se usó para
+            //      abrir (elAbrir) y cualquier <input> (guardar nunca es
+            //      un <input>, siempre es un <button>).
+            'function buscarBotonGuardarItem(elAbrir) {\n' +
+            '  var porAtributo = document.querySelector("button[ngbpopover]");\n' +
+            '  if (porAtributo && porAtributo !== elAbrir && porAtributo.offsetParent !== null && !estaDeshabilitado(porAtributo)) return porAtributo;\n' +
+            '  var objetivo = normalizar(TEXTOS.item);\n' +
+            '  var candidatos = document.querySelectorAll("button, [role=\\"button\\"]");\n' +
+            '  for (var i = 0; i < candidatos.length; i++) {\n' +
+            '    var el = candidatos[i];\n' +
+            '    if (el === elAbrir) continue;\n' +
+            '    if (el.tagName === "INPUT") continue;\n' +
+            '    if (el.id === "btnGroupDrop2" || el.classList.contains("dropdown-toggle")) continue;\n' +
+            '    if (el.offsetParent === null) continue;\n' +
+            '    if (estaDeshabilitado(el)) continue;\n' +
+            '    if (normalizar(textoVisible(el)) === objetivo) return el;\n' +
+            '  }\n' +
+            '  return null;\n' +
+            '}\n' +
+            // El botón que ABRE el menú se busca primero por su id real
+            // (btnGroupDrop2, visto en el portal), y si no está disponible
+            // (invisible, deshabilitado, u otro tipo de documento lo
+            // numera distinto) se cae a buscarlo por texto entre los
+            // .dropdown-toggle, igual que los demás. Su texto real es
+            // "Agregar Ítem" (ver TEXTOS.detalle) — a pesar del nombre de
+            // esta función, que se conserva solo para no reescribir cada
+            // referencia.
+            'function buscarBotonAgregarDetalle() {\n' +
+            '  var porId = document.getElementById("btnGroupDrop2");\n' +
+            '  if (porId && porId.offsetParent !== null && !estaDeshabilitado(porId) && normalizar(textoVisible(porId)) === normalizar(TEXTOS.detalle)) return porId;\n' +
+            '  return buscarElementoPorTexto(TEXTOS.detalle);\n' +
+            '}\n' +
+            // AGREGADO NUEVO — Diagnóstico. Si después de todos los
+            // reintentos no se encuentra/activa el botón, se vuelca en
+            // consola el estado real del DOM en ese instante: URL de la
+            // página, si "btnGroupDrop2" existe pero está oculto o
+            // deshabilitado (y por qué), y el texto/estado de TODOS los
+            // ".dropdown-toggle" presentes. Esto reemplaza la adivinanza
+            // por datos concretos para el siguiente diagnóstico.
+            'function diagnosticoBoton(etiqueta) {\n' +
+            '  try {\n' +
+            '    var info = { etiqueta: etiqueta, modo: MODO, textoAbrirEsperado: TEXTOS.detalle, url: location.href };\n' +
+            '    var porId = document.getElementById("btnGroupDrop2");\n' +
+            '    if (porId) {\n' +
+            '      info.btnGroupDrop2 = {\n' +
+            '        texto: textoVisible(porId),\n' +
+            '        visible: porId.offsetParent !== null,\n' +
+            '        disabled: !!porId.disabled,\n' +
+            '        ariaDisabled: porId.getAttribute("aria-disabled"),\n' +
+            '        clases: porId.className\n' +
+            '      };\n' +
+            '    } else {\n' +
+            '      info.btnGroupDrop2 = "NO EXISTE en el DOM en este momento";\n' +
+            '    }\n' +
+            '    var toggles = document.querySelectorAll(".dropdown-toggle");\n' +
+            '    info.totalDropdownToggle = toggles.length;\n' +
+            '    info.dropdownToggles = Array.prototype.slice.call(toggles).map(function(el) {\n' +
+            '      return { id: el.id, texto: normalizar(textoVisible(el)), visible: el.offsetParent !== null, disabled: estaDeshabilitado(el) };\n' +
+            '    });\n' +
+            '    console.log(LOG + "DIAGNÓSTICO -> " + JSON.stringify(info, null, 2));\n' +
+            '  } catch (e) { console.warn(LOG + "fallo el diagnóstico:", e); }\n' +
+            '}\n' +
+            'function esperar(ms) { return new Promise(function(r){ setTimeout(r, ms); }); }\n' +
+            'function esperarElemento(buscar, intentos, esperaMs) {\n' +
+            '  return new Promise(function(resolve) {\n' +
+            '    var restantes = intentos;\n' +
+            '    (function intentar() {\n' +
+            '      var el = buscar();\n' +
+            '      if (el || restantes <= 0) return resolve(el);\n' +
+            '      restantes--;\n' +
+            '      setTimeout(intentar, esperaMs);\n' +
+            '    })();\n' +
+            '  });\n' +
+            '}\n' +
+            'function clic(el, nombrePaso) {\n' +
+            '  if (!el) { console.warn(LOG + "no se encontró: " + nombrePaso); return false; }\n' +
+            '  el.click();\n' +
+            '  console.log(LOG + "clic en: " + nombrePaso);\n' +
+            '  return true;\n' +
+            '}\n' +
+            'function setValor(input, valor, nombreCampo) {\n' +
+            '  if (!input) { console.warn(LOG + "no se encontró el campo: " + nombreCampo); return; }\n' +
+            '  var proto = Object.getPrototypeOf(input);\n' +
+            '  var d = Object.getOwnPropertyDescriptor(proto, "value");\n' +
+            '  var setter = d && d.set;\n' +
+            '  if (setter) setter.call(input, valor); else input.value = valor;\n' +
+            '  ["input","change","blur"].forEach(function(ev){ input.dispatchEvent(new Event(ev, { bubbles: true })); });\n' +
+            '}\n' +
+            '(async function flow(){\n' +
+            '  console.log(LOG + "iniciando (cliente ya lleno)");\n' +
+            // Margen mínimo, solo para dejar que el DOM termine de
+            // asentarse justo después del último campo del receptor —
+            // ya NO es el único mecanismo de sincronización (eso ahora lo
+            // hace _fillPromise en _feClientesLlenar).
+            '  await esperar(300);\n' +
+            '  var btnDetalle = await esperarElemento(buscarBotonAgregarDetalle, 25, 300);\n' +
+            '  if (!btnDetalle) { diagnosticoBoton("no se encontró el botón de apertura (" + TEXTOS.detalle + ") tras esperar"); return; }\n' +
+            '  if (!clic(btnDetalle, TEXTOS.detalle)) return;\n' +
+            // AGREGADO NUEVO — se guarda la REFERENCIA exacta del elemento
+            // que se usó para abrir, para poder excluirla más abajo al
+            // buscar el botón de "guardar" (ver buscarBotonGuardarItem).
+            // Es la corrección al bug de Sujetos Excluidos: ahí el botón
+            // de abrir y el de guardar dicen exactamente el mismo texto
+            // ("Agregar ítem"), y sin esta exclusión por referencia la
+            // automatización podía volver a hacer clic sobre el botón de
+            // abrir en vez del de guardar — reabriendo un segundo
+            // formulario en blanco encima del ya lleno, que nunca llegaba
+            // a guardarse.
+            '  var btnDetalleAbierto = btnDetalle;\n' +
+            '  await esperar(200);\n' +
+            // AGREGADO NUEVO — este paso solo aplica a los tipos de
+            // documento cuyo botón de apertura es un dropdown (Factura,
+            // Crédito Fiscal, Nota de Crédito): hay que elegir
+            // "Producto o Servicio" del menú para que recién ahí abra el
+            // formulario del ítem. En Sujetos Excluidos (FSE) el botón de
+            // apertura ya abre el formulario directo, así que este paso
+            // se salta por completo (CFG.requiereProductoServicio = false).
+            '  if (CFG.requiereProductoServicio) {\n' +
+            '    var opcProdServ = await esperarElemento(function(){ return buscarElementoPorTexto(TEXTOS.productoServicio); }, 15, 250);\n' +
+            // AGREGADO NUEVO — reintento de un solo clic extra: si el
+            // primer clic sobre el botón de apertura no llegó a abrir el
+            // dropdown (p. ej. porque quedó absorbido por el cierre de
+            // algún overlay todavía presente en la página, como el del
+            // autocompletado de Actividad Económica), se reintenta una
+            // vez el clic sobre el mismo botón antes de rendirse. No
+            // reemplaza la corrección de fondo (que ya evita ese overlay
+            // abierto), es solo un colchón adicional.
+            '    if (!opcProdServ) {\n' +
+            '      console.warn(LOG + "\\"Producto o Servicio\\" no apareció tras el primer clic — reintentando el botón de apertura");\n' +
+            '      diagnosticoBoton("Producto o Servicio no apareció tras primer clic en el botón de apertura (" + TEXTOS.detalle + ")");\n' +
+            '      var btnDetalle2 = await esperarElemento(buscarBotonAgregarDetalle, 5, 300);\n' +
+            '      if (!clic(btnDetalle2, TEXTOS.detalle + " (reintento)")) return;\n' +
+            '      btnDetalleAbierto = btnDetalle2;\n' +
+            '      await esperar(200);\n' +
+            '      opcProdServ = await esperarElemento(function(){ return buscarElementoPorTexto(TEXTOS.productoServicio); }, 15, 250);\n' +
+            '      if (!opcProdServ) diagnosticoBoton("Producto o Servicio tampoco apareció tras el reintento");\n' +
+            '    }\n' +
+            '    if (!clic(opcProdServ, TEXTOS.productoServicio)) return;\n' +
+            '  }\n' +
+            // Al elegir "Producto o Servicio" (o, en FSE, directo tras el
+            // único botón de apertura) el formulario del ítem se abre.
+            // Mismos selectores que ya usa _instalarAutoConfigFE en
+            // FacturacionElectronica.js para estos 5 campos del ítem — se
+            // reutilizan tal cual, sin inventar selectores nuevos.
+            '  var tipoEl = await esperarElemento(function(){ return document.querySelector(\'select[formcontrolname="tipo"]\'); }, 20, 300);\n' +
+            '  setValor(tipoEl, D.tipo, "tipo");\n' +
+            '  var cantEl = document.getElementById("inputCantidad");\n' +
+            '  setValor(cantEl, D.cantidad, "cantidad");\n' +
+            '  var prodEl = document.querySelector(\'input[formcontrolname="producto"], textarea[formcontrolname="producto"]\');\n' +
+            '  setValor(prodEl, D.producto, "producto");\n' +
+            '  var tvEl = document.querySelector(\'select[formcontrolname="tipoVenta"]\');\n' +
+            '  setValor(tvEl, D.tipoVenta, "tipoVenta");\n' +
+            '  var precEl = document.getElementById("inputPrecio");\n' +
+            '  setValor(precEl, D.precio, "precio");\n' +
+            '  await esperar(300);\n' +
+            // "Agregar ítem" (guardar) — mismo texto que el botón de abrir
+            // el menú, pero se busca explícitamente EXCLUYENDO ese
+            // dropdown-toggle (ver buscarBotonGuardarItem) para no
+            // volver a hacer clic sobre el botón equivocado.
+            '  var btnItemGuardar = await esperarElemento(function(){ return buscarBotonGuardarItem(btnDetalleAbierto); }, 15, 300);\n' +
+            '  if (!btnItemGuardar) diagnosticoBoton("no se encontró el botón de guardar (Agregar ítem)");\n' +
+            '  if (!clic(btnItemGuardar, TEXTOS.item + " (guardar)")) return;\n' +
+            '  var btnRegresar = await esperarElemento(function(){ return buscarElementoPorTexto(TEXTOS.regresar); }, 15, 300);\n' +
+            '  clic(btnRegresar, TEXTOS.regresar);\n' +
+            '  console.log(LOG + "completado");\n' +
+            '})();\n' +
+            'return true;\n' +
+            '})();';
+
+        wv.executeJavaScript(script, true).catch(function(e) {
+            console.warn('[Facturación Electrónica][Clientes] Error en detalle automático:', e);
+        });
     }
 
     // ══════════════════════════════════════════════════════════════════
