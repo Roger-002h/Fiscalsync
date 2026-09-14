@@ -5,7 +5,7 @@ const { autoUpdater } = require('electron-updater'); // 👈 NUEVO
 // Cambio 04 — Catálogo CAT-002 centralizado (fuente única, compartida con
 // index.html). Ver cat002.js para el catálogo completo y la equivalencia
 // texto de Hacienda -> código CAT-002.
-const { cat002CodigoDesdeTexto, nombrePorCodigo } = require('./data/cat002.js');
+const { cat002CodigoDesdeTexto, nombrePorCodigo, CAT_002 } = require('./data/cat002.js');
 
 let mainWindowRef = null; // 👈 NUEVO: referencia para enviar el estado del updater al renderer
 
@@ -324,7 +324,13 @@ function createWindow() {
               }
               const ctxActual = _feContextoDe(partition);
               _feContextos[partition] = Object.assign({}, ctxActual, {
-                ultimaCarpetaFecha: carpetaFecha ? path.basename(carpetaFecha) : null
+                // AGREGADO — se guarda la ruta relativa completa (que
+                // ahora puede incluir la carpeta de tipo de documento
+                // antes de la de fecha, ver _feCarpetaFechaDesdeJson) en
+                // vez de solo el nombre de la carpeta de fecha, para que
+                // el .pdf de este mismo documento (líneas de arriba) se
+                // guarde en el mismo lugar exacto que su .json.
+                ultimaCarpetaFecha: carpetaFecha ? path.relative(dir, carpetaFecha) : null
               });
             }
 
@@ -718,8 +724,46 @@ function _feFechaEmiACarpeta(fecEmi) {
   return sanitizeFolderName(m[3] + '-' + m[2] + '-' + m[1]);
 }
 
+// AGREGADO — Carpeta por tipo de documento dentro de "Facturacion", un
+// nivel ANTES de la carpeta de fecha. El nombre de la carpeta sale del
+// catálogo oficial CAT-002 centralizado en cat002.js (nombrePorCodigo,
+// ya importado arriba junto con cat002CodigoDesdeTexto) — una carpeta
+// por cada tipo real del catálogo (Factura, Comprobante de Crédito
+// Fiscal, Nota de Remisión, etc.), en vez de agrupar varios códigos bajo
+// un mismo nombre. Si el tipoDte no está en el catálogo (código
+// desconocido o ausente en el .json), va a "Otros Documentos".
+//
+// Caso aparte — Invalidación: el .json de un evento de Invalidación (se
+// anula un documento ya emitido) NO trae identificacion.tipoDte como los
+// DTE normales; en cambio trae un bloque "motivo" con "tipoAnulacion" /
+// "motivoAnulacion" (y un "documento" con el tipoDte del documento
+// ANULADO, no del evento en sí). Por eso se detecta aparte, ANTES de
+// buscar en el catálogo, y va siempre a "Documentos Invalidados".
+function _feCarpetaTipoDocumento(json) {
+  if (json && json.motivo && typeof json.motivo.tipoAnulacion !== 'undefined') {
+    return sanitizeFolderName('Documentos Invalidados');
+  }
+  const id = (json && json.identificacion) || {};
+  const tipoDTE = String(id.tipoDte || '').trim();
+  const nombreOficial = nombrePorCodigo(tipoDTE); // '' si el código no está en el catálogo
+  const nombre = nombreOficial ? _feNombreCarpetaDesdeCat002(nombreOficial) : 'Otros Documentos';
+  return sanitizeFolderName(nombre);
+}
+
+// Convierte el nombre oficial del catálogo (en MAYÚSCULAS, ej. "COMPROBANTE
+// DE CRÉDITO FISCAL") a formato Título ("Comprobante De Crédito Fiscal")
+// para que la carpeta se vea igual de prolija que "Otros Documentos".
+// Solo cambia mayúsculas/minúsculas — no toca tildes ni el texto en sí.
+function _feNombreCarpetaDesdeCat002(nombreOficial) {
+  return String(nombreOficial)
+    .toLowerCase()
+    .replace(/(^|\s)([a-záéíóúñ])/g, function (m, espacio, letra) {
+      return espacio + letra.toUpperCase();
+    });
+}
+
 // Lee un .json ya guardado en disco y devuelve (creándola si hace falta)
-// su carpeta de fecha dentro de facturacionDir, o null si no se pudo
+// su carpeta de tipo+fecha dentro de facturacionDir, o null si no se pudo
 // leer/parsear el archivo o no trae identificacion.fecEmi (en ese caso el
 // archivo se deja donde está, sin mover nada).
 function _feCarpetaFechaDesdeJson(jsonPath, facturacionDir) {
@@ -729,11 +773,14 @@ function _feCarpetaFechaDesdeJson(jsonPath, facturacionDir) {
     const fecEmi = data && data.identificacion && data.identificacion.fecEmi;
     const nombreCarpeta = _feFechaEmiACarpeta(fecEmi);
     if (!nombreCarpeta) return null;
-    const destDir = path.join(facturacionDir, nombreCarpeta);
+    // AGREGADO — carpeta de tipo de documento antes de la de fecha.
+    const tipoDir = path.join(facturacionDir, _feCarpetaTipoDocumento(data));
+    if (!fs.existsSync(tipoDir)) fs.mkdirSync(tipoDir, { recursive: true });
+    const destDir = path.join(tipoDir, nombreCarpeta);
     if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
     return destDir;
   } catch (e) {
-    console.warn('[Facturación Electrónica] No se pudo leer la fecha del .json para organizarlo por carpeta:', e.message);
+    console.warn('[Facturación Electrónica] No se pudo leer la fecha/tipo del .json para organizarlo por carpeta:', e.message);
     return null;
   }
 }
@@ -778,6 +825,257 @@ function _feMigrarSueltos(facturacionDir) {
   }
 }
 
+// AGREGADO — Migración de la estructura vieja (Facturacion/[Fecha]/...,
+// sin carpeta de tipo de documento) a la nueva (Facturacion/[Tipo]/
+// [Fecha]/...). Igual que _feMigrarSueltos de arriba: se llama sola, sin
+// pedir nada al usuario. Solo mueve carpetas que estén DIRECTAMENTE
+// dentro de facturacionDir con forma de fecha (DD-MM-AAAA) — no toca las
+// carpetas de tipo ya conocidas, para no reprocesar lo que ya está
+// migrado.
+// AGREGADO — lista de carpetas de tipo "conocidas" (una por cada tipo del
+// catálogo CAT-002, con el mismo formato que ya usa _feCarpetaTipoDocumento,
+// más "Otros Documentos" y "Documentos Invalidados"), para que
+// _feMigrarEstructuraTipo no intente reprocesar carpetas de tipo ya
+// creadas si alguna llegara a tener nombre de fecha por coincidencia.
+const FE_CARPETAS_TIPO_CONOCIDAS = CAT_002.map(function (item) {
+  return _feNombreCarpetaDesdeCat002(item.nombre);
+}).concat(['Otros Documentos', 'Documentos Invalidados']);
+const FE_REGEX_CARPETA_FECHA = /^\d{2}-\d{2}-\d{4}$/;
+
+function _feMigrarEstructuraTipo(facturacionDir) {
+  let entradas;
+  try {
+    entradas = fs.readdirSync(facturacionDir, { withFileTypes: true });
+  } catch (e) {
+    return;
+  }
+
+  const carpetasFechaSueltas = entradas
+    .filter((entrada) => entrada.isDirectory()
+      && FE_REGEX_CARPETA_FECHA.test(entrada.name)
+      && FE_CARPETAS_TIPO_CONOCIDAS.indexOf(entrada.name) === -1)
+    .map((entrada) => entrada.name);
+
+  for (const nombreFecha of carpetasFechaSueltas) {
+    const fechaDirVieja = path.join(facturacionDir, nombreFecha);
+    let archivos;
+    try {
+      archivos = fs.readdirSync(fechaDirVieja, { withFileTypes: true })
+        .filter((e) => e.isFile() && e.name.toLowerCase().endsWith('.json'))
+        .map((e) => e.name);
+    } catch (e) {
+      continue;
+    }
+
+    for (const jsonName of archivos) {
+      try {
+        const jsonPathViejo = path.join(fechaDirVieja, jsonName);
+        const raw = fs.readFileSync(jsonPathViejo, 'utf8');
+        const data = JSON.parse(raw);
+        const tipoDir = path.join(facturacionDir, _feCarpetaTipoDocumento(data));
+        if (!fs.existsSync(tipoDir)) fs.mkdirSync(tipoDir, { recursive: true });
+        const fechaDirNueva = path.join(tipoDir, nombreFecha);
+        if (!fs.existsSync(fechaDirNueva)) fs.mkdirSync(fechaDirNueva, { recursive: true });
+
+        const base = path.basename(jsonName, '.json');
+        const pdfName = base + '.pdf';
+        const pdfPathViejo = path.join(fechaDirVieja, pdfName);
+
+        const jsonPathNuevo = path.join(fechaDirNueva, jsonName);
+        if (!fs.existsSync(jsonPathNuevo)) fs.renameSync(jsonPathViejo, jsonPathNuevo);
+
+        if (fs.existsSync(pdfPathViejo)) {
+          const pdfPathNuevo = path.join(fechaDirNueva, pdfName);
+          if (!fs.existsSync(pdfPathNuevo)) fs.renameSync(pdfPathViejo, pdfPathNuevo);
+        }
+      } catch (e) {
+        console.warn('[Facturación Electrónica] Error migrando documento a su carpeta de tipo:', jsonName, e.message);
+      }
+    }
+
+    // Si la carpeta de fecha vieja quedó vacía, se elimina para no dejar
+    // carpetas duplicadas; si algo no se pudo mover, se deja tal cual
+    // está (nunca se borra una carpeta que todavía tenga archivos).
+    try {
+      const quedan = fs.readdirSync(fechaDirVieja);
+      if (quedan.length === 0) fs.rmdirSync(fechaDirVieja);
+    } catch (e) { /* noop */ }
+  }
+}
+
+// AGREGADO — Re-clasifica documentos que ya están dentro de una carpeta
+// de tipo (por ejemplo "Otros Documentos") pero que, con el criterio de
+// clasificación ACTUAL, deberían estar en otra (por ejemplo "Documentos
+// Invalidados"). Esto corrige solo, sin pedir nada al usuario, los
+// documentos que se organizaron con una versión anterior de este cambio
+// (antes de agregar, por ejemplo, la detección de Invalidación). Recorre
+// cada carpeta de tipo ya existente (no las carpetas de fecha sueltas —
+// esas las resuelve _feMigrarEstructuraTipo de arriba) y, dentro de cada
+// una, cada subcarpeta de fecha, comparando la carpeta de tipo actual
+// contra _feCarpetaTipoDocumento(json). No toca nada que ya esté en la
+// carpeta correcta.
+function _feReclasificarDocumentos(facturacionDir) {
+  let carpetasTipo;
+  try {
+    carpetasTipo = fs.readdirSync(facturacionDir, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && !FE_REGEX_CARPETA_FECHA.test(e.name))
+      .map((e) => e.name);
+  } catch (e) {
+    return;
+  }
+
+  for (const tipoActual of carpetasTipo) {
+    const tipoActualDir = path.join(facturacionDir, tipoActual);
+    let carpetasFecha;
+    try {
+      carpetasFecha = fs.readdirSync(tipoActualDir, { withFileTypes: true })
+        .filter((e) => e.isDirectory() && FE_REGEX_CARPETA_FECHA.test(e.name))
+        .map((e) => e.name);
+    } catch (e) {
+      continue;
+    }
+
+    for (const nombreFecha of carpetasFecha) {
+      const fechaDirActual = path.join(tipoActualDir, nombreFecha);
+      let jsons;
+      try {
+        jsons = fs.readdirSync(fechaDirActual, { withFileTypes: true })
+          .filter((e) => e.isFile() && e.name.toLowerCase().endsWith('.json'))
+          .map((e) => e.name);
+      } catch (e) {
+        continue;
+      }
+
+      for (const jsonName of jsons) {
+        try {
+          const jsonPathActual = path.join(fechaDirActual, jsonName);
+          const raw = fs.readFileSync(jsonPathActual, 'utf8');
+          const data = JSON.parse(raw);
+          const tipoCorrecto = _feCarpetaTipoDocumento(data);
+          if (tipoCorrecto === tipoActual) continue; // ya está donde corresponde
+
+          const tipoCorrectoDir = path.join(facturacionDir, tipoCorrecto);
+          if (!fs.existsSync(tipoCorrectoDir)) fs.mkdirSync(tipoCorrectoDir, { recursive: true });
+          const fechaDirCorrecta = path.join(tipoCorrectoDir, nombreFecha);
+          if (!fs.existsSync(fechaDirCorrecta)) fs.mkdirSync(fechaDirCorrecta, { recursive: true });
+
+          const base = path.basename(jsonName, '.json');
+          const pdfName = base + '.pdf';
+          const pdfPathActual = path.join(fechaDirActual, pdfName);
+
+          const jsonPathNuevo = path.join(fechaDirCorrecta, jsonName);
+          if (!fs.existsSync(jsonPathNuevo)) fs.renameSync(jsonPathActual, jsonPathNuevo);
+
+          if (fs.existsSync(pdfPathActual)) {
+            const pdfPathNuevo = path.join(fechaDirCorrecta, pdfName);
+            if (!fs.existsSync(pdfPathNuevo)) fs.renameSync(pdfPathActual, pdfPathNuevo);
+          }
+        } catch (e) {
+          console.warn('[Facturación Electrónica] Error re-clasificando documento:', jsonName, e.message);
+        }
+      }
+
+      // Si la carpeta de fecha quedó vacía tras mover documentos mal
+      // clasificados, se elimina.
+      try {
+        const quedanEnFecha = fs.readdirSync(fechaDirActual);
+        if (quedanEnFecha.length === 0) fs.rmdirSync(fechaDirActual);
+      } catch (e) { /* noop */ }
+    }
+
+    // Si la carpeta de tipo quedó vacía (todos sus documentos se movieron
+    // a otro tipo), se elimina también.
+    try {
+      const quedanEnTipo = fs.readdirSync(tipoActualDir);
+      if (quedanEnTipo.length === 0) fs.rmdirSync(tipoActualDir);
+    } catch (e) { /* noop */ }
+  }
+}
+
+// Recorre "dir" y todas sus subcarpetas, sin importar la profundidad, y
+// junta en "resultado" (objeto nombreBase -> [rutas]) cada archivo que
+// termine en "ext". Usada por _feReunificarJsonYPdf para encontrar
+// .json/.pdf sin importar en qué carpeta haya quedado cada uno.
+function _feListarArchivosRecursivo(dir, ext, resultado) {
+  let entradas;
+  try {
+    entradas = fs.readdirSync(dir, { withFileTypes: true });
+  } catch (e) {
+    return;
+  }
+  for (const entrada of entradas) {
+    const full = path.join(dir, entrada.name);
+    if (entrada.isDirectory()) {
+      _feListarArchivosRecursivo(full, ext, resultado);
+    } else if (entrada.isFile() && entrada.name.toLowerCase().endsWith(ext)) {
+      const base = path.basename(entrada.name, ext);
+      if (!resultado[base]) resultado[base] = [];
+      resultado[base].push(full);
+    }
+  }
+}
+
+// AGREGADO — Reunifica pares .json/.pdf que quedaron separados en
+// carpetas distintas (por ejemplo, si la descarga del .pdf se solapó con
+// la del siguiente .json y terminó guardándose junto al documento
+// equivocado). Recorre TODA la estructura de "Facturacion", sin importar
+// el nivel de cada archivo, y por cada .json busca si existe un .pdf con
+// el mismo nombre base en OTRA carpeta; si lo encuentra, lo mueve junto a
+// su .json (que a esta altura ya debería estar en su carpeta correcta,
+// gracias a _feMigrarSueltos/_feMigrarEstructuraTipo/
+// _feReclasificarDocumentos, que se llaman ANTES que esta función).
+//
+// Si hay más de un .json con el mismo nombre (duplicado) no se toca nada
+// para ese nombre, por ambigüedad. Si un .pdf no tiene NINGÚN .json con
+// su mismo nombre en toda la estructura, se deja donde está — no hay de
+// dónde sacar su tipo de documento para reclasificarlo (un .pdf no trae
+// tipoDte legible como el .json).
+function _feReunificarJsonYPdf(facturacionDir) {
+  const jsons = {};
+  const pdfs = {};
+  _feListarArchivosRecursivo(facturacionDir, '.json', jsons);
+  _feListarArchivosRecursivo(facturacionDir, '.pdf', pdfs);
+
+  for (const base in jsons) {
+    const jsonPaths = jsons[base];
+    if (jsonPaths.length !== 1) continue; // nombre duplicado; ambiguo, no se toca
+
+    const jsonDir = path.dirname(jsonPaths[0]);
+    const pdfDestino = path.join(jsonDir, base + '.pdf');
+    if (fs.existsSync(pdfDestino)) continue; // ya están juntos
+
+    const candidatosPdf = pdfs[base] || [];
+    if (candidatosPdf.length === 0) continue; // no hay ningún .pdf con ese nombre
+
+    try {
+      fs.renameSync(candidatosPdf[0], pdfDestino);
+    } catch (e) {
+      console.warn('[Facturación Electrónica] Error reunificando .pdf con su .json:', base, e.message);
+    }
+  }
+}
+
+// AGREGADO — limpieza final: borra carpetas de tipo/fecha que hayan
+// quedado vacías después de mover documentos (por ejemplo, la carpeta
+// donde estaba un .pdf huérfano que _feReunificarJsonYPdf acaba de mover
+// a otro lado). Nunca borra facturacionDir en sí, solo sus subcarpetas.
+function _feLimpiarCarpetasVacias(dir) {
+  let entradas;
+  try {
+    entradas = fs.readdirSync(dir, { withFileTypes: true });
+  } catch (e) {
+    return;
+  }
+  for (const entrada of entradas) {
+    if (!entrada.isDirectory()) continue;
+    const sub = path.join(dir, entrada.name);
+    _feLimpiarCarpetasVacias(sub);
+    try {
+      if (fs.readdirSync(sub).length === 0) fs.rmdirSync(sub);
+    } catch (e) { /* noop */ }
+  }
+}
+
 // AGREGADO — recorre TODA la estructura ya existente de exportación
 // ([Raíz]/FiscalSync/FiscalSync [Año]/FiscalSync - [Mes] [Año]/[Empresa]/
 // Facturacion/) y le corre _feMigrarSueltos a cada carpeta "Facturacion"
@@ -812,6 +1110,19 @@ function _feMigrarSueltosTodasLasCarpetas() {
           const facturacionDir = path.join(mesDir, empresaName, 'Facturacion');
           if (fs.existsSync(facturacionDir)) {
             _feMigrarSueltos(facturacionDir);
+            // AGREGADO — además de los sueltos, se migran las carpetas de
+            // fecha viejas (sin carpeta de tipo) a la estructura nueva.
+            _feMigrarEstructuraTipo(facturacionDir);
+            // AGREGADO — corrige documentos que ya quedaron en una
+            // carpeta de tipo distinta a la que les corresponde con el
+            // criterio de clasificación actual (por ejemplo, organizados
+            // con una versión anterior de este cambio).
+            _feReclasificarDocumentos(facturacionDir);
+            // AGREGADO — junta cada .pdf con su .json aunque hayan
+            // quedado en carpetas distintas (por ejemplo por descargas
+            // solapadas), y limpia las carpetas que queden vacías.
+            _feReunificarJsonYPdf(facturacionDir);
+            _feLimpiarCarpetasVacias(facturacionDir);
           }
         }
       }
@@ -849,8 +1160,21 @@ function _feResolverUnAdjunto(currentPath, dir, codigoBase, ext) {
       const entradas = fs.readdirSync(dir, { withFileTypes: true });
       for (const entrada of entradas) {
         if (!entrada.isDirectory()) continue;
-        const candidatoEnFecha = path.join(dir, entrada.name, codigoBase + ext);
+        const nivel1Dir = path.join(dir, entrada.name);
+        const candidatoEnFecha = path.join(nivel1Dir, codigoBase + ext);
         try { if (fs.existsSync(candidatoEnFecha)) return { path: candidatoEnFecha, origen: 'facturacion' }; } catch (e) { /* seguir buscando */ }
+
+        // AGREGADO — con la carpeta de tipo de documento antes de la de
+        // fecha, la carpeta de fecha puede estar un nivel más abajo
+        // (Facturacion/[Tipo]/[Fecha]/); se revisa también ahí.
+        try {
+          const subEntradas = fs.readdirSync(nivel1Dir, { withFileTypes: true });
+          for (const subEntrada of subEntradas) {
+            if (!subEntrada.isDirectory()) continue;
+            const candidatoNivel2 = path.join(nivel1Dir, subEntrada.name, codigoBase + ext);
+            try { if (fs.existsSync(candidatoNivel2)) return { path: candidatoNivel2, origen: 'facturacion' }; } catch (e) { /* seguir buscando */ }
+          }
+        } catch (e) { /* no se pudo listar ese nivel; seguir con la siguiente carpeta */ }
       }
     } catch (e) { /* no se pudo listar subcarpetas; no encontrado */ }
   }
@@ -898,7 +1222,21 @@ ipcMain.handle('fe-set-context', async (event, { empresaId, mesLabel, empresaNom
     // este cambio) en la carpeta de Facturacion de esta empresa/mes, se
     // migran solos a su carpeta de fecha. No bloquea la respuesta al
     // renderer si algo falla (ver try/catch dentro de _feMigrarSueltos).
-    _feMigrarSueltos(_feGetFacturacionDir(mesLabelFinal, empresaNombreFinal));
+    const _feFacturacionDirActual = _feGetFacturacionDir(mesLabelFinal, empresaNombreFinal);
+    _feMigrarSueltos(_feFacturacionDirActual);
+    // AGREGADO — además, se migran las carpetas de fecha viejas (de antes
+    // de agregar la carpeta de tipo de documento) a la estructura nueva.
+    _feMigrarEstructuraTipo(_feFacturacionDirActual);
+    // AGREGADO — corrige documentos que ya quedaron en una carpeta de
+    // tipo distinta a la que les corresponde con el criterio de
+    // clasificación actual (por ejemplo, organizados con una versión
+    // anterior de este cambio).
+    _feReclasificarDocumentos(_feFacturacionDirActual);
+    // AGREGADO — junta cada .pdf con su .json aunque hayan quedado en
+    // carpetas distintas (por ejemplo por descargas solapadas), y limpia
+    // las carpetas que queden vacías.
+    _feReunificarJsonYPdf(_feFacturacionDirActual);
+    _feLimpiarCarpetasVacias(_feFacturacionDirActual);
     return { ok: true };
   } catch (e) {
     return { error: e.message };

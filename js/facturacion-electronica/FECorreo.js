@@ -294,8 +294,15 @@
 
             // Sección 5 — el documento ya está realmente disponible (los
             // dos archivos confirmados): recién aquí se abre "Documento
-            // listo para enviar".
-            _feCorreoAbrirModalListoParaEnviar(docs.length - 1);
+            // listo para enviar" — pero SOLO si la empresa activa tiene
+            // el módulo de correo configurado (emp.correosActivo, ver
+            // Empresas.js). Si no lo tiene, el documento queda igual
+            // registrado en la lista de Correos (arriba), pero no se
+            // interrumpe al usuario con el modal.
+            var _empActivaFE = empresas.find(function(e) { return e.id === activeEmpresaId; });
+            if (_empActivaFE && _empActivaFE.correosActivo) {
+                _feCorreoAbrirModalListoParaEnviar(docs.length - 1);
+            }
         }).catch(function() {
             // No se pudo leer/procesar el JSON ya descargado — no dejar
             // la pantalla de carga esperando para siempre.

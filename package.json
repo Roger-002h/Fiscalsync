@@ -1,6 +1,6 @@
 {
   "name": "fiscalsync",
-  "version": "1.41.7",
+  "version": "1.41.8",
   "description": "Sistema Fiscal Offline — FiscalSync",
   "main": "main.js",
   "scripts": {
