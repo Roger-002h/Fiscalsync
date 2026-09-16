@@ -174,9 +174,9 @@
             // no dejar información huérfana en ese libro.
             if (r && r._percLinkId) {
                 var pIdx = percibidoRecords.findIndex(function(p) { return p._fromCompraLinkId === r._percLinkId; });
-                if (pIdx !== -1) { percibidoRecords.splice(pIdx, 1); renderPercibidoTable(); }
+                if (pIdx !== -1) { percibidoRecords.splice(pIdx, 1); reindexRevStatesAfterDelete('percibido', pIdx); renderPercibidoTable(); }
             }
-            comprasRecords.splice(index, 1); saveCurrentMonthData(); renderComprasTable();
+            comprasRecords.splice(index, 1); reindexRevStatesAfterDelete('compras', index); saveCurrentMonthData(); renderComprasTable();
         });
     }
 

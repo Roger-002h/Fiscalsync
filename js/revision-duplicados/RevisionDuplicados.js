@@ -80,6 +80,26 @@
         lucide.createIcons();
     }
 
+    // Reindexar los estados de revisión de un libro tras eliminar el documento
+    // ubicado en "index". El estado que tenía ese documento se descarta, y los
+    // estados de todos los documentos posteriores se corren un lugar hacia
+    // abajo, para que sigan correspondiendo al mismo documento tras el splice()
+    // del arreglo de registros. Debe llamarse desde CUALQUIER lugar que borre
+    // un registro de un libro (no solo desde "Eliminar Duplicado"), para que
+    // un estado como "Falta Documento" no quede "heredado" por el documento
+    // que pasa a ocupar esa posición.
+    function reindexRevStatesAfterDelete(libro, index) {
+        var states = loadRevStates(libro);
+        var newStates = {};
+        Object.keys(states).forEach(function(k) {
+            var ki = parseInt(k);
+            if (ki < index)  newStates[ki] = states[k];
+            else if (ki > index) newStates[ki - 1] = states[k];
+            // ki === index se descarta
+        });
+        saveRevStates(libro, newStates);
+    }
+
     // Eliminar duplicado
     function eliminarDuplicadoRevision(libro, index) {
         fsConfirm('¿Eliminar este documento duplicado?\n\nSolo se eliminará esta copia. El documento original quedará intacto.', function() {
@@ -92,15 +112,7 @@
             if (libro === 'excluido')  { excluidoRecords.splice(index, 1); saveCurrentMonthData(); renderExcluidoTable(); }
             if (libro === 'f14')       { f14Records.splice(index, 1); saveCurrentMonthData(); renderF14Table(); }
             // Limpiar estados guardados y re-indexar
-            var states = loadRevStates(libro);
-            var newStates = {};
-            Object.keys(states).forEach(function(k) {
-                var ki = parseInt(k);
-                if (ki < index)  newStates[ki] = states[k];
-                else if (ki > index) newStates[ki - 1] = states[k];
-                // ki === index se descarta
-            });
-            saveRevStates(libro, newStates);
+            reindexRevStatesAfterDelete(libro, index);
             showToast('Duplicado eliminado', 'success');
             lucide.createIcons();
         });

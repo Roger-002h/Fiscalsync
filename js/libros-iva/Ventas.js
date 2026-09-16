@@ -186,7 +186,7 @@
         }
     }
     function deleteDebitoRecord(index) {
-        fsConfirm('¿Desea eliminar este registro?', function() { debitoRecords.splice(index, 1); saveCurrentMonthData(); renderDebitoTable(); });
+        fsConfirm('¿Desea eliminar este registro?', function() { debitoRecords.splice(index, 1); reindexRevStatesAfterDelete('debito', index); saveCurrentMonthData(); renderDebitoTable(); });
     }
     function renderDebitoTable() {
         var tbody = document.getElementById('debitoTableBody');

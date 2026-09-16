@@ -1706,18 +1706,44 @@
            y no se afecta la posición horizontal ni el espaciado con el
            que terminan las tablas. No se usa position/top ni márgenes
            negativos: es un ajuste real del espaciado del contenedor. */
+        /* CAMBIO (corrección franja transparente) — El padding-top de 14px se
+           pasa de este <main> a .workspace-topbar. Motivo: <main> es el
+           contenedor con overflow-y:auto, y un hijo sticky con top:0 se ancla
+           por DEBAJO del padding-top del contenedor; esos 14px seguían siendo
+           área visible del scroll, así que las filas se veían pasar por encima
+           de la topbar. Moviendo ese espacio adentro de la topbar, el mismo
+           espacio vertical queda cubierto por su background. El padding
+           lateral e inferior del <main> no se toca. */
         main.flex-1.p-10.overflow-y-auto {
-            padding-top: 14px;
+            padding-top: 0;
         }
 
         /* ═══ Topbar del workspace ═══ */
+        /* CAMBIO — Fijar la topbar (Volver / Datos de la Empresa / selector
+           de mes) al hacer scroll. El <main> que la contiene tiene
+           overflow-y:auto, y hasta ahora .workspace-topbar era un <div> más
+           en el flujo normal, así que se desplazaba junto con el resto del
+           contenido cuando una pantalla tenía muchos registros. Con
+           position:sticky + top:0 queda pegada arriba del área de scroll de
+           <main> sin alterar el layout existente (no se usa position:fixed
+           para no tener que recalcular ancho/posición a mano). Se agrega
+           background y z-index para que el contenido que pasa por debajo no
+           se vea a través suyo ni quede por encima.*/
         .workspace-topbar {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 12px 0;
+            /* Padding simétrico: 15px arriba y abajo. Mientras el superior
+               sea mayor a 0, el espacio sigue cubierto por el background de
+               la topbar al quedar sticky, así que no vuelve a aparecer la
+               franja transparente. */
+            padding: 15px 0;
             margin-bottom: 8px;
             border-bottom: 1px solid var(--rp-border);
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background: var(--rp-canvas);
         }
         .workspace-topbar .back-btn {
             display: flex;
