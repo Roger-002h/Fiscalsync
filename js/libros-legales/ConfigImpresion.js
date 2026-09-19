@@ -22,9 +22,9 @@
         return css;
     }
 
-    function pceLibroPrintCss(pcfg, orientacion, colWidthsCss) {
-        return '@page { size: letter ' + orientacion + '; margin-top: ' + pcfg.marginTopCm + 'cm; margin-bottom: ' + pcfg.marginBottomCm + 'cm; margin-left: ' + pcfg.marginLeftCm + 'cm; margin-right: ' + pcfg.marginRightCm + 'cm; }' +
-            'body { font-family: Arial, sans-serif; background: #fff; color: #000; margin: 0; padding: 0; }' +
+    function pceLibroPrintCss(pcfg, orientacion, colWidthsCss, fuenteId) {
+        return llFuenteFontFaceCss(fuenteId) + '@page { size: letter ' + orientacion + '; margin-top: ' + pcfg.marginTopCm + 'cm; margin-bottom: ' + pcfg.marginBottomCm + 'cm; margin-left: ' + pcfg.marginLeftCm + 'cm; margin-right: ' + pcfg.marginRightCm + 'cm; }' +
+            'body { font-family: ' + llFuenteFamilyCss(fuenteId) + '; background: #fff; color: #000; margin: 0; padding: 0; }' +
             '.ll-print-table { width: 100%; border-collapse: collapse; font-size: ' + (pcfg.fontSize + 1) + 'px; table-layout: fixed; page-break-inside: auto; margin-left: ' + pcfg.tableOffsetX + 'px; margin-top: ' + pcfg.tableOffsetY + 'px; }' +
             '.ll-print-table thead { display: table-header-group; }' +
             '.ll-print-table tfoot { display: table-row-group; }' +
@@ -46,7 +46,8 @@
             '.ll-firma-section { display: block; margin-top: 25px; page-break-inside: avoid; break-inside: avoid; }' +
             '.ll-print-table tfoot tr.ll-firma-row { page-break-inside: avoid; break-inside: avoid; }' +
             '.ll-print-table tfoot tr.ll-firma-row td { border-top: none; padding: 0; font-size: inherit; font-weight: normal; text-align: left; }' +
-            (colWidthsCss || '');
+            (colWidthsCss || '') +
+            llFuenteOverrideCss(fuenteId);
     }
 
     // AGREGADO NUEVO (Cambio 04): caché en memoria de la configuración de impresión,

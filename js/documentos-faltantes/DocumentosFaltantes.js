@@ -12,6 +12,56 @@
     var _ffCarpetaPath    = '';
     var _ffEncontrados    = [];  // [{fecha, codGen, gravado, pdfFile, _rowIdx}]
     var _ffTodosResultados = [];
+    var _ffFaseActual     = 1;  // 1 = elegir carpeta, 2 = verificando, 3 = documentos encontrados
+
+    // ── Navegación por fases (solo presentación — no toca la lógica de negocio) ──
+    function _ffIrAFase(n) {
+        _ffFaseActual = n;
+
+        var p1 = document.getElementById('ffPaso1Wrap');
+        var p2 = document.getElementById('ffPaso2Wrap');
+        var p3 = document.getElementById('ffResultadosWrap');
+        if (p1) p1.classList.toggle('hidden', n !== 1);
+        if (p2) p2.classList.toggle('hidden', n !== 2);
+        if (p3) p3.classList.toggle('hidden', n !== 3);
+
+        [1, 2, 3].forEach(function(i) {
+            var stepEl = document.getElementById('ffStepEl' + i);
+            if (!stepEl) return;
+            stepEl.classList.toggle('ff-step-active', i === n);
+            stepEl.classList.toggle('ff-step-done', i < n);
+        });
+
+        // Progress wrap (usado al imprimir) solo aplica en fase 3; nunca lo forzamos
+        // a mostrarse aquí, solo lo ocultamos si estamos saliendo de la fase 3.
+        var progressWrap = document.getElementById('ffProgressWrap');
+        if (progressWrap && n !== 3) progressWrap.classList.add('hidden');
+
+        var footerAcciones = document.getElementById('ffFooterAcciones');
+        if (footerAcciones) footerAcciones.style.display = (n === 3) ? 'flex' : 'none';
+    }
+
+    // Reinicia la pantalla de verificación (Fase 02) a su estado inicial (spinner visible)
+    function _ffReiniciarFase2() {
+        var spinner = document.getElementById('ffPaso2Verificando');
+        var resumen = document.getElementById('ffPaso2Resumen');
+        if (spinner) spinner.classList.remove('hidden');
+        if (resumen) resumen.classList.add('hidden');
+    }
+
+    // Muestra el resumen de la Fase 02 una vez terminada la verificación/cruce de documentos
+    function _ffMostrarResumenFase2(encontrados, noEncontrados, total) {
+        var spinner = document.getElementById('ffPaso2Verificando');
+        var resumen = document.getElementById('ffPaso2Resumen');
+        if (spinner) spinner.classList.add('hidden');
+        if (resumen) resumen.classList.remove('hidden');
+        var elEnc = document.getElementById('ffPaso2Encontrados');
+        var elNoEnc = document.getElementById('ffPaso2NoEncontrados');
+        var elTotal = document.getElementById('ffPaso2Total');
+        if (elEnc) elEnc.textContent = encontrados;
+        if (elNoEnc) elNoEnc.textContent = noEncontrados;
+        if (elTotal) elTotal.textContent = total;
+    }
 
     // Obtener lista de docs "falta" de un libro
     function _ffGetFaltaList(libro) {
@@ -72,7 +122,8 @@
         showToast('Exportado: ' + faltaList.length + ' documentos', 'success');
     }
 
-    // Exportar falta físico a Excel (XLSX nativo via HTML table trick)
+    // Exportar falta físico a Excel (XML SpreadsheetML nativo — Excel lo abre sin
+    // advertencias de "archivo dañado", a diferencia de una tabla HTML disfrazada de .xls)
     function ffExportarExcel() {
         var faltaList = _ffGetFaltaList(_ffLibroActivo);
         if (!faltaList.length) {
@@ -87,19 +138,61 @@
         var nombreLibro = librosLabel[_ffLibroActivo] || _ffLibroActivo;
         var periodo = MONTH_NAMES[currentMonth] + ' ' + currentYear;
 
-        // Construir tabla HTML para Excel
-        var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
-        html += '<head><meta charset="UTF-8"><style>th{background:#1e3a5f;color:#fff;font-weight:bold;padding:6px 10px;border:1px solid #ccc;}td{padding:5px 10px;border:1px solid #ddd;font-family:Calibri,Arial,sans-serif;font-size:11px;}</style></head><body>';
-        html += '<table>';
-        html += '<tr><th colspan="4" style="background:#1e3a5f;color:#fff;font-size:13px;">Falta Físico — ' + nombreLibro + ' — ' + periodo + '</th></tr>';
-        html += '<tr><th>#</th><th>Fecha</th><th>Código Generación</th><th>Monto Gravado</th></tr>';
-        faltaList.forEach(function(d, idx) {
-            html += '<tr><td>' + (idx+1) + '</td><td>' + d.fecha + '</td><td>' + d.codGen + '</td><td style="text-align:right;">' + d.gravado.toFixed(2) + '</td></tr>';
-        });
-        html += '<tr><td colspan="3" style="text-align:right;font-weight:bold;">TOTAL</td><td style="text-align:right;font-weight:bold;">' + faltaList.reduce(function(s,d){return s+d.gravado;},0).toFixed(2) + '</td></tr>';
-        html += '</table></body></html>';
+        function _ffXmlEsc(v) {
+            return String(v)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&apos;');
+        }
 
-        var blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+        // Construir libro en formato SpreadsheetML (XML nativo de Excel)
+        var xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            '<?mso-application progid="Excel.Sheet"?>' +
+            '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" ' +
+            'xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+            'xmlns:x="urn:schemas-microsoft-com:office:excel" ' +
+            'xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' +
+            '<Styles>' +
+                '<Style ss:ID="Titulo"><Font ss:Bold="1" ss:Size="13" ss:Color="#FFFFFF"/><Interior ss:Color="#1E3A5F" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>' +
+                '<Style ss:ID="Encabezado"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1E3A5F" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>' +
+                '<Style ss:ID="Celda"><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DDDDDD"/></Borders></Style>' +
+                '<Style ss:ID="Monto"><NumberFormat ss:Format="#,##0.00"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DDDDDD"/></Borders></Style>' +
+                '<Style ss:ID="Total"><Font ss:Bold="1"/><Alignment ss:Horizontal="Right"/></Style>' +
+                '<Style ss:ID="TotalMonto"><Font ss:Bold="1"/><NumberFormat ss:Format="#,##0.00"/></Style>' +
+            '</Styles>' +
+            '<Worksheet ss:Name="Falta Fisico">' +
+            '<Table>' +
+                '<Column ss:Width="30"/><Column ss:Width="65"/><Column ss:Width="230"/><Column ss:Width="95"/>' +
+                '<Row ss:Height="22"><Cell ss:StyleID="Titulo" ss:MergeAcross="3"><Data ss:Type="String">' +
+                    _ffXmlEsc('Falta Físico — ' + nombreLibro + ' — ' + periodo) +
+                '</Data></Cell></Row>' +
+                '<Row>' +
+                    '<Cell ss:StyleID="Encabezado"><Data ss:Type="String">#</Data></Cell>' +
+                    '<Cell ss:StyleID="Encabezado"><Data ss:Type="String">Fecha</Data></Cell>' +
+                    '<Cell ss:StyleID="Encabezado"><Data ss:Type="String">Código Generación</Data></Cell>' +
+                    '<Cell ss:StyleID="Encabezado"><Data ss:Type="String">Monto Gravado</Data></Cell>' +
+                '</Row>';
+
+        faltaList.forEach(function(d, idx) {
+            xml += '<Row>' +
+                '<Cell ss:StyleID="Celda"><Data ss:Type="Number">' + (idx + 1) + '</Data></Cell>' +
+                '<Cell ss:StyleID="Celda"><Data ss:Type="String">' + _ffXmlEsc(d.fecha) + '</Data></Cell>' +
+                '<Cell ss:StyleID="Celda"><Data ss:Type="String">' + _ffXmlEsc(d.codGen) + '</Data></Cell>' +
+                '<Cell ss:StyleID="Monto"><Data ss:Type="Number">' + d.gravado.toFixed(2) + '</Data></Cell>' +
+            '</Row>';
+        });
+
+        var totalGravado = faltaList.reduce(function(s, d) { return s + d.gravado; }, 0);
+        xml += '<Row>' +
+            '<Cell ss:StyleID="Total" ss:MergeAcross="2"><Data ss:Type="String">TOTAL</Data></Cell>' +
+            '<Cell ss:StyleID="TotalMonto"><Data ss:Type="Number">' + totalGravado.toFixed(2) + '</Data></Cell>' +
+        '</Row>';
+
+        xml += '</Table></Worksheet></Workbook>';
+
+        var blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
         var url = URL.createObjectURL(blob);
         var a = document.createElement('a');
         a.href = url;
@@ -124,6 +217,9 @@
         document.getElementById('ffBtnImprimir').classList.add('hidden');
         document.getElementById('ffBtnImprimir').style.display = 'none';
         document.getElementById('ffResultadosBody').innerHTML = '';
+        // Reiniciar navegación: siempre se entra por la Fase 01
+        _ffReiniciarFase2();
+        _ffIrAFase(1);
         // Mostrar botón Excel siempre que haya items falta
         var excelBtn = document.getElementById('ffBtnExportExcel');
         if (excelBtn) excelBtn.style.display = faltaList.length > 0 ? 'flex' : 'none';
@@ -165,6 +261,23 @@
 
             var btnExcel = document.getElementById('ffBtnExportExcel');
             if (btnExcel) btnExcel.addEventListener('click', ffExportarExcel);
+
+            // Navegación entre fases (solo presentación)
+            var btnRegresarFase1 = document.getElementById('ffBtnRegresarFase1');
+            if (btnRegresarFase1) btnRegresarFase1.addEventListener('click', function() {
+                _ffReiniciarFase2();
+                _ffIrAFase(1);
+            });
+
+            var btnRegresarFase2 = document.getElementById('ffBtnRegresarFase2');
+            if (btnRegresarFase2) btnRegresarFase2.addEventListener('click', function() {
+                _ffIrAFase(2);
+            });
+
+            var btnContinuarFase3 = document.getElementById('ffBtnContinuarFase3');
+            if (btnContinuarFase3) btnContinuarFase3.addEventListener('click', function() {
+                _ffIrAFase(3);
+            });
         });
     })();
 
@@ -184,10 +297,15 @@
         var partes = carpeta.replace(/\\/g, '/').split('/');
         document.getElementById('ffCarpetaLabel').innerText = partes[partes.length - 1] + '  (' + carpeta + ')';
 
+        // Carpeta seleccionada correctamente -> avanzar automáticamente a la Fase 02
+        _ffReiniciarFase2();
+        _ffIrAFase(2);
+
         // Leer todos los archivos de la carpeta
         var archivos = await window.fiscalAPI.readFolder(carpeta);
         if (archivos.error) {
             showToast('Error al leer carpeta: ' + archivos.error, 'error');
+            _ffIrAFase(1);
             return;
         }
 
@@ -285,8 +403,8 @@
             var estadoTd = document.createElement('td');
             estadoTd.className = 'px-4 py-2.5 text-xs';
             estadoTd.innerHTML = r.encontrado
-                ? '<span style="color:var(--rp-success);font-size:10px;font-weight:700;">&#10003; Encontrado</span>'
-                : '<span style="color:var(--rp-error);font-size:10px;font-weight:700;">&#10007; No encontrado</span>';
+                ? '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);color:var(--rp-success);font-size:10px;font-weight:700;">&#10003; Encontrado</span>'
+                : '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);color:var(--rp-error);font-size:10px;font-weight:700;">&#10007; No encontrado</span>';
 
             var fechaTd = document.createElement('td');
             fechaTd.className = 'px-4 py-2.5 text-xs text-zinc-400';
@@ -312,8 +430,10 @@
             if (r.encontrado) {
                 var btnAbrir = document.createElement('button');
                 btnAbrir.id = 'ffRowBtn_' + idx;
-                btnAbrir.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:3px 10px;font-size:10px;font-weight:600;color:var(--rp-text-secondary);border:1px solid var(--rp-border-strong);border-radius:6px;background:transparent;cursor:pointer;transition:all .15s;white-space:nowrap;';
+                btnAbrir.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:3px 11px;font-size:10px;font-weight:600;color:var(--rp-text-secondary);border:1px solid var(--rp-border-strong);border-radius:8px;background:transparent;cursor:pointer;transition:all .15s;white-space:nowrap;';
                 btnAbrir.textContent = '👁 Abrir';
+                btnAbrir.addEventListener('mouseover', function(){ this.style.color='var(--rp-text-primary)'; this.style.borderColor='var(--rp-text-secondary)'; });
+                btnAbrir.addEventListener('mouseout', function(){ this.style.color='var(--rp-text-secondary)'; this.style.borderColor='var(--rp-border-strong)'; });
                 btnAbrir.addEventListener('click', (function(i){ return function(){ ffAbrirUno(i); }; })(idx));
                 accionTd.appendChild(btnAbrir);
             } else {
@@ -329,7 +449,10 @@
             tbody.appendChild(tr);
         });
 
-        document.getElementById('ffResultadosWrap').classList.remove('hidden');
+        // Verificación completa: mostrar resumen en Fase 02 y esperar confirmación
+        // del usuario para pasar a la Fase 03 (la tabla ya quedó armada, solo se revela
+        // cuando el usuario presiona "Continuar").
+        _ffMostrarResumenFase2(encontrados, noEncontrados, resultados.length);
 
         // Mostrar botón imprimir si hay encontrados
         if (encontrados > 0) {
@@ -408,7 +531,7 @@
             sp.style.cssText = 'display:inline-flex;align-items:center;gap:5px;color:var(--rp-success);font-size:10px;font-weight:700;';
             sp.textContent = '✓ Abierto';
             var btnR = document.createElement('button');
-            btnR.style.cssText = 'margin-left:6px;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:9px;font-weight:600;color:var(--rp-text-secondary);border:1px solid var(--rp-border-strong);border-radius:5px;background:transparent;cursor:pointer;';
+            btnR.style.cssText = 'margin-left:6px;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:9px;font-weight:600;color:var(--rp-text-secondary);border:1px solid var(--rp-border-strong);border-radius:7px;background:transparent;cursor:pointer;';
             btnR.title = 'Abrir de nuevo';
             btnR.textContent = '↺';
             btnR.addEventListener('click', (function(i){ return function(){ ffAbrirUno(i); }; })(idx));
@@ -421,7 +544,7 @@
             sp.style.cssText = 'color:var(--rp-error);font-size:10px;font-weight:700;';
             sp.textContent = '✗ Error';
             var btnR = document.createElement('button');
-            btnR.style.cssText = 'margin-left:6px;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:9px;font-weight:600;color:var(--rp-error);border:1px solid rgba(248,113,113,0.3);border-radius:5px;background:transparent;cursor:pointer;';
+            btnR.style.cssText = 'margin-left:6px;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:9px;font-weight:600;color:var(--rp-error);border:1px solid rgba(248,113,113,0.3);border-radius:7px;background:transparent;cursor:pointer;';
             btnR.title = 'Reintentar';
             btnR.textContent = '↺ Reintentar';
             btnR.addEventListener('click', (function(i){ return function(){ ffAbrirUno(i); }; })(idx));
@@ -462,14 +585,14 @@
         var nombreMostrar = printerName || 'Impresora predeterminada del sistema';
         wrap.innerHTML =
             '<p class="section-label" style="margin-bottom:10px;">Confirmar impresión en serie</p>' +
-            '<div style="background:var(--rp-inset);border:1px solid var(--rp-border-strong);border-radius:10px;padding:14px 16px;margin-bottom:12px;">' +
+            '<div style="background:var(--rp-inset);border:1px solid var(--rp-border-strong);border-radius:12px;padding:14px 16px;margin-bottom:12px;">' +
                 '<p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--rp-text-secondary);margin-bottom:6px;">Impresora seleccionada</p>' +
                 '<p style="font-size:13px;font-weight:500;color:var(--rp-text-primary);font-family:monospace;">' + nombreMostrar + '</p>' +
             '</div>' +
             '<p style="font-size:11px;color:var(--rp-text-secondary);margin-bottom:14px;">Se enviarán <strong style="color:var(--rp-text-secondary);">' + total + ' documentos</strong> en silencio a esta impresora. El primer documento ya fue enviado.</p>' +
             '<div style="display:flex;gap:8px;">' +
-                '<button id="ffConfirmImpBtn" style="padding:8px 20px;background:#fff;color:#000;font-size:11px;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-family:\'Inter\',sans-serif;transition:background 0.2s;" onmouseover="this.style.background=\'var(--rp-text-primary)\'" onmouseout="this.style.background=\'#fff\'">Continuar con esta impresora</button>' +
-                '<button id="ffCancelImpBtn" style="padding:8px 16px;background:transparent;color:var(--rp-text-secondary);font-size:11px;font-weight:500;border:1px solid var(--rp-border-strong);border-radius:8px;cursor:pointer;font-family:\'Inter\',sans-serif;transition:all 0.2s;" onmouseover="this.style.color=\'#fff\'" onmouseout="this.style.color=\'var(--rp-text-secondary)\'">Cancelar</button>' +
+                '<button id="ffConfirmImpBtn" style="padding:9px 20px;background:#fff;color:#000;font-size:11px;font-weight:700;border:none;border-radius:9px;cursor:pointer;font-family:\'Inter\',sans-serif;transition:background 0.2s;" onmouseover="this.style.background=\'var(--rp-text-primary)\'" onmouseout="this.style.background=\'#fff\'">Continuar con esta impresora</button>' +
+                '<button id="ffCancelImpBtn" style="padding:9px 16px;background:transparent;color:var(--rp-text-secondary);font-size:11px;font-weight:500;border:1px solid var(--rp-border-strong);border-radius:9px;cursor:pointer;font-family:\'Inter\',sans-serif;transition:all 0.2s;" onmouseover="this.style.color=\'#fff\'" onmouseout="this.style.color=\'var(--rp-text-secondary)\'">Cancelar</button>' +
             '</div>';
         return new Promise(function(resolve) {
             _ffPrinterConfirmResolve = resolve;
@@ -483,7 +606,7 @@
         wrap.innerHTML =
             '<p class="section-label" style="margin-bottom:8px;">Imprimiendo PDFs…</p>' +
             '<div style="background:var(--rp-border);border-radius:999px;height:6px;overflow:hidden;">' +
-                '<div id="ffProgressBar" style="height:100%;width:0%;background:var(--rp-accent);border-radius:999px;transition:width 0.3s;"></div>' +
+                '<div id="ffProgressBar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--rp-accent),var(--rp-violet-soft));border-radius:999px;transition:width 0.3s;"></div>' +
             '</div>' +
             '<p id="ffProgressLabel" class="text-xs text-zinc-500 mt-2"></p>';
     }

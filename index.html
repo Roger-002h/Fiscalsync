@@ -8142,7 +8142,8 @@
 <!-- MODAL FIRMA PARA IMPRESIÓN                                        -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <div id="firmaModalForm" class="fixed inset-0 modal-overlay z-50 hidden items-center justify-center p-4" style="display:none">
-    <div class="bg-[var(--rp-surface)] border border-[var(--rp-border)] w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+    <!-- Cambio 01 (ajuste): altura maxima = pantalla menos el padding del overlay; el cuerpo hace scroll y encabezado/botones quedan fijos -->
+    <div class="bg-[var(--rp-surface)] border border-[var(--rp-border)] w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col" style="max-height:calc(100vh - 2rem);">
         <header class="px-8 pt-7 pb-6 border-b border-[var(--rp-border)] bg-zinc-950/60 flex-shrink-0">
             <div class="flex justify-between items-start">
                 <div>
@@ -8152,6 +8153,7 @@
                 <button onclick="closeFirmaModal()" class="text-zinc-600 hover:text-white transition mt-1"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
         </header>
+        <div id="firmaModalBody" style="flex:1 1 auto;min-height:0;overflow-y:auto;">
         <div class="px-8 py-7">
             <div class="space-y-5">
                 <div>
@@ -8161,6 +8163,11 @@
                 <div>
                     <label class="f-label">Cargo (opcional)</label>
                     <input type="text" id="firma_cargo" class="f-input" placeholder="Ej. Contador General, Representante Legal">
+                </div>
+                <!-- AGREGADO NUEVO (Cambio 01): tipo de letra de impresion / PDF (se llena desde FuentesImpresion.js) -->
+                <div>
+                    <label class="f-label">Tipo de letra</label>
+                    <select id="firma_fuente" class="f-input"></select>
                 </div>
             </div>
         </div>
@@ -8194,6 +8201,7 @@
                 </div>
             </div>
         </div>
+        </div><!-- /firmaModalBody -->
         <footer class="px-8 py-5 border-t border-[var(--rp-border)] flex justify-end gap-3 bg-zinc-950/60 flex-shrink-0">
             <button onclick="closeFirmaModal()" class="px-6 py-2 text-xs font-medium text-zinc-400 hover:text-white transition">Cancelar</button>
             <button onclick="ejecutarImpresion()" id="firmaModalSubmitBtn" class="flex items-center gap-2 px-8 py-2 bg-white text-black text-xs font-bold rounded-lg hover:bg-zinc-200 transition">
@@ -8256,6 +8264,7 @@
     <script src="js/libros-iva/RetencionesF14.js"></script>
     <script src="js/libros-iva/Quincena25.js"></script>
     <script src="js/libros-iva/Anulados.js"></script>
+    <script src="js/libros-legales/FuentesImpresion.js"></script>
     <script src="js/libros-legales/LibrosLegales.js"></script>
     <script src="js/libros-legales/ConfigImpresion.js"></script>
     <script src="js/documentos-faltantes/DocumentosFaltantes.js"></script>
@@ -8910,78 +8919,156 @@
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <!-- MODAL: BUSCAR E IMPRIMIR FALTA FÍSICO                            -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
+<style>
+    #faltaFisicoModal .ff-step{display:flex;align-items:center;gap:7px;padding:4px 10px 4px 4px;border-radius:999px;transition:all .2s;}
+    #faltaFisicoModal .ff-step-num{width:21px;height:21px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;color:var(--rp-text-secondary);background:var(--rp-inset);border:1px solid var(--rp-border-strong);transition:all .2s;flex-shrink:0;}
+    #faltaFisicoModal .ff-step-label{font-size:10px;font-weight:600;color:var(--rp-text-secondary);letter-spacing:.01em;white-space:nowrap;transition:color .2s;}
+    #faltaFisicoModal .ff-step-line{flex:1;height:1px;background:var(--rp-border);margin:0 4px;min-width:10px;transition:background .2s;}
+    #faltaFisicoModal .ff-step.ff-step-active .ff-step-num{background:var(--rp-violet);border-color:var(--rp-violet);color:#fff;}
+    #faltaFisicoModal .ff-step.ff-step-active .ff-step-label{color:var(--rp-text-primary);}
+    #faltaFisicoModal .ff-step.ff-step-done .ff-step-num{background:rgba(34,197,94,0.15);border-color:rgba(34,197,94,0.4);color:var(--rp-success);}
+    #faltaFisicoModal .ff-step.ff-step-done .ff-step-line{background:rgba(34,197,94,0.35);}
+    #faltaFisicoModal .ff-fase{display:flex;flex-direction:column;}
+    #faltaFisicoModal .ff-fase.hidden{display:none;}
+    #faltaFisicoModal .ff-spinner{width:32px;height:32px;border-radius:999px;border:3px solid var(--rp-border);border-top-color:var(--rp-violet);margin:0 auto 16px auto;animation:ff-spin .8s linear infinite;}
+    @keyframes ff-spin{to{transform:rotate(360deg);}}
+</style>
 <div id="faltaFisicoModal" class="fixed inset-0 modal-overlay z-50 hidden items-center justify-center p-4" style="display:none;">
-    <div class="bg-[var(--rp-surface)] border border-[var(--rp-border)] w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col" style="max-height:90vh;">
-        <header class="px-8 pt-7 pb-6 border-b border-[var(--rp-border)] bg-zinc-950/60 flex-shrink-0">
-            <div class="flex justify-between items-start">
-                <div>
-                    <p class="text-[10px] font-bold uppercase tracking-widest text-zinc-600 mb-1">Modo Revisión</p>
-                    <h2 class="text-white font-semibold text-lg tracking-tight">Buscar e Imprimir — Falta Físico</h2>
+    <div style="background:var(--rp-surface);border:1px solid var(--rp-border-strong);width:100%;max-width:640px;border-radius:20px;box-shadow:0 0 0 1px rgba(255,255,255,0.04),0 24px 64px rgba(0,0,0,0.8);overflow:hidden;display:flex;flex-direction:column;max-height:90vh;">
+
+        <!-- Header -->
+        <header style="padding:24px 28px 22px 28px;background:var(--rp-inset);border-bottom:1px solid var(--rp-border);flex-shrink:0;">
+            <div style="display:flex;align-items:flex-start;gap:14px;">
+                <div style="width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(167,139,250,0.12);border:1px solid rgba(167,139,250,0.25);">
+                    <i data-lucide="search" style="width:18px;height:18px;color:var(--rp-violet-soft);"></i>
                 </div>
-                <button onclick="closeFaltaFisicoModal()" class="text-zinc-600 hover:text-white transition mt-1"><i data-lucide="x" class="w-5 h-5"></i></button>
+                <div style="flex:1;min-width:0;">
+                    <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--rp-violet-soft);margin:0 0 3px 0;">Modo Revisión</p>
+                    <h2 style="color:var(--rp-text-heading);font-weight:600;font-size:16px;letter-spacing:-0.01em;margin:0;">Buscar e Imprimir — Falta Físico</h2>
+                    <p style="font-size:11px;color:var(--rp-text-secondary);margin:4px 0 0 0;">
+                        <span id="ffLibroLabel" style="color:var(--rp-violet-soft);font-weight:700;"></span>
+                        <span style="color:var(--rp-border-strong);"> · </span>
+                        <span id="ffTotalFalta" style="color:var(--rp-violet-soft);font-weight:700;">0</span> documentos con Falta Físico
+                    </p>
+                </div>
+                <button id="ffBtnCerrarX" onclick="closeFaltaFisicoModal()" style="width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:transparent;border:none;color:var(--rp-text-secondary);cursor:pointer;transition:all .15s;" onmouseover="this.style.background='var(--rp-border)';this.style.color='var(--rp-text-primary)';" onmouseout="this.style.background='transparent';this.style.color='var(--rp-text-secondary)';">
+                    <i data-lucide="x" style="width:16px;height:16px;"></i>
+                </button>
+            </div>
+
+            <!-- Indicador de fase -->
+            <div style="display:flex;align-items:center;margin-top:18px;">
+                <div class="ff-step" id="ffStepEl1">
+                    <span class="ff-step-num">01</span>
+                    <span class="ff-step-label">Elegir carpeta</span>
+                </div>
+                <div class="ff-step-line"></div>
+                <div class="ff-step" id="ffStepEl2">
+                    <span class="ff-step-num">02</span>
+                    <span class="ff-step-label">Verificar documentos</span>
+                </div>
+                <div class="ff-step-line"></div>
+                <div class="ff-step" id="ffStepEl3">
+                    <span class="ff-step-num">03</span>
+                    <span class="ff-step-label">Documentos encontrados</span>
+                </div>
             </div>
         </header>
 
-        <div class="overflow-y-auto flex-1 px-8 py-6 space-y-5">
-
-            <!-- Info del libro activo -->
-            <div style="background:rgba(167,139,250,0.07);border:1px solid rgba(167,139,250,0.2);border-radius:10px;padding:10px 14px;">
-                <p class="text-xs text-zinc-400" style="display:flex;flex-wrap:wrap;align-items:center;gap:2px 4px;line-height:1.6;">
-                    <span>Libro:</span>
-                    <span id="ffLibroLabel" class="text-violet-400 font-semibold"></span>
-                    <span>&nbsp;·&nbsp;</span>
-                    <span id="ffTotalFalta" class="text-violet-400 font-semibold">0</span>
-                    <span>documentos con Falta Físico</span>
-                </p>
-            </div>
+        <div class="overflow-y-auto flex-1" style="display:flex;flex-direction:column;gap:20px;padding:22px 30px 28px 30px;">
 
             <!-- Aviso preload no cargado -->
-            <div id="ffAvisoPreload" style="display:none;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:10px;padding:10px 14px;">
-                <p style="font-size:11px;color:var(--rp-warning);font-weight:600;margin-bottom:3px;">Configuracion pendiente</p>
-                <p style="font-size:11px;color:var(--rp-text-secondary);">Para usar esta funcion debes reemplazar el <code style="color:var(--rp-warning);">main.js</code> y agregar el <code style="color:var(--rp-warning);">preload.js</code> a la raiz del proyecto y reiniciar la aplicacion.</p>
+            <div id="ffAvisoPreload" style="display:none;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:12px;padding:12px 16px;">
+                <p style="font-size:11px;color:var(--rp-warning);font-weight:600;margin-bottom:3px;">Configuración pendiente</p>
+                <p style="font-size:11px;color:var(--rp-text-secondary);line-height:1.5;">Para usar esta función debes reemplazar el <code style="color:var(--rp-warning);">main.js</code> y agregar el <code style="color:var(--rp-warning);">preload.js</code> a la raíz del proyecto y reiniciar la aplicación.</p>
             </div>
 
-            <!-- Paso 1: Seleccionar carpeta -->
-            <div id="ffPaso1Wrap">
-                <p class="section-label" style="margin-bottom:10px;">Paso 1 — Seleccionar carpeta</p>
-                <div class="flex flex-col gap-2">
-                    <button onclick="ffSeleccionarCarpeta()" class="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-500 transition w-full justify-center">
-                        <i data-lucide="folder-open" class="w-4 h-4"></i> Seleccionar Carpeta
-                    </button>
-                    <span id="ffCarpetaLabel" class="text-xs text-zinc-500 font-mono break-all" style="word-break:break-all;line-height:1.5;">Ninguna carpeta seleccionada</span>
+            <!-- FASE 01: Seleccionar carpeta -->
+            <div id="ffPaso1Wrap" class="ff-fase" style="align-items:center;justify-content:center;padding:16px 18px;text-align:center;">
+                <button onclick="ffSeleccionarCarpeta()" style="box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;width:100%;max-width:400px;min-height:220px;padding:34px 28px;background:var(--rp-inset);border:1.5px dashed var(--rp-border-strong);border-radius:16px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;" onmouseover="this.style.borderColor='var(--rp-accent)';this.style.background='rgba(59,130,246,0.06)';" onmouseout="this.style.borderColor='var(--rp-border-strong)';this.style.background='var(--rp-inset)';">
+                    <div style="width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.28);">
+                        <i data-lucide="folder-open" style="width:23px;height:23px;color:var(--rp-accent);"></i>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:6px;">
+                        <span style="font-size:14px;font-weight:700;color:var(--rp-text-primary);">Seleccionar Carpeta</span>
+                        <span style="font-size:11px;color:var(--rp-text-secondary);line-height:1.5;">Elige la carpeta donde están los documentos (PDF / JSON)</span>
+                    </div>
+                </button>
+            </div>
+
+            <!-- FASE 02: Verificación -->
+            <div id="ffPaso2Wrap" class="ff-fase hidden" style="align-items:center;justify-content:center;text-align:center;padding:24px 10px;">
+                <div style="display:inline-flex;align-items:center;gap:8px;background:var(--rp-inset);border:1px solid var(--rp-border);border-radius:9px;padding:8px 12px;margin-bottom:22px;max-width:100%;">
+                    <i data-lucide="folder" style="width:12px;height:12px;color:var(--rp-text-secondary);flex-shrink:0;"></i>
+                    <span id="ffCarpetaLabel" style="font-size:11px;color:var(--rp-text-secondary);font-family:'Inter',monospace;word-break:break-all;line-height:1.5;">Ninguna carpeta seleccionada</span>
+                </div>
+
+                <div id="ffPaso2Verificando">
+                    <div class="ff-spinner"></div>
+                    <p style="font-size:12.5px;font-weight:600;color:var(--rp-text-primary);margin-bottom:4px;">Revisando la carpeta…</p>
+                    <p style="font-size:11px;color:var(--rp-text-secondary);">Buscando los documentos con Falta Físico</p>
+                </div>
+
+                <div id="ffPaso2Resumen" class="hidden">
+                    <div style="width:44px;height:44px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);margin:0 auto 14px auto;">
+                        <i data-lucide="check" style="width:20px;height:20px;color:var(--rp-success);"></i>
+                    </div>
+                    <p style="font-size:13px;font-weight:700;color:var(--rp-text-primary);margin-bottom:6px;">Verificación completa</p>
+                    <p style="font-size:11.5px;color:var(--rp-text-secondary);margin-bottom:22px;">
+                        <span id="ffPaso2Encontrados" style="color:var(--rp-success);font-weight:700;">0</span> encontrados &nbsp;·&nbsp;
+                        <span id="ffPaso2NoEncontrados" style="color:var(--rp-error);font-weight:700;">0</span> no encontrados &nbsp;·&nbsp;
+                        <span id="ffPaso2Total" style="color:var(--rp-text-primary);font-weight:700;">0</span> en total
+                    </p>
+                    <div style="display:flex;gap:8px;justify-content:center;">
+                        <button id="ffBtnRegresarFase1" style="padding:9px 16px;background:transparent;color:var(--rp-text-secondary);font-size:11.5px;font-weight:600;border:1px solid var(--rp-border-strong);border-radius:10px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;" onmouseover="this.style.color='var(--rp-text-primary)';this.style.borderColor='var(--rp-text-secondary)';" onmouseout="this.style.color='var(--rp-text-secondary)';this.style.borderColor='var(--rp-border-strong)';">Regresar</button>
+                        <button id="ffBtnContinuarFase3" style="padding:9px 22px;background:var(--rp-violet);color:#fff;font-size:11.5px;font-weight:700;border:none;border-radius:10px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;" onmouseover="this.style.opacity='0.88'" onmouseout="this.style.opacity='1'">Continuar</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Paso 2: Resultados del cruce -->
-            <div id="ffResultadosWrap" class="hidden">
-                <p class="section-label" style="margin-bottom:10px;">Paso 2 — Documentos encontrados</p>
+            <!-- FASE 03: Documentos encontrados -->
+            <div id="ffResultadosWrap" class="ff-fase hidden">
+                <div style="display:flex;align-items:center;margin-bottom:14px;">
+                    <button id="ffBtnRegresarFase2" style="display:flex;align-items:center;gap:5px;padding:6px 11px;background:transparent;color:var(--rp-text-secondary);font-size:10.5px;font-weight:600;border:1px solid var(--rp-border-strong);border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;" onmouseover="this.style.color='var(--rp-text-primary)';this.style.borderColor='var(--rp-text-secondary)';" onmouseout="this.style.color='var(--rp-text-secondary)';this.style.borderColor='var(--rp-border-strong)';">
+                        <i data-lucide="arrow-left" style="width:11px;height:11px;"></i> Regresar
+                    </button>
+                </div>
                 <!-- Stats -->
-                <div class="grid grid-cols-3 gap-3 mb-4">
-                    <div style="background:var(--rp-surface);border:1px solid var(--rp-border);border-radius:10px;padding:10px 14px;">
-                        <p style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--rp-text-secondary);margin-bottom:4px;">Buscados</p>
-                        <p id="ffStatBuscados" style="font-size:18px;font-weight:700;color:var(--rp-text-primary);font-family:monospace;">0</p>
+                <div class="grid gap-3 mb-4" style="grid-template-columns:repeat(3,minmax(0,1fr));">
+                    <div style="background:var(--rp-inset);border:1px solid var(--rp-border);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;">
+                        <div style="display:flex;align-items:center;gap:5px;">
+                            <i data-lucide="list" style="width:11px;height:11px;color:var(--rp-text-secondary);"></i>
+                            <p style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--rp-text-secondary);margin:0;">Buscados</p>
+                        </div>
+                        <p id="ffStatBuscados" style="font-size:19px;font-weight:700;color:var(--rp-text-primary);font-family:monospace;margin:0;">0</p>
                     </div>
-                    <div style="background:var(--rp-surface);border:1px solid var(--rp-border);border-radius:10px;padding:10px 14px;">
-                        <p style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--rp-text-secondary);margin-bottom:4px;">Encontrados</p>
-                        <p id="ffStatEncontrados" style="font-size:18px;font-weight:700;color:var(--rp-success);font-family:monospace;">0</p>
+                    <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.22);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;">
+                        <div style="display:flex;align-items:center;gap:5px;">
+                            <i data-lucide="check-circle-2" style="width:11px;height:11px;color:var(--rp-success);"></i>
+                            <p style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--rp-text-secondary);margin:0;">Encontrados</p>
+                        </div>
+                        <p id="ffStatEncontrados" style="font-size:19px;font-weight:700;color:var(--rp-success);font-family:monospace;margin:0;">0</p>
                     </div>
-                    <div style="background:var(--rp-surface);border:1px solid var(--rp-border);border-radius:10px;padding:10px 14px;">
-                        <p style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--rp-text-secondary);margin-bottom:4px;">No encontrados</p>
-                        <p id="ffStatNoEncontrados" style="font-size:18px;font-weight:700;color:var(--rp-error);font-family:monospace;">0</p>
+                    <div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.22);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;">
+                        <div style="display:flex;align-items:center;gap:5px;">
+                            <i data-lucide="x-circle" style="width:11px;height:11px;color:var(--rp-error);"></i>
+                            <p style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--rp-text-secondary);margin:0;">No encontrados</p>
+                        </div>
+                        <p id="ffStatNoEncontrados" style="font-size:19px;font-weight:700;color:var(--rp-error);font-family:monospace;margin:0;">0</p>
                     </div>
                 </div>
                 <!-- Tabla de resultados -->
-                <div class="card-bento overflow-hidden">
-                    <div class="table-container overflow-x-auto" style="max-height:260px;">
+                <div style="background:var(--rp-surface);border:1px solid var(--rp-border);border-radius:14px;overflow:hidden;">
+                    <div class="table-container overflow-x-auto" style="max-height:260px;padding-right:2px;">
                         <table class="w-full text-left border-collapse" style="min-width:500px;">
                             <thead>
-                                <tr class="border-b border-zinc-900 bg-zinc-950/50">
-                                    <th class="px-4 py-3 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Estado</th>
-                                    <th class="px-4 py-3 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Fecha</th>
-                                    <th class="px-4 py-3 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Código Generación</th>
-                                    <th class="px-4 py-3 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Archivo PDF</th>
-                                    <th class="px-4 py-3 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider text-right">Monto Gravado</th>
-                                    <th class="px-4 py-3 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider text-center">Impresión</th>
+                                <tr style="border-bottom:1px solid var(--rp-border);background:var(--rp-inset);">
+                                    <th class="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider" style="color:var(--rp-text-secondary);">Estado</th>
+                                    <th class="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider" style="color:var(--rp-text-secondary);">Fecha</th>
+                                    <th class="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider" style="color:var(--rp-text-secondary);">Código Generación</th>
+                                    <th class="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider" style="color:var(--rp-text-secondary);">Archivo PDF</th>
+                                    <th class="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-right" style="color:var(--rp-text-secondary);">Monto Gravado</th>
+                                    <th class="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-center" style="color:var(--rp-text-secondary);">Impresión</th>
                                 </tr>
                             </thead>
                             <tbody id="ffResultadosBody"></tbody>
@@ -8994,24 +9081,24 @@
             <div id="ffProgressWrap" class="hidden">
                 <p class="section-label" style="margin-bottom:8px;">Abriendo PDFs…</p>
                 <div style="background:var(--rp-border);border-radius:999px;height:6px;overflow:hidden;">
-                    <div id="ffProgressBar" style="height:100%;width:0%;background:var(--rp-accent);border-radius:999px;transition:width 0.3s;"></div>
+                    <div id="ffProgressBar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--rp-accent),var(--rp-violet-soft));border-radius:999px;transition:width 0.3s;"></div>
                 </div>
                 <p id="ffProgressLabel" class="text-xs text-zinc-500 mt-2"></p>
             </div>
 
         </div>
 
-        <footer class="px-8 py-5 border-t border-[var(--rp-border)] flex justify-between items-center bg-zinc-950/60 flex-shrink-0">
-            <button id="ffBtnCerrar" class="px-6 py-2 text-xs font-medium text-zinc-400 hover:text-white transition flex-shrink-0">Cerrar</button>
-            <div class="flex items-center gap-2 flex-wrap justify-end">
-                <button id="ffBtnExportExcel" onclick="ffExportarExcel()" style="display:none;color:var(--rp-success);border-color:rgba(34,197,94,0.35);background:rgba(34,197,94,0.07);" class="flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-lg border transition flex-shrink-0" onmouseover="this.style.background='rgba(34,197,94,0.15)'" onmouseout="this.style.background='rgba(34,197,94,0.07)'" title="Exportar lista falta físico a Excel">
-                    <i data-lucide="download" class="w-3.5 h-3.5"></i> Excel
+        <footer style="padding:18px 28px;border-top:1px solid var(--rp-border);background:var(--rp-inset);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+            <button id="ffBtnCerrar" style="padding:9px 18px;background:transparent;color:var(--rp-text-secondary);font-size:11.5px;font-weight:600;border:1px solid transparent;border-radius:10px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;flex-shrink:0;" onmouseover="this.style.background='var(--rp-border)';this.style.color='var(--rp-text-primary)';" onmouseout="this.style.background='transparent';this.style.color='var(--rp-text-secondary)';">Cerrar</button>
+            <div id="ffFooterAcciones" class="flex items-center gap-2 flex-wrap justify-end" style="display:none;">
+                <button id="ffBtnExportExcel" onclick="ffExportarExcel()" style="display:none;align-items:center;gap:7px;padding:10px 16px;font-size:11.5px;font-weight:600;border-radius:10px;cursor:pointer;font-family:'Inter',sans-serif;flex-shrink:0;transition:all .15s;color:var(--rp-success);border:1px solid rgba(34,197,94,0.32);background:rgba(34,197,94,0.07);" onmouseover="this.style.background='rgba(34,197,94,0.15)'" onmouseout="this.style.background='rgba(34,197,94,0.07)'" title="Exportar lista falta físico a Excel">
+                    <i data-lucide="download" style="width:13px;height:13px;"></i> Excel
                 </button>
-                <button id="ffBtnImprimirDirecto" style="display:none;" class="flex items-center gap-2 px-4 py-2.5 bg-emerald-700 text-white text-xs font-bold rounded-lg hover:bg-emerald-600 transition flex-shrink-0 whitespace-nowrap">
-                    <i data-lucide="printer" class="w-3.5 h-3.5"></i> Imprimir en serie &nbsp;<span id="ffBtnCountDirecto" style="background:rgba(255,255,255,0.15);border-radius:999px;padding:1px 8px;">0</span>
+                <button id="ffBtnImprimirDirecto" style="display:none;align-items:center;gap:7px;padding:10px 18px;background:#0d7a52;color:#fff;font-size:11.5px;font-weight:700;border:none;border-radius:10px;cursor:pointer;font-family:'Inter',sans-serif;flex-shrink:0;white-space:nowrap;transition:all .15s;" onmouseover="this.style.background='#0f9463'" onmouseout="this.style.background='#0d7a52'">
+                    <i data-lucide="printer" style="width:13px;height:13px;"></i> Imprimir en serie &nbsp;<span id="ffBtnCountDirecto" style="background:rgba(255,255,255,0.18);border-radius:999px;padding:1px 8px;">0</span>
                 </button>
-                <button id="ffBtnImprimir" style="display:none;" class="flex items-center gap-2 px-4 py-2.5 bg-violet-600 text-white text-xs font-bold rounded-lg hover:bg-violet-500 transition flex-shrink-0 whitespace-nowrap">
-                    <i data-lucide="folder-open" class="w-3.5 h-3.5"></i> Abrir PDFs &nbsp;<span id="ffBtnCount" style="background:rgba(255,255,255,0.15);border-radius:999px;padding:1px 8px;">0</span>
+                <button id="ffBtnImprimir" style="display:none;align-items:center;gap:7px;padding:10px 18px;background:var(--rp-violet);color:#fff;font-size:11.5px;font-weight:700;border:none;border-radius:10px;cursor:pointer;font-family:'Inter',sans-serif;flex-shrink:0;white-space:nowrap;transition:all .15s;" onmouseover="this.style.opacity='0.88'" onmouseout="this.style.opacity='1'">
+                    <i data-lucide="folder-open" style="width:13px;height:13px;"></i> Abrir PDFs &nbsp;<span id="ffBtnCount" style="background:rgba(255,255,255,0.18);border-radius:999px;padding:1px 8px;">0</span>
                 </button>
             </div>
         </footer>

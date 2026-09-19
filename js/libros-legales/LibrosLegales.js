@@ -547,6 +547,7 @@
         var firmaGuardada = getFirmaConfig();
         document.getElementById('firma_nombre').value = firmaGuardada ? firmaGuardada.nombre : '';
         document.getElementById('firma_cargo').value  = firmaGuardada ? (firmaGuardada.cargo || '') : '';
+        llPoblarSelectorFuente(getFuenteImpresionGuardada()); // AGREGADO NUEVO (Cambio 01)
 
         // Mostrar toggle de resumen en CF y CCF — igual para impresión y para PDF
         var toggleWrap = document.getElementById('firmaResumenToggleWrap');
@@ -581,7 +582,7 @@
         abrirModalConfigLibro(tipo, 'pdf');
     }
 
-    function construirSnapshotLibroLegal(tipo, nombreFirmante, cargoFirmante) {
+    function construirSnapshotLibroLegal(tipo, nombreFirmante, cargoFirmante, fuenteId) {
         // ================================================================
         // Implementación 03 — SNAPSHOT ÚNICO COMPARTIDO
         //
@@ -667,7 +668,7 @@
             '<meta charset="UTF-8">' +
             '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
             '<style>' +
-            pceLibroPrintCss(pcfg, orientacion, colWidths) +
+            pceLibroPrintCss(pcfg, orientacion, colWidths, fuenteId) +
             '</style>' +
             '</head>' +
             '<body>' +
@@ -678,12 +679,12 @@
         return { htmlSnapshot: htmlSnapshot, tableEl: tableEl, emp: emp, titulo: titulo };
     }
 
-    function generarPDFLibro(tipo, nombreFirmante, cargoFirmante) {
+    function generarPDFLibro(tipo, nombreFirmante, cargoFirmante, fuenteId) {
         // "Descargar PDF" reutiliza el mismo snapshot (HTML + datos + estilos +
         // configuración) que "Imprimir Libro". La única diferencia entre ambas
         // rutas es el destino final: aquí se guarda un archivo .pdf en vez de
         // enviarse a impresión.
-        var snapshot = construirSnapshotLibroLegal(tipo, nombreFirmante, cargoFirmante);
+        var snapshot = construirSnapshotLibroLegal(tipo, nombreFirmante, cargoFirmante, fuenteId);
         if (!snapshot) return;
 
         var emp = snapshot.emp;
@@ -766,12 +767,17 @@
         }
 
         saveFirmaConfig(nombreFirmante, cargoFirmante);
+
+        // AGREGADO NUEVO (Cambio 01): tipo de letra elegido para el libro
+        var selFuente = document.getElementById('firma_fuente');
+        var fuenteId  = selFuente ? selFuente.value : getFuenteImpresionGuardada();
+        saveFuenteImpresion(fuenteId);
         closeFirmaModal();
 
         // "Descargar PDF" usa el mismo snapshot que "Imprimir Libro"
         // (ver construirSnapshotLibroLegal); solo cambia el destino final.
         if (_firmaModalMode === 'pdf') {
-            generarPDFLibro(currentPrintType, nombreFirmante, cargoFirmante);
+            generarPDFLibro(currentPrintType, nombreFirmante, cargoFirmante, fuenteId);
             _firmaModalMode = 'print';
             return;
         }
@@ -787,7 +793,7 @@
         // principal. main.js crea una BrowserWindow de impresión independiente
         // y ejecuta webContents.print() sobre ese documento aislado.
         // ================================================================
-        var snapshot = construirSnapshotLibroLegal(tipo, nombreFirmante, cargoFirmante);
+        var snapshot = construirSnapshotLibroLegal(tipo, nombreFirmante, cargoFirmante, fuenteId);
         if (!snapshot) return;
 
         // La limpieza ocurre únicamente cuando el proceso de impresión
