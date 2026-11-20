@@ -18,6 +18,9 @@
         document.getElementById('exp-count-f14').innerText        = f14Records.length;
         document.getElementById('exp-count-quincena25').innerText = quincena25Records.length;
         document.getElementById('exp-count-anulados').innerText   = anuladosRecords.length;
+        // AGREGADO 01 — Inventario Físico (anual): cuenta los registros del ejercicio activo
+        var _expInv = document.getElementById('exp-count-inventario');
+        if (_expInv && typeof inventarioContar === 'function') _expInv.innerText = inventarioContar();
     }
 
     // ══════════════════════════════════════════════════════════════════

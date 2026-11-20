@@ -4632,6 +4632,7 @@
                     <!-- CAMBIO 01: Reorganización visual — Anexos Especiales -->
                     <span class="submenu-group-label">Anexos Especiales</span>
                     <a href="#" onclick="switchScreen('quincena25Screen')" class="block px-4 py-1.5 text-xs hover:text-white">Quincena Veinticinco</a>
+                    <a href="#" onclick="switchScreen('inventarioFisicoScreen')" class="block px-4 py-1.5 text-xs hover:text-white">Inventario Físico</a>
                 </div>
             </div>
             <!-- Libros Legales en Sidebar -->
@@ -5238,6 +5239,15 @@
                     </div>
                     <span class="export-count bg-emerald-600/10 text-emerald-400" id="exp-count-quincena25">0</span>
                 </div>
+                <!-- AGREGADO 01: Inventario Físico (anexo anual) en Exportación -->
+                <div class="export-item" onclick="exportCSV('inventario')">
+                    <div class="export-icon bg-emerald-600/10"><i data-lucide="package" class="w-4 h-4 text-emerald-500"></i></div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm text-white font-medium">Inventario Físico</p>
+                        <p class="text-[10px] text-zinc-500 mt-0.5">Anexo Especial — Bienes de Activo Realizable o Corriente (anual)</p>
+                    </div>
+                    <span class="export-count bg-emerald-600/10 text-emerald-400" id="exp-count-inventario">0</span>
+                </div>
             </div>
         </div>
 
@@ -5817,6 +5827,62 @@
                             </tr>
                         </thead>
                         <tbody id="quincena25TableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <!-- AGREGADO 01: PANTALLA INVENTARIO FÍSICO (anexo anual)               -->
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <div id="inventarioFisicoScreen" class="hidden screen">
+            <header class="flex justify-between items-center mb-8">
+                <div>
+                    <h1 class="text-2xl font-medium text-white tracking-tight">Inventario Físico</h1>
+                    <p class="text-zinc-500 text-sm mt-1 font-light">Anexo Especial — Bienes de Activo Realizable o Corriente (anual).</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 mr-2">
+                        <label class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider" for="inventario_anioInput">Ejercicio</label>
+                        <input type="number" id="inventario_anioInput" min="2000" max="2100" class="f-input" style="width:90px;" onchange="inventarioCambiarAnio()">
+                    </div>
+                    <button onclick="inventarioBorrarTodo()" class="flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-lg border transition" style="color:var(--rp-error);border-color:rgba(248,113,113,0.3);background:rgba(248,113,113,0.05);" onmouseover="this.style.background='rgba(248,113,113,0.12)';this.style.borderColor='rgba(248,113,113,0.5)';" onmouseout="this.style.background='rgba(248,113,113,0.05)';this.style.borderColor='rgba(248,113,113,0.3)';" title="Borrar todo el inventario del ejercicio">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Borrar
+                    </button>
+                    <button onclick="inventarioAbrirImportar()" class="flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-lg border border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-600 transition">
+                        <i data-lucide="upload" class="w-3.5 h-3.5"></i> Importar CSV
+                    </button>
+                    <input type="file" id="inventarioCsvInput" accept=".csv" class="hidden" onchange="handleInventarioCsvFile(this.files[0])">
+                    <button onclick="openInventarioModal()" class="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-500 transition shadow-lg shadow-blue-900/20">
+                        <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Agregar
+                    </button>
+                </div>
+            </header>
+            <div class="card-bento overflow-hidden">
+                <div class="global-search-wrap">
+                    <div class="global-search-wrapper">
+                        <svg class="global-search-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input type="text" id="searchInventario" class="global-search-input" placeholder="Buscar por denominación, código, unidad…" oninput="filterTable('inventario')">
+                    </div>
+                    <p id="inventarioStats" class="text-[11px] text-zinc-500 mt-2"></p>
+                </div>
+                <div class="table-container overflow-x-auto">
+                    <table class="w-full text-left border-collapse min-w-[1400px]">
+                        <thead>
+                            <tr class="border-b border-zinc-900 bg-zinc-950/50">
+                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Denominación y Descripción</th>
+                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Código</th>
+                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Unidad</th>
+                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider text-right">Unidades</th>
+                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider text-right">Costo Unit. s/IVA</th>
+                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider text-right text-blue-400">Costo Total</th>
+                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Categoría</th>
+                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Ref. en Libros</th>
+                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Ejercicio</th>
+                                <th class="px-4 py-4 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider sticky col-acciones right-0" style="background:var(--rp-surface);">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventarioTableBody"></tbody>
                     </table>
                 </div>
             </div>
@@ -7641,6 +7707,100 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- AGREGADO 01: MODAL INVENTARIO FÍSICO                                -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div id="inventarioModalForm" class="fixed inset-0 modal-overlay z-50 hidden items-center justify-center p-4" style="display:none">
+    <div class="bg-[var(--rp-surface)] border border-[var(--rp-border)] w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col" style="max-height:90vh;">
+        <header class="px-8 pt-7 pb-5 border-b border-[var(--rp-border)] bg-zinc-950/60 flex-shrink-0">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-zinc-600 mb-1">Anexo Especial — Inventario Físico</p>
+                    <h2 id="inventarioModalTitle" class="text-white font-semibold text-lg tracking-tight">Nuevo Bien — Inventario Físico</h2>
+                </div>
+                <button onclick="closeInventarioModal()" class="text-zinc-600 hover:text-white transition mt-1"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+        </header>
+        <div class="overflow-y-auto flex-1 px-8 py-7">
+            <input type="hidden" id="inventario_editIndex">
+            <input type="hidden" id="inventario_fManual" value="0">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                <div class="md:col-span-2">
+                    <label class="f-label">Denominación del Bien y Descripción</label>
+                    <input type="text" id="inventario_denominacion" class="f-input" placeholder="Nombre del bien y breve descripción (máx. 50)" maxlength="50" autocomplete="off">
+                </div>
+                <div>
+                    <label class="f-label">Código de Inventario del Bien</label>
+                    <input type="text" id="inventario_codigo" class="f-input" placeholder="Máx. 25 caracteres" maxlength="25" autocomplete="off">
+                </div>
+                <div>
+                    <label class="f-label">Unidad de Medida</label>
+                    <input type="text" id="inventario_unidad" class="f-input" placeholder="Texto o número (máx. 25)" maxlength="25" autocomplete="off">
+                </div>
+                <div>
+                    <label class="f-label">Total de Unidades / Inventario Final</label>
+                    <input type="text" inputmode="decimal" id="inventario_unidades" class="f-input" placeholder="Hasta 12 enteros y 10 decimales" oninput="onInventarioDEInput(this)" autocomplete="off">
+                </div>
+                <div>
+                    <label class="f-label">Costo Unitario Neto sin IVA</label>
+                    <input type="text" inputmode="decimal" id="inventario_costoUnit" class="f-input" placeholder="Hasta 12 enteros y 10 decimales" oninput="onInventarioDEInput(this)" autocomplete="off">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="f-label blue">Costo Total (D × E — editable)</label>
+                    <div class="flex gap-2">
+                        <input type="text" inputmode="decimal" id="inventario_costoTotal" class="f-input flex-1" placeholder="Se calcula automáticamente" oninput="onInventarioTotalInput(this)" autocomplete="off">
+                        <button type="button" onclick="inventarioRecalcularTotal()" class="px-4 py-2 text-xs font-medium text-zinc-300 hover:text-white border border-zinc-800 hover:border-zinc-600 rounded-lg transition" title="Vuelve a calcular el costo total como D × E">Recalcular</button>
+                    </div>
+                </div>
+                <div>
+                    <label class="f-label">Categoría del Bien</label>
+                    <select id="inventario_categoria" class="f-input">
+                        <option value="">— Seleccione —</option>
+                        <option value="01">01 — Productos terminados</option>
+                        <option value="02">02 — Productos en proceso</option>
+                        <option value="03">03 — Materia prima</option>
+                        <option value="04">04 — Bienes para la construcción</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="f-label">Referencia en Libros</label>
+                    <select id="inventario_referencia" class="f-input">
+                        <option value="">— Seleccione —</option>
+                        <option value="01">01 — Costos</option>
+                        <option value="02">02 — Retaceos</option>
+                        <option value="03">03 — Compras locales</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="f-label">Ejercicio Fiscal</label>
+                    <input type="text" id="inventario_ejercicio" class="f-input" readonly tabindex="-1" title="Se cambia desde el selector Ejercicio de la pantalla">
+                </div>
+            </div>
+        </div>
+        <footer class="px-8 py-5 border-t border-[var(--rp-border)] flex justify-between items-center bg-zinc-950/60 flex-shrink-0">
+            <div id="inventario-footer-new" class="flex w-full justify-between items-center">
+                <button onclick="closeInventarioModal()" class="px-6 py-2 text-xs font-medium text-zinc-400 hover:text-white transition">Cancelar</button>
+                <button onclick="saveInventarioRecord()" class="px-8 py-2 bg-white text-black text-xs font-bold rounded-lg hover:bg-zinc-200 transition">Guardar y Agregar Otro</button>
+            </div>
+            <div id="inventario-footer-edit" class="hidden w-full justify-between items-center">
+                <div class="flex gap-2">
+                    <button onclick="navInventarioRecord(-1)" class="flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-zinc-400 hover:text-white border border-zinc-800 hover:border-zinc-600 rounded-lg transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg> Anterior
+                    </button>
+                    <button onclick="navInventarioRecord(1)" class="flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-zinc-400 hover:text-white border border-zinc-800 hover:border-zinc-600 rounded-lg transition">
+                        Siguiente <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                    <span id="inventario-nav-pos" class="text-[10px] text-zinc-600 self-center ml-1 font-mono"></span>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="closeInventarioModal()" class="px-6 py-2 text-xs font-medium text-zinc-400 hover:text-white transition">Cerrar</button>
+                    <button onclick="saveInventarioRecord()" class="px-8 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-500 transition">Guardar Cambios</button>
+                </div>
+            </div>
+        </footer>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
 <!-- AGREGADO 01: MODAL QUINCENA VEINTICINCO                             -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <div id="quincena25ModalForm" class="fixed inset-0 modal-overlay z-50 hidden items-center justify-center p-4" style="display:none">
@@ -8263,6 +8423,7 @@
     <script src="js/libros-iva/SujetoExcluido.js"></script>
     <script src="js/libros-iva/RetencionesF14.js"></script>
     <script src="js/libros-iva/Quincena25.js"></script>
+    <script src="js/inventario-fisico/InventarioFisico.js"></script>
     <script src="js/libros-iva/Anulados.js"></script>
     <script src="js/libros-legales/FuentesImpresion.js"></script>
     <script src="js/libros-legales/LibrosLegales.js"></script>

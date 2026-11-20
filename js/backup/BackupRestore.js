@@ -202,6 +202,8 @@
                 key.startsWith('fs_res_v' + APP_VERSION + '_') ||
                 key.startsWith('fs_prov_v' + APP_VERSION + '_') ||
                 key.startsWith('fs_rev_v' + APP_VERSION + '_') ||
+                // AGREGADO 01: Inventario Físico (anexo anual) entra en respaldo/restauración
+                key.startsWith('fs_inv_v' + APP_VERSION + '_') ||
                 // AGREGADO (Cambio 01): Clientes, Empleados y Correos entran al backup completo
                 key.startsWith('fs_clientes_v' + APP_VERSION + '_') ||
                 key.startsWith('fs_empleados_v' + APP_VERSION + '_') ||
@@ -421,6 +423,8 @@
                     key.startsWith('fs_res_v' + APP_VERSION + '_') ||
                     key.startsWith('fs_prov_v' + APP_VERSION + '_') ||
                     key.startsWith('fs_rev_v' + APP_VERSION + '_') ||
+                    // AGREGADO 01: Inventario Físico (anexo anual) entra en respaldo/restauración
+                    key.startsWith('fs_inv_v' + APP_VERSION + '_') ||
                     // AGREGADO (Cambio 01): limpiar también Clientes, Empleados y Correos antes de restaurar
                     key.startsWith('fs_clientes_v' + APP_VERSION + '_') ||
                     key.startsWith('fs_empleados_v' + APP_VERSION + '_') ||

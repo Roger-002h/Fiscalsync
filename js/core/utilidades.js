@@ -183,12 +183,12 @@
         var searchId    = { debito: 'searchDebito', cf: 'searchCf', compras: 'searchCompras',
                             percibido: 'searchPercibido', retenido: 'searchRetenido',
                             anticipo: 'searchAnticipo', excluido: 'searchExcluido',
-                            f14: 'searchF14', quincena25: 'searchQuincena25', anulados: 'searchAnulados' };
+                            f14: 'searchF14', quincena25: 'searchQuincena25', anulados: 'searchAnulados', inventario: 'searchInventario' };
         var revSearchId = { debito: 'revSearchDebito', cf: 'revSearchCf', compras: 'revSearchCompras' };
         var tbodyId     = { debito: 'debitoTableBody', cf: 'cfTableBody', compras: 'comprasTableBody',
                             percibido: 'percibidoTableBody', retenido: 'retenidoTableBody',
                             anticipo: 'anticipoTableBody', excluido: 'excluidoTableBody',
-                            f14: 'f14TableBody', quincena25: 'quincena25TableBody', anulados: 'anuladosTableBody' };
+                            f14: 'f14TableBody', quincena25: 'quincena25TableBody', anulados: 'anuladosTableBody', inventario: 'inventarioTableBody' };
 
         var normalInput = document.getElementById(searchId[libro]);
         var revInput    = document.getElementById(revSearchId[libro]);

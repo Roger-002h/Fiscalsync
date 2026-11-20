@@ -18,7 +18,7 @@
         var ids = ['homeScreen','jsonScreen','csvScreen','debitoFiscalScreen','consumidorFinalScreen','comprasScreen',
          'percibidoScreen','retenidoScreen','anticipoScreen','excluidoScreen','exportScreen','librosLegalesScreen',
          'retencionesF14Screen','quincena25Screen','anuladosScreen','proveedoresScreen','clientesScreen','empleadosScreen','correosScreen',
-         'gestionCatalogosScreen','escaneoDocumentosScreen'];
+         'gestionCatalogosScreen','escaneoDocumentosScreen','inventarioFisicoScreen'];
 
         function activarPantalla() {
             var el = document.getElementById(showId);
@@ -33,6 +33,7 @@
             });
             if (showId === 'exportScreen') updateExportCounts();
             if (showId === 'librosLegalesScreen') { updateLibrosLegalesCounts(); resetLibrosLegalesView(); }
+            if (showId === 'inventarioFisicoScreen') { inventarioFisicoOnEnter(); }
             if (showId === 'proveedoresScreen') { renderProveedoresTable(); }
             if (showId === 'clientesScreen') { renderClientesTable(); }
             if (showId === 'empleadosScreen') { renderEmpleadosTable(); }

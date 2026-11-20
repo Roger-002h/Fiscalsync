@@ -23,6 +23,9 @@
     let f14Records      = []; // AGREGADO NUEVO
     let quincena25Records = []; // AGREGADO 01 — Quincena Veinticinco
     let anuladosRecords = [];
+    // AGREGADO 01 — Inventario Físico (anexo ANUAL: se guarda por empresa + ejercicio, no por mes)
+    let inventarioRecords = [];
+    let inventarioAnio    = null; // ejercicio fiscal que se está viendo (se inicializa con currentYear)
 
     let empresas = [];
     let activeEmpresaId = null;

@@ -237,7 +237,9 @@
         return lines.join('\r\n');
     }
 
-    function downloadCSV(filename, content) {
+    // opts.anio (opcional): para anexos ANUALES. Usa empresa + año en el nombre y en la
+    // carpeta, en lugar de mes + año. Sin opts el comportamiento es el de siempre.
+    function downloadCSV(filename, content, opts) {
         // Agregar nombre de empresa y mes al nombre del archivo
         var empNombre = '';
         var empRazonCompleta = '';
@@ -248,14 +250,15 @@
                 empRazonCompleta = empActual.razon;
             }
         }
-        var mesStr = MONTH_NAMES[currentMonth] + '_' + currentYear;
+        var _anual = !!(opts && opts.anio);
+        var mesStr = _anual ? String(opts.anio) : (MONTH_NAMES[currentMonth] + '_' + currentYear);
         var prefix = (empNombre ? empNombre + '_' : '') + mesStr + '_';
         var finalFilename = prefix + filename;
 
         // ── Exportación automática (Electron): guarda directamente en
         //    Escritorio/FiscalSync - [Mes]/[Empresa]/ sin pedir carpeta al usuario ──
         if (window.fiscalAPI && window.fiscalAPI.isElectron && window.fiscalAPI.saveExportFile) {
-            var mesLabel = MONTH_NAMES[currentMonth] + ' ' + currentYear;
+            var mesLabel = _anual ? ('Anual ' + opts.anio) : (MONTH_NAMES[currentMonth] + ' ' + currentYear);
             window.fiscalAPI.saveExportFile({
                 mes:      mesLabel,
                 empresa:  empRazonCompleta || 'Sin_Empresa',
@@ -294,7 +297,7 @@
     }
 
     function exportCSV(type) {
-        var rows, filename;
+        var rows, filename, optsDescarga;
         var f = function(n) { return (n || 0).toFixed(2); };
 
         // Helper: detecta si un registro está marcado como anulado usando _id único
@@ -544,11 +547,20 @@
                 filename = 'Docs_Anulados_Invalidados.csv';
                 break;
 
+            // AGREGADO 01 — Inventario Físico (anexo anual, 9 columnas sin encabezados)
+            case 'inventario':
+                var _inv = inventarioFilasExport();
+                if (!_inv) return;
+                rows = _inv.rows;
+                filename = 'Inventario_Fisico_Bienes_Activo_Realizable.csv';
+                optsDescarga = { anio: _inv.anio };
+                break;
+
             default:
                 return;
         }
 
-        downloadCSV(filename, buildCSV(rows));
+        downloadCSV(filename, buildCSV(rows), optsDescarga);
         // Título diferenciado por tipo de CSV (punto 10 de la especificación).
         // La cantidad de documentos proviene siempre de "rows" (los mismos
         // registros ya filtrados/ordenados arriba) — nunca se inventa.
@@ -562,7 +574,8 @@
             excluido: 'CSV de Sujeto Excluido generado',
             f14: 'CSV de Retenciones F14 generado',
             quincena25: 'CSV de Quincena 25 generado',
-            anulados: 'CSV de Documentos Anulados generado'
+            anulados: 'CSV de Documentos Anulados generado',
+            inventario: 'CSV de Inventario Físico generado'
         };
         showToast(rows.length + ' documento(s) fueron exportados correctamente.', 'success', {
             title: _csvTitles[type] || 'CSV exportado',
